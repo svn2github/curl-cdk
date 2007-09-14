@@ -1,0 +1,89 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| ==================== \\
+|| test extenstions
+{import * from COM.CURL.CDK.SQLITE}
+{import * from CURL.DATA-ACCESS.BASE}
+
+{define-class public SQLiteDatabaseTestSuite {inherits TestSuite}
+  field public-get constant location:#Url
+  field public-get constant database:SQLiteDatabase
+  {constructor public {default 
+                          location:#Url,
+                          name:#String = null,
+                          init-proc:#{proc-type {SQLiteDatabase}:void} = null
+                      }
+    set self.location = location
+    {construct-super 
+        {if-non-null location 
+         then location.filename 
+         else ":memory:"}}
+    set self.database = {SQLiteDatabase self.location, self.name}
+    {if-non-null init-proc then
+        {init-proc self.database}}
+    {self.generate-tests}
+  }
+  {method {generate-tests}:void
+    let s-tables:SQLiteStatement = 
+        {self.database.create-statement
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"}
+    {for table in {s-tables.get-column} do
+        {self.add
+            {self.generate-test table asa String, "table"}}}
+    let s-views:SQLiteStatement = 
+        {self.database.create-statement
+            "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"}
+    {for view in {s-views.get-column} do
+        {self.add
+            {self.generate-test view asa String, "view"}}}
+  }
+  {method {generate-test name:String, kind:String}:Test
+    {return
+        {test-case name,
+            let s:SQLiteStatement = 
+                {self.database.create-statement 
+                    {format "SELECT * from %s;", name}}
+            let xs:{Array-of Array} = {s.get-rows}
+            {TestCondition.succeed message = 
+                {lmessage {value kind} '{value name}' : {value xs.size} rows}}
+        }}
+  }
+}
+{define-proc {import-csv-files db:SQLiteDatabase, locs:UrlArray}:void
+    {for loc in locs do
+        {SQLiteStatement.import-csv db, loc.basename, loc}
+    }
+}
+|| ==================== \\
+
+{TestSuite "databases",
+    {SQLiteDatabaseTestSuite {url "../test-data/cbi-data.db"}},
+    {SQLiteDatabaseTestSuite {url "../test-data/census.db"}},
+    {SQLiteDatabaseTestSuite null, name = "OE",
+        init-proc =
+            {proc {db:SQLiteDatabase}:void
+                let sql:StringBuf = 
+                    {read-from {url "../test-data/oe-data/define.sql"}}
+                {db.execute {sql.to-String}}
+                {import-csv-files db,
+                    {UrlArray
+                        {url "../test-data/oe-data/customer.csv"},
+                        {url "../test-data/oe-data/product.csv"},
+                        {url "../test-data/oe-data/orders.csv"},
+                        {url "../test-data/oe-data/item.csv"}}}
+            }}
+}

@@ -1,0 +1,158 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| ConnectedRecordSet protocol
+|| --------------------
+{define-class SQLiteRecordSet {inherits ConnectedRecordSet, BasicRecordSet}
+  || ConnectedRecordSet protocol
+  {getter public {connection}:SQLiteConnection
+    {return super.connection asa SQLiteConnection}
+  }
+  || construction
+  {constructor {default
+                   connection:Connection,
+                   database:String,
+                   query:String,
+                   request-modifiable?:bool = false,
+                   size-limit:int = -1,
+                   ...:EventHandler}
+    {construct-super.ConnectedRecordSet connection, database, query, 
+        request-modifiable?, size-limit}
+    {construct-super.BasicRecordSet {EmptyRecordFields}, {splice ...}}
+    || so it does not start empty
+    {self.load}
+    || confirm modifiability
+    || TODO: table-name is too inclusive    
+    let table-name:#String = {SQLWriter.table-name-from-query self.query}
+    set self.modifiable? =
+        (request-modifiable? and
+         || TODO: how determine modifiability?
+         || -- for now, tables modifiable, otherwise not
+         table-name != null)
+  }
+  || ConnectedRecordSet protocol
+  {method public {load}:void
+    {with 
+        self.batch-events? = true,
+        self.modifiable? = true
+     do
+        set self.load-state = RecordSetLoadState.synchronizing
+        {self.load-internal}
+        set self.load-state = RecordSetLoadState.complete}
+  }
+  {method public {fill
+                     database-name:String = self.database-name,
+                     query:String = self.query,
+                     request-modifiable?:bool = false,
+                     size-limit:int = -1
+                 }:void
+    let changed?:bool = 
+        (self.database-name != database-name or
+         self.query != query)
+    set self.database-name = database-name
+    set self.query = query
+    set self.size-limit = size-limit
+    let fields:#RecordFields = 
+        {if changed? then
+            {self.connection.get-fields self.database-name, self.query}
+         else null}
+    set self.request-modifiable? = request-modifiable?
+    || refresh fields if necessary
+    || -- this fires proper notifications (RFC, RSBC)
+    {self.init fields = fields}
+    set self.load-state = RecordSetLoadState.unloaded
+    || refresh contents
+    || TODO: assure proper modifiability
+    {self.load}
+  }
+  field _load-state:RecordSetLoadState
+  {setter public open {load-state value:RecordSetLoadState}:void
+    {if self._load-state != value then
+        set self._load-state = value
+        {self.trigger-record-set-event {RecordSetLoadStateChanged}}}
+  }
+  {getter public open {load-state}:RecordSetLoadState
+    {return self._load-state}
+  }
+  || implementation
+  {method {load-internal}:void
+    let connection:SQLiteConnection = self.connection
+    let database:String = self.database-name
+    let query:String = self.query
+    let fields:RecordFields = {connection.get-fields database, query}
+    {self.init fields = fields}
+    let data:{Array-of Array} = {connection.select query}
+    || use (faster) internal-store-record
+    || NOTE: no need for domain conversion here
+    {for d in data do
+        let r:BasicRecord = {self.allocate-record}
+        {for i = 0 below d.size do
+            {r.internal-set-value i, d[i], for-init? = true}}
+        {self.internal-store-record r, RecordState.original}}
+    {super.commit}
+  }
+  || transactions
+  {method public {commit}:void
+    
+    || confirm records changed
+    {unless self.pending-update? do
+        {return}}
+  
+    || first phase -- external commit
+    let sql:StringBuf = {StringBuf}
+    let writer:SQLWriter = 
+        {SQLWriter
+            self.table-name,
+            self.fields,
+            use-rowid = "ROWID"}
+    {for r in self do
+        {if r.pending-update? then
+            {writer.gen-sql-update sql, r}
+        }}
+    {self.connection.execute "BEGIN IMMEDIATE;"}
+    {try
+        {self.connection.execute {sql.to-String}}
+        {self.connection.execute "COMMIT;"}
+     catch e:Exception do
+        {self.connection.execute "ROLLBACK;"}
+        {throw {CommitFailed e.message}}
+    }
+   
+    || second phase -- internal commit
+    {with self.batch-events? = true do
+        {for r in {self.select filter = RecordFilter.pending-update} do
+            {self.commit-record (r asa BasicRecord)}}}
+  }
+  || derive table name (for update) from SQL query
+  {getter {table-name}:String
+    let query:String = self.query
+    {return
+        {if-non-null 
+            name = {SQLWriter.table-name-from-query query}
+         then name
+         else query}}
+  }
+}
+{define-class public ExtendedRecordField {inherits DefaultRecordField}
+  field public-get constant primary-key?:bool 
+  {constructor {default
+                   primary-key?:bool = false,
+                   ...}
+    set self.primary-key? = primary-key?
+    {construct-super {splice ...}}
+  }
+}
+

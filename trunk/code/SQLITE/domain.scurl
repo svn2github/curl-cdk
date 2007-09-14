@@ -1,0 +1,187 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public SQLiteVariantDomain {inherits StandardAnyDomain}
+  field affinity:SQLiteDatatypeAffinity
+  {constructor public {default 
+                          affinity:SQLiteDatatypeAffinity = 
+                              SQLiteDatatypeAffinity.NONE,
+                          ...}
+    set self.affinity = affinity
+    {construct-super {splice ...}}
+  }
+  {factory public {from-affinity affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
+    {return SQLiteVariantDomain.cache[affinity]}
+  }
+  let constant cache:{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain} =
+      {{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain}
+        {proc {affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
+            {return {SQLiteVariantDomain affinity = affinity}}
+        }}
+  
+  {method public {validate x:any}:#ValidationException
+    let (dt:SQLiteDatatype, valid?:bool) = {self.storage-class-for {type-of x}}
+    {return 
+        {if not valid? then
+            {ValidationException {lmessage Illegal type: {type-of x}}}
+         else {super.validate x}}}
+  }
+  {method public {compare x:any, y:any}:int
+    let tx:SQLiteDatatype = {self.storage-class-for {type-of x}}
+    let ty:SQLiteDatatype = {self.storage-class-for {type-of y}}
+    let kx:int = SQLiteDatatypeOrdering[tx.value]
+    let ky:int = SQLiteDatatypeOrdering[ty.value]
+    || TODO: Record.compare-field seems to force nulls last
+    || -- but SQLite wants them first
+    {return 
+        {if kx != ky then 
+            {signum kx - ky}
+         else 
+            {switch tx
+             case SQLiteDatatype.INTEGER, SQLiteDatatype.FLOAT do
+                {with-compiler-directives allow-any-calls? = true,
+                    allow-implicit-any-casts? = true
+                 do
+                    {signum x - y}}
+             case SQLiteDatatype.TEXT do
+                let sx:String = x asa String
+                let sy:String = y asa String
+                {sx.compare sy}
+             case SQLiteDatatype.NULL do 0
+             case SQLiteDatatype.BLOB do
+                let xs:ByteArray = x asa ByteArray
+                let ys:ByteArray = y asa ByteArray
+                {ByteArray-compare xs, ys}
+             else {unreachable}
+            }}}
+  }
+  {method public {parse x:String}:any
+    || TODO: inefficient 
+    let xx:String = {x.trim-clone}    
+    || follow type affinity
+    {switch self.affinity 
+     case SQLiteDatatypeAffinity.INTEGER, 
+        SQLiteDatatypeAffinity.NUMERIC do
+        let n:int = xx.size
+        || INTEGER
+        let (xi:int64, xin:int) = {xx.to-int64}
+        {if xin == n then
+            {return
+                {if xi > max-int32 or xi < min-int32 then
+                    xi asa int
+                 else xi}}}
+        || DOUBLE
+        let (xd:double, xdn:int) = {xx.to-double}
+        {if xdn == n then
+            {return xd}}
+    }
+    || BLOB
+    {if {xx.prefix? "x'", ignore-case? = true} and {xx.suffix? "'"} then
+        {return {hex-decode xx}}}
+    || TEXT
+    {return x}
+  }
+  {method public {convert x:any}:any
+    || TODO: anything needed?
+    {return {super.convert x}}
+  }
+  {method public {format x:any}:String
+    {return 
+        {type-switch x
+         case x:String do x
+         case x:Null do ""  || TODO: how distinguish?
+         case x:ByteArray do {hex-encode x}
+         case x:double do {format "%.16g", x}
+         else {String x}
+        }}
+  }
+  {method {storage-class-for t:Type}:(SQLiteDatatype, bool)
+    {return
+        {switch t
+         case String do ("TEXT", true)
+         case int do ("INTEGER", true)
+         case double do ("FLOAT", true)
+         case int8, int16, int64, uint8, uint16 do ("INTEGER", true)
+         case Null do ("NULL", true)
+         case ByteArray do ("BLOB", true)
+         else ("NULL", false)}}
+  }
+}
+|| 1,2,3,4,5 => INTEGER, FLOAT, TEXT, BLOB, NULL
+{let constant SQLiteDatatypeOrdering:ByteVec =
+    {ByteVec 99, 1, 1, 2, 3, 0}
+}
+{define-enum public SQLiteDatatypeAffinity
+    INTEGER,
+    NUMERIC,
+    TEXT,
+    NONE
+}
+{define-proc {SQLiteDatatypeAffinity-from-declared-type decltype:String}:SQLiteDatatypeAffinity
+  {return
+      {if decltype.empty?
+       then
+          SQLiteDatatypeAffinity.NONE
+
+       elseif {decltype.find-string "INT", ignore-case? = true} >= 0
+       then
+          SQLiteDatatypeAffinity.INTEGER
+
+       elseif ({decltype.find-string "CHAR", ignore-case? = true} >= 0 or
+               {decltype.find-string "TEXT", ignore-case? = true} >= 0 or
+               {decltype.find-string "CLOB", ignore-case? = true} >= 0)
+       then
+          SQLiteDatatypeAffinity.TEXT
+
+       elseif {decltype.find-string "BLOB", ignore-case? = true} >= 0
+       then
+          SQLiteDatatypeAffinity.NONE
+
+       else
+          SQLiteDatatypeAffinity.NUMERIC}}
+}
+{define-proc {ByteArray-compare xs:ByteArray, ys:ByteArray}:int
+    let n:int = {min xs.size, ys.size}
+    {for i = 0 below n do
+        let d:int = xs[i] - ys[i]
+        {if d != 0 then
+            {return {signum d}}}}
+    {return {signum xs.size - ys.size}}
+}
+{define-proc {hex-encode bs:ByteArray}:String    
+    let buf:StringBuf = {StringBuf "x'"}
+    {for b in bs do
+        {format out = buf, "%02x", b}}
+    {buf.append '\''}
+    {return {buf.to-String}}
+}
+{define-proc {hex-decode x:StringInterface}:ByteArray
+    let n:int = x.size
+    || enforce "x'dddd' pattern
+    {if not {x.prefix? "x'"} || prefix: x'
+        or n mod 2 == 0      || even number of characters
+        or x[n - 1] != '\''  || suffix: '
+     then
+        {error {lmessage Unexpected format in 'hex-decode'}}}
+    let bs:ByteArray = {ByteArray efficient-size = n div 2}
+    {for i = 2 below n - 1 step 2 do
+        let (b:int, bn:int) = {{SubString x, i, 2}.to-int radix = 16}
+        || reject if malformed
+        {if bn != 2 then
+            {error {lmessage Unexpected format in 'hex-decode'}}}
+        {bs.append b asa byte}}
+    {return bs}
+}

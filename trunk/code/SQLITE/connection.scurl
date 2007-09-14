@@ -1,0 +1,394 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| TODO
+|| 
+|| - review ROWID conventions
+||
+|| - better view detection, modifiability
+||
+|| - check SQLite dynamic type conventions
+|| -- has well defined sort order: first datatype, then per-type ordering
+|| -- null first, unlike what Record.compare-field does
+||
+|| - standard technique for using curl://local-data
+||
+|| - extend API beyond Connection / ConnectedRecordSet
+|| -- something like Statement with cursor
+|| - need lighter RecordSet subclass
+|| -- lazier instantiation of records, data
+|| 
+|| - may not need strict adherance to Curl RecordField protocol
+|| -- if can directly rely on underlying SQLite semantics
+|| --- uniqueness, modifiability, nullability, default-value
+|| - but maybe useful for Curl UI
+
+{define-class public SQLiteConnection 
+  {inherits Connection, EventTarget, InitRestArgParser}
+  || state
+  || -----------
+  field public-get private-set main-database:SQLiteDatabase
+  
+  || construction
+  || -----------
+  {constructor public {default 
+                          loc:#Url,
+                          error-if-missing?:bool = false,
+                          ...}
+    || open database
+    {if-non-null loc then
+        {if error-if-missing? and not {local-file-exists? loc} then
+            {throw 
+                {MissingFileException {lmessage No such file: {value loc}}}
+            }
+        }
+    }
+    set self.main-database = {SQLiteDatabase loc, "main"}
+
+    || Notification
+    set (self.update-callback, self.rollback-callback, self.commit-callback) =
+        {self.define-callbacks}
+    
+    || superclasses
+    {construct-super.Connection 
+        {if-non-null loc then loc
+         else {url "curl://temp/"}}}
+    {self.process-rest-args {splice ...}}
+  }
+  {method protected {non-keyword-init-arg x:any}:void
+    {type-switch x
+     case x:EventHandler do
+        {self.add-event-handler x}
+     else {super.non-keyword-init-arg x}}
+  }
+  {method protected {keyword-init-arg k:String, x:any}:void
+    {switch k
+     case "note-commit?" do
+        set self.note-commit? = x asa bool
+     case "note-rollback?" do
+        set self.note-rollback? = x asa bool
+     case "note-update?" do
+        set self.note-update? = x asa bool
+     else {super.keyword-init-arg k, x}}
+  }
+
+  || Connection protocol
+  || -----------
+  {method public {get-database-names}:StringArray
+    || NOTE: not cached, as can change on 'attach/detach'
+    let database-names:StringArray = {StringArray}
+    {for row in {self.select "PRAGMA database_list"} do
+        {database-names.append row[1] asa String}
+    }
+    {return database-names}
+  }
+
+  {method public {get-tables database:String}:StringArray
+    let tables:StringArray = {StringArray}
+    {for row in {self.select "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"} do
+        {tables.append row[0] asa String}
+    }
+    {tables.sort}
+    {return tables}
+  }
+
+  {method public {get-fields database:String, table:String}:RecordFields
+    let k:String = {self.dwim-query table}
+    {return {self.select-metadata k}}
+  }
+
+  {method public {table-exists? database:String, table:String}:bool
+    || TODO: more efficient to just use SQL
+    let tables:StringArray = {self.get-tables database}
+    {return {tables.find table} >= 0}
+  }
+
+  {method public {create-record-set
+                     database:String,
+                     query:String,
+                     request-modifiable?:bool = false,
+                     size-limit:int = -1,
+                     ...:EventHandler
+                 }:ConnectedRecordSet
+    set query = {self.dwim-query query}
+    let rs:ConnectedRecordSet = 
+        {SQLiteRecordSet self, database, query,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            {splice ...}
+        }
+    {return rs}
+  }
+
+  {method public {reset}:void
+  }
+
+  || TODO: should this be public?
+  {method {dwim-query query:String}:String
+    || use ROWID with tables, for later update operataions
+    || NOTE: the "AS ROWID" is necessary
+    || -- SQLite uses alias to PK if possible
+    || -- and its field name is a duplicate
+    {return
+        {if {query.find ' '} < 0 then
+            "SELECT ROWID AS ROWID, * FROM " & query
+         else query}}
+  }
+
+  || queries
+  || -----------
+  || -- using prepared statement
+  {method public {select sql:String}:{Array-of Array}
+    let statement:SQLiteStatement = 
+        {self.main-database.create-statement sql}
+    let rows:{Array-of Array} = {statement.get-rows}
+    {statement.finalize}
+    {return rows}
+  }
+
+  || -- using callback [EXPERIMENTAL -- not needed]
+  {method public {select-callback sql:String}:{Array-of RecordData}
+    {self.work.clear}
+    {self.main-database.execute
+        sql,
+        callback =
+            {proc {data:StringArray,
+                   column-names:StringArray
+                  }:int
+                {return {self.row-callback-proc data, column-names}}
+            }
+    }
+    {return {self.work.clone}}
+  }
+  || TODO: should this be private?
+  field constant work:{Array-of RecordData} = {{Array-of RecordData}}
+  {method private {row-callback-proc 
+                      data:StringArray,
+                      column-names:StringArray
+                  }:int
+    || TODO: is there a better way?
+    let r:RecordData = {RecordData}
+    {for d key i in data do
+        set r[column-names[i]] = d
+    }
+    {self.work.append r}
+    {return 0}
+  }
+
+  || -- using array [EXPERIMENTAL -- not needed]
+  {method public {select-array sql:String}:{Array-of RecordData}
+    let rs:{Array-of RecordData} = {{Array-of RecordData}}
+    
+    let (columns:StringArray, 
+         result:{Array-of Array}) =
+        {with-statement in self.main-database stmt = sql do
+            (stmt.column-names, {stmt.get-rows})
+        }
+
+    || No need to check status as "get-table" above will throw on
+    || error as we did not ask it not to do.
+    || rows
+    let nrow:int = result.size
+    let ncol:int = columns.size
+    {for j = 0 below nrow do
+        let r:RecordData = {RecordData}
+        {for col key i in columns do
+            set r[col] = result[j][i]
+        }
+        {rs.append r}
+    }
+    {return rs}
+  }
+
+  || metadata
+  || -----------
+  {method public {select-metadata sql:String}:RecordFields
+    let fs:{Array-of RecordField} = {{Array-of RecordField}}
+    let statement:SQLiteStatement = 
+        {self.main-database.create-statement sql}
+    
+    || info from schema, if a table
+    let table-name:#String = 
+        {if {sql.find-string "ROWID"} > 0 then 
+            {SQLWriter.table-name-from-query sql} 
+         else 
+            null
+        }
+    let schema-info:{Array-of Array} =
+        {if-non-null table-name then 
+            {self.select 
+                {format "PRAGMA table_info (%s);", table-name}}
+         else 
+            {{Array-of Array}}
+        }
+    let constant interface:SQLiteInterface = {SQLiteInterface}
+    || info from prepared statement
+    let nval:int = statement.column-count
+    {for i = 0 below nval do
+        let name:String = {statement.get-column-name i}
+        let decltype:#String = {statement.get-column-decltype i}
+        let type:String = {if-non-null decltype then decltype else ""}
+        let affinity:SQLiteDatatypeAffinity = 
+            {SQLiteDatatypeAffinity-from-declared-type type}                
+        let domain:Domain = {SQLiteVariantDomain.from-affinity affinity}
+        || use schema info, if a table
+        let (nullable?:bool,
+             primary-key?:bool) =
+            {if-non-null table-name then
+|| FIXME: that is only rowid if selecting on *
+                {if i == 0 then
+                    || special case: ROWID
+                    || NOTE: needs to be nullable to defeat Curl check
+                    || -- so autoincrement can happen
+                    (true, true)
+                 else
+|| FIXME: that is only valid if selecting on * from one table
+                    || info from schema
+                    let info:Array = schema-info[i - 1]
+                    (|| notnull
+                     info[3] == 0,
+                     || pk
+                     info[5] != 0)}
+             else
+                || fallback if no schema
+                (true, false)}
+        let f:ExtendedRecordField = 
+            {ExtendedRecordField name, 
+                domain = domain,
+                nullable? = nullable?,
+                primary-key? = primary-key?,
+                modifiable? = not primary-key?
+            }
+        {fs.append f}
+    }
+    {statement.finalize}
+    {return {RecordFields {splice fs}}}
+  }
+
+  || transactions
+  || -----------
+  {method public {execute sql:String}:int || n-rows-changed
+    {self.main-database.execute sql}
+    {return self.main-database.changes}
+  }
+
+  || ==================== \\
+  || Notification
+  {method {define-callbacks
+          }:({proc-type {operation:SQLiteOperation,
+                         database-name:String,
+                         table-name:String,
+                         rowid:int64
+                        }:void},
+             {proc-type {}:void},
+             {proc-type {}:int})
+|| FIXME: This will result in event handling in the middle of other code,
+|| at possibly illegal points in time, or unusual times anyway.
+    {return
+        {proc {operation:SQLiteOperation,
+               database-name:String,
+               table-name:String,
+               rowid:int64
+              }:void
+            {self.handle-event 
+                {SQLiteUpdate database-name, table-name, operation, rowid}
+            }
+        },
+        {proc {}:void
+            {self.handle-event {SQLiteRollback}}
+        },
+        {proc {}:int
+            let e:SQLiteCommit = {SQLiteCommit}
+            {self.handle-event e}
+            let rollback?:int = {if e.consumed? then 1 else 0}
+            {return rollback?}
+        }
+    }
+  }
+  field _note-commit?:bool
+  {getter public {note-commit?}:bool
+    {return self._note-commit?}
+  }
+  {setter public {note-commit? val:bool}:void
+    {if val != self._note-commit? then
+        set self._note-commit? = val
+        {self.register-commit-hook
+            {if val then 
+                self.commit-callback
+             else 
+                null
+            }
+        }
+    }
+  }
+
+  field constant commit-callback:SQLiteCommitHookProcType
+  {method protected {register-commit-hook
+                        callback:#SQLiteCommitHookProcType
+                    }:void
+    set self.main-database.commit-hook = callback
+  }
+
+  field _note-rollback?:bool
+  {getter public {note-rollback?}:bool
+    {return self._note-rollback?}
+  }
+  {setter public {note-rollback? val:bool}:void
+    {if val != self._note-rollback? then
+        set self._note-rollback? = val
+        {self.register-rollback-hook
+            {if val then 
+                self.rollback-callback
+             else 
+                null
+            }
+        }
+    }
+  }
+
+  field constant rollback-callback:SQLiteRollbackHookProcType
+  {method protected {register-rollback-hook
+                        callback:#SQLiteRollbackHookProcType
+                 }:void
+    set self.main-database.rollback-hook = callback
+  }
+
+  field _note-update?:bool
+  {getter public {note-update?}:bool
+    {return self._note-update?}
+  }
+  {setter public {note-update? val:bool}:void
+    {if val != self._note-update? then
+        set self._note-update? = val
+        {self.register-update-hook
+            {if val then 
+                self.update-callback
+             else 
+                null
+            }
+        }
+    }
+  }
+
+  field constant update-callback:SQLiteUpdateHookProcType
+  {method protected {register-update-hook
+                        callback:#SQLiteUpdateHookProcType
+                 }:void
+    set self.main-database.update-hook = callback
+  }
+  || ==================== //
+}
+

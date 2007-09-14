@@ -1,0 +1,205 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| NOTE: adapted from BasicConnection
+|| NOTE: dubious to generate SQL on client side
+|| -- different databases may have different dialects
+
+{define-class public SQLWriter
+  field table-name:String
+  field fields:RecordFields
+  field rowid-field:#RecordField
+  {constructor public {default
+                   table-name:String,
+                   fields:RecordFields,
+                   use-rowid:#String = null}
+    set self.table-name = table-name
+    set self.fields = fields
+    {if-non-null use-rowid then
+        set self.rowid-field =
+            {fields.get-if-exists use-rowid} asa #RecordField}
+  }  
+  {method public {gen-sql-values qs:StringBuf, record:Record}:void
+    {qs.concat "VALUES("} ||""
+    {for fi:int = 0 below self.fields.size do
+        let f:RecordField = {self.fields.get-by-index fi}
+        let v:any = {record.get f.name, pending?=true}
+        {if fi != 0 then 
+            {qs.concat ", "} ||""
+        }
+        {qs.concat 
+            {self.gen-sql-value f, v}
+        }
+    }
+    {qs.concat ")"} ||""
+  }
+  {method public {gen-sql-assign qs:StringBuf, record:Record}:void
+    {qs.concat " SET\n"} ||""
+    let first?:bool = true
+    {for fi = 0 below self.fields.size do
+        let f:RecordField =  {self.fields.get-by-index fi}
+        let k:String = f.name
+        || never assign ROWID
+        {if f == self.rowid-field then
+            {continue}}
+        || never assign if not modifiable?
+        {if not f.modifiable? then
+            {continue}}
+        let v:any = record[k]
+        || check if changed 
+        let vp:any = record[k , pending? = false]
+        {if {f.domain.compare v, vp} == 0 then
+            {continue}}
+        {if not first? then 
+            {qs.concat ",\n"} ||""
+        }
+        set first? = false
+        {qs.concat " "} ||""
+        {qs.concat f.name}
+        {qs.concat "="} ||""
+        {qs.concat {self.gen-sql-value f, v}}
+    }
+  }
+  {method public {gen-sql-where 
+              qs:StringBuf, 
+              record:Record,
+              keys-only?:bool=false
+          }:void
+    {qs.concat "\n WHERE\n"} ||""
+    || special case when database provides ROWID
+    {if-non-null f = self.rowid-field then
+        let k:String = f.name
+        {if keys-only? then
+            {qs.concat k}
+            {qs.concat "="}
+            {qs.concat {self.gen-sql-value f, record[k]}}
+            {return}
+        }
+    }
+    || normal case: primary keys
+    let first?:bool=true
+    let key-count:int = 0
+    {for fi:int = 0 below self.fields.size do
+        let f:RecordField = 
+            {self.fields.get-by-index fi}
+        {if {self.primary-key? f} then
+            {inc key-count}
+        }
+    }
+    {if key-count == 0 then
+        || fallback case: all fields
+        set keys-only? = false
+    }
+    {for fi:int = 0 below self.fields.size do
+        let f:RecordField = {self.fields.get-by-index fi}
+        let fv-old:any = {record.get f.name, pending?=false}
+        {if (not keys-only?) or {self.primary-key? f} then
+            {if not first? then
+                {qs.concat " AND\n"} ||""
+            }
+            {qs.concat "  "} ||""
+            {qs.concat f.name}
+            {if fv-old == null then
+                {qs.concat " IS NULL"} ||""
+             else
+                {qs.concat "="} ||""
+                {qs.concat {self.gen-sql-value f, fv-old}}
+            }
+            set first?=false
+        }
+    }
+  }
+  {method public {gen-sql-update qs:StringBuf, record:Record}:void
+    {switch record.state
+     case RecordState.modified do
+        {qs.concat "UPDATE "} ||""
+        {qs.concat self.table-name}
+        {self.gen-sql-assign qs, record}
+        {self.gen-sql-where qs, record, keys-only?=true}
+        {qs.concat ";\n"} ||""
+        
+     case RecordState.appended, RecordState.new do
+        || INSERT INTO employee VALUES (DEFAULT,'foo', 'bar');
+        {qs.concat "INSERT INTO "} ||""
+        {qs.concat self.table-name}
+        {qs.concat "\n  "} ||""
+        {self.gen-sql-values qs, record}
+        {qs.concat ";\n"} ||""
+
+     case RecordState.deleted do
+        {qs.concat "DELETE FROM "} ||""
+        {qs.concat self.table-name}
+        {self.gen-sql-where qs, record, keys-only?=true}
+        || TODO: bogus to get deleted record count?
+        {qs.concat " LIMIT 1;\n"} ||""
+    }
+  }
+  {method public {gen-sql-value f:RecordField, v:any}:String
+    {if v == null then
+        {return "NULL"}}
+    let d:Domain = f.domain
+    let s:String = {d.format v}
+    let t:Type = 
+        {switch d.type
+         case any do {type-of v}
+         else d.type}
+    {return
+        {switch t
+         case double, float do
+            || override default lossy format
+            {format "%15.g", v}
+         case String, DateTime do
+            {{quoted-string s}.to-String}
+         else s}}
+  }
+  {method {primary-key? f:RecordField}:bool
+    {return 
+        {type-switch f
+         case f:ExtendedRecordField do
+            f.primary-key?
+         else
+            false}}
+  }
+  || derive table name from select statement
+  {define-proc public {table-name-from-query query:String}:#String
+    let table:#String
+    let constant pattern:String =
+        || 'w'ord characters 
+        || preceded by non-'W'ord character,
+        || followed by anything
+        || following case-'i'nsensitive "from"
+        || in string treated as 's'ingle line
+        || starting with case-'i'nsensitive "select"
+        |"(?s:(?i:select).*(?i:from)\W(\w*).*)"|
+    || TODO: this does not reject joins
+    || -- needs to check remainder somehow
+    {return
+        {if {regexp-match? pattern, query, table} 
+         then {non-null table}
+         else null}}
+  }  
+}
+{define-proc {quoted-string s:String, out:StringBuf = {StringBuf}}:StringBuf
+    let constant q:char = '\''
+    {out.append q}
+    {for c in s do
+        {switch c
+         case '\'' do
+            {out.append c}}
+        {out.append c}}
+    {out.append q}
+    {return out}
+}
