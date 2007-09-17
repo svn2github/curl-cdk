@@ -27,7 +27,7 @@
         Call {docref SQLiteDatabase.prepare} to construct this object.
     }
 }
-{define-class public SQLiteStatement
+{define-class public open SQLiteStatement
 
   {doc-next
     {purpose
@@ -139,7 +139,7 @@
         called by {docref SQLiteStatement.non-null-stmt} getter if
         {docref SQLiteStatement.stmt} is 0.
         
-        This method will also bind all the columns with thier
+        This method will also bind all the columns with their
         respective values as stored in the {docref
         SQLiteStatement.bind-table}.
 
@@ -197,7 +197,7 @@
     {return-vals
         If called before {docref SQLiteStatement.step} or after {ctext
         SQLiteStatement.step} has returned a value that is not {ctext
-        SQLiteStatus.ROW}, the retun value is zero. Otherwise it is
+        SQLiteStatus.ROW}, the return value is zero. Otherwise it is
         the number of values in the current row of the result set.
     }
     {notes
@@ -476,6 +476,110 @@
   {method public open {get-column-bytes icol:int}:int
     {return {{SQLiteInterface}.column-bytes self.non-null-stmt, icol}}
   }
+
+  {method public {get-column-value index:int}:any
+    let t:SQLiteDatatype = {self.get-column-type index}
+    {return
+        {switch t
+         case SQLiteDatatype.INTEGER do
+            || TODO: is there a better way?
+            let xi:int64 = {self.get-column-int64 index}
+            {if xi <= max-int32 and xi >= min-int32 then
+                xi asa int
+             else xi}
+         case SQLiteDatatype.FLOAT do {self.get-column-double index}
+         case SQLiteDatatype.TEXT do {self.get-column-text index}
+         case SQLiteDatatype.NULL do null
+         case SQLiteDatatype.BLOB do
+            || TODO: test this
+            {self.get-column-blob index}
+         else {error {message Unexpected SQLite datatype {value t}}}
+        }
+    }
+  }
+
+  || =====
+  {doc-next
+    {purpose
+        Return the values in each row of this statement.
+    }
+    {return-vals
+        An array of rows.
+    }
+  }
+
+  {method public {get-rows}:{Array-of Array}
+    let constant rows:{Array-of Array} = {{Array-of Array}}
+    {self.reset}
+    {while true do
+        {switch {self.step}
+         case SQLiteStatus.OK do
+            {break}
+         case SQLiteStatus.DONE do
+            {break}
+         case SQLiteStatus.ROW do
+            {rows.append self.row}
+         else
+            || signal exception
+||--            {self.reset}
+            {self.database.check-status}
+        }
+    }
+    {return rows}
+  }
+
+  {doc-next
+    {purpose
+        Return the values in a column of this statement.
+    }
+    {return-vals
+        An array of values.
+    }
+  }
+
+  {method public {get-column index:int = 0}:Array
+    let constant col:Array = {Array}
+    {self.reset}
+    {while true do
+        {switch {self.step}
+         case SQLiteStatus.OK do
+            {break}
+         case SQLiteStatus.DONE do
+            {break}
+         case SQLiteStatus.ROW do
+            {col.append {self.get-column-value index}}
+         else
+            || signal exception
+            {self.database.check-status}
+        }
+    }
+    {return col}
+  }
+
+  {doc-next
+    {purpose
+        Return the column values in the current row of this statement.
+    }
+    {return-vals
+        The column values.
+
+        These will be undefined if there is no current row.
+    }
+  }
+
+  {getter public {row}:Array
+    let nval:int = self.column-count
+    let row:Array = {Array efficient-size = nval}
+    {for i = 0 below nval do
+        {row.append {self.get-column-value i}}
+    }
+    {return row}
+  }
+  
+  {method public {rows-to-Iterator}:{Iterator-of Array}
+    {return {SQLiteStatementRowsIterator self}}
+  }
+
 
   {doc-next
     {purpose
@@ -887,108 +991,6 @@
     }
   }
   
-  || =====
-  
-  {method public {get-column-value index:int}:any
-    let t:SQLiteDatatype = {self.get-column-type index}
-    {return
-        {switch t
-         case SQLiteDatatype.INTEGER do
-            || TODO: is there a better way?
-            let xi:int64 = {self.get-column-int64 index}
-            {if xi <= max-int32 and xi >= min-int32 then
-                xi asa int
-             else xi}
-         case SQLiteDatatype.FLOAT do {self.get-column-double index}
-         case SQLiteDatatype.TEXT do {self.get-column-text index}
-         case SQLiteDatatype.NULL do null
-         case SQLiteDatatype.BLOB do
-            || TODO: test this
-            {self.get-column-blob index}
-         else {error {message Unexpected SQLite datatype {value t}}}
-        }
-    }
-  }
-
-  || =====
-  {doc-next
-    {purpose
-        Return the values in each row of this statement.
-    }
-    {return-vals
-        An array of rows.
-    }
-  }
-
-  {method public {get-rows}:{Array-of Array}
-    let constant rows:{Array-of Array} = {{Array-of Array}}
-    {self.reset}
-    {while true do
-        {switch {self.step}
-         case SQLiteStatus.OK do
-            {break}
-         case SQLiteStatus.DONE do
-            {break}
-         case SQLiteStatus.ROW do
-            {rows.append self.row}
-         else
-            || signal exception
-||--            {self.reset}
-            {self.database.check-status}
-        }
-    }
-    {return rows}
-  }
-
-  {doc-next
-    {purpose
-        Return the values in a column of this statement.
-    }
-    {return-vals
-        An array of values.
-    }
-  }
-
-  {method public {get-column index:int = 0}:Array
-    let constant col:Array = {Array}
-    {self.reset}
-    {while true do
-        {switch {self.step}
-         case SQLiteStatus.OK do
-            {break}
-         case SQLiteStatus.DONE do
-            {break}
-         case SQLiteStatus.ROW do
-            {col.append {self.get-column-value index}}
-         else
-            || signal exception
-            {self.database.check-status}
-        }
-    }
-    {return col}
-  }
-
-  {doc-next
-    {purpose
-        Return the column values in the current row of this statement.
-    }
-    {return-vals
-        The column values.
-
-        These will be undefined if there is no current row.
-    }
-  }
-
-  {getter public {row}:Array
-    let nval:int = self.column-count
-    let row:Array = {Array efficient-size = nval}
-    {for i = 0 below nval do
-        {row.append {self.get-column-value i}}
-    }
-    {return row}
-  }
-  
-  || =====
   {doc-next
     {purpose
         Binds statement parameters to supplied arguments.
@@ -1012,10 +1014,6 @@
     }
   }
   
-  {method public {rows-to-Iterator}:{Iterator-of Array}
-    {return {SQLiteStatementRowsIterator self}}
-  }
-
   {define-proc private {sql-insert-for table:String, ncol:int}:String
     let buf:StringBuf = {StringBuf "INSERT INTO "}
     {buf.concat table}

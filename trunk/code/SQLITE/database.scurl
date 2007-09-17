@@ -245,7 +245,6 @@
         The database connection will not be opened till am attempt is
         made to use it.
 
-        See also: {docref Database.non-null-sqlite3}
     }
   }
   {constructor public {default u:#Url, name:String}
@@ -264,7 +263,7 @@
         error message will be thrown.
     }
   }
-  {getter public {non-null-sqlite3}:SQLiteDatabaseHandle
+  {getter private {non-null-sqlite3}:SQLiteDatabaseHandle
     {self.open}
     {return self._sqlite3}
   }
@@ -290,8 +289,6 @@
         If the database is open then calling this method is a no-op.
         
         This method is called lazily to open the database connection.
-        This is called by {docref SQLiteDatabase.non-null-sqlite3} getter if
-        {docref SQLiteStatement.sqlite3} is 0.
         
         If the database fails to open, an appropriate error will be
         thrown.
@@ -499,7 +496,7 @@
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the {ctext sql} statement fails,
-        an error will be throw. Otherwise no error will be thorwn and
+        an error will be throw. Otherwise no error will be thrown and
         the caller is responsible to check the return value of this
         method to see if the {param sql} statement was successfully
         executed or not.
@@ -559,7 +556,7 @@
         If the callback returns zero, then no additional attempts are
         made to access the database, and the blocked API call will
         return {ctext SQLiteStatus.BUSY}. It it returns non-zero then
-        anopther attempt is made by the API function to open the
+        another attempt is made by the API function to open the
         database for reading, and the cycle repeats itself.
 
         If the {param callback} argument is set to {ctext null}, then
@@ -575,21 +572,21 @@
         rather than the SQLite methods returning {ctext
         SQLiteStatus.BUSY}.
 
-        The presence of a busy handler does not gurantee that it will
-        be invoked whenever there is a lock contension. If SQLite
+        The presence of a busy handler does not guarantee that it will
+        be invoked whenever there is a lock contention. If SQLite
         determines that invoking the busy handler could result in a
         deadlock, it will return {ctext SQLiteStatus.BUSY} instead.
 
         Since SQLite is re-entrant, the busy handler could in theory
         start a new query. However, the busy handler will delete data
-        strtuctures out from under the executing query and will
+        structures out from under the executing query and will
         probably result in crashing the program.
     }
     {notes
         Calling this method will open the database connection if it is
         not open.
 
-        On sucess, it sets {param callback} in
+        On success, it sets {param callback} in
         {docref SQLiteDatabase.busy-handler-callback}.
         These are used by the {docref SQLiteDatabase.open}
         method to set the busy handler when the database connection is
@@ -759,6 +756,36 @@
         }
   }
 
+  {method public {set-progress-handler
+                     instruction-count:int,
+                     callback:#SQLiteProgressHandlerProcType
+                 }:void
+    set self.progress-callback = callback
+    set self.progress-callback-arg = instruction-count
+    set self.progress-callback-ptr =
+        {{SQLiteInterface}.progress-handler
+            self.non-null-sqlite3, instruction-count, callback}
+  }
+
+  {setter public {authorizer
+                     callback:#SQLiteAuthorizerProcType
+                 }:void
+    set self._authorizer = callback
+    let status:SQLiteStatus
+    set (status, self.authorizer-ptr) =
+        {{SQLiteInterface}.set-authorizer
+            self.non-null-sqlite3, callback}
+    {if status != SQLiteStatus.OK then
+        {self.check-status}
+    }
+  }
+
+  {method public {interrupt}:void
+    {if self._sqlite3 != 0 then
+        {{SQLiteInterface}.interrupt self._sqlite3}
+    }
+  }
+
   {doc-next
     {purpose
         Returns the number of database rows that were updated,
@@ -767,8 +794,8 @@
     }
     {notes
         Only changes that are directly specified by the {ctext
-        UPDATE}, {ctext INSERT} or {ctext DELETE} stetement are
-        counted. Auxiliary changes caused by thetriggers are not
+        UPDATE}, {ctext INSERT} or {ctext DELETE} statement are
+        counted. Auxiliary changes caused by the triggers are not
         counted.
 
         If it is called within a trigger, it reports the number of
@@ -779,8 +806,8 @@
         SQLite implements the command {ctext DELETE FROM table},
         without a where clause, by dropping and recreating the
         table. Because of this optimization, the change count for
-        {ctext DELETE FROM table} will be zero regradless of the
-        number of records that wre originally in the table. To obtain
+        {ctext DELETE FROM table} will be zero regardless of the
+        number of records that were originally in the table. To obtain
         the actual number of rows deleted, use {ctext DELETE FROM
         table WHERE 1} instead, which disables the optimization.
 
@@ -812,8 +839,8 @@
         SQLite implements the command {ctext DELETE FROM table},
         without a where clause, by dropping and recreating the
         table. Because of this optimization, the change count for
-        {ctext DELETE FROM table} will be zero regradless of the
-        number of records that wre originally in the table. To obtain
+        {ctext DELETE FROM table} will be zero regardless of the
+        number of records that were originally in the table. To obtain
         the actual number of rows deleted, use {ctext DELETE FROM
         table WHERE 1} instead, which disables the optimization.
 
@@ -880,7 +907,7 @@
         recently failed SQLite API call will respect to this database.
     }
     {return-vals
-        Error message in {ctext English} for the most recntly falied
+        Error message in {ctext English} for the most recently failed
         API call associated with this object.
     }
     {notes
@@ -895,11 +922,6 @@
     {return {{SQLiteInterface}.errmsg self.sqlite3}}
   }
   
-  || ==================== \\
-  || row insertion support
-  
-  || ==================== //
-
   || info
   || -----------
   {getter public {version}:int
@@ -910,6 +932,8 @@
     {return {{SQLiteInterface}.libversion}}
   }
 
+
+  || Extend SQL functionality.
   {method private {find-installed-function
                      name:String,
                      nargs:int
@@ -922,7 +946,6 @@
     {return -1}
   }
 
-  || Extend SQL functionality.
   {doc-next
     {purpose
         Adds SQL function or redefines the behavior of an existing
@@ -930,8 +953,6 @@
     }
   }
 
-  || FIXME: get rid of the CdeclCallback-to stuff, by pushing it into
-  || the SQLiteInterface, and get rid of the CArray stuff the same way.
   || TODO: should this take a default aggregate-context value instead
   || of us just using {uninitialized-value-for-type}?
   {method public {install-function
@@ -1078,7 +1099,7 @@
     }
   }
 
-  {define-proc {curl-type-to-desired-type t:Type}:Type
+  {define-proc private {curl-type-to-desired-type t:Type}:Type
     {return
         {switch t
          case String, StringInterface do
@@ -1272,36 +1293,6 @@
         {self._aggregate-context-table.remove
             {self.context-to-int context}, error-if-missing? = false
         }
-    }
-  }
-
-  {method public {interrupt}:void
-    {if self._sqlite3 != 0 then
-        {{SQLiteInterface}.interrupt self._sqlite3}
-    }
-  }
-
-  {method public {set-progress-handler
-                     instruction-count:int,
-                     callback:#SQLiteProgressHandlerProcType
-                 }:void
-    set self.progress-callback = callback
-    set self.progress-callback-arg = instruction-count
-    set self.progress-callback-ptr =
-        {{SQLiteInterface}.progress-handler
-            self.non-null-sqlite3, instruction-count, callback}
-  }
-
-  {setter public {authorizer
-                     callback:#SQLiteAuthorizerProcType
-                 }:void
-    set self._authorizer = callback
-    let status:SQLiteStatus
-    set (status, self.authorizer-ptr) =
-        {{SQLiteInterface}.set-authorizer
-            self.non-null-sqlite3, callback}
-    {if status != SQLiteStatus.OK then
-        {self.check-status}
     }
   }
 
