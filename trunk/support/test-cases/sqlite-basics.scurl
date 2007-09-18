@@ -63,7 +63,7 @@
 {TestSuite "basics",
     || --------------------
     {test-case "roundtrip",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +87,7 @@ CREATE TABLE test (
         }},
     || --------------------
     {test-case "constraint NOT NULL",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val NOT NULL)"}
             let result:SQLiteStatus =
                 {db.execute throw-on-error? = false,
@@ -97,7 +97,7 @@ CREATE TABLE test (
         }},
     || --------------------
     {test-case "constraint UNIQUE",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val UNIQUE)"}
             {db.execute "INSERT INTO test VALUES (1)"}
             let result:SQLiteStatus =
@@ -109,7 +109,7 @@ CREATE TABLE test (
     || --------------------
     {test-case "create",
         let dbloc:Url = {get-temp-database-file}
-        {with-database db = {SQLiteDatabase dbloc, "test"} do
+        {with-database db = {SQLiteDatabase dbloc} do
             {db.execute "
 DROP TABLE IF EXISTS test;
 CREATE TABLE test (
@@ -129,7 +129,7 @@ CREATE TABLE test (
     || --------------------
     {test-case "attach",
         let dbloc:Url = {get-temp-database-file}
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -245,7 +245,7 @@ CREATE TABLE work.test (
     {test-case "concurency",
         let dbloc:Url = {get-temp-database-file}
 
-        {with-database db = {SQLiteDatabase dbloc, "test"} do
+        {with-database db = {SQLiteDatabase dbloc} do
             {db.execute "CREATE TABLE test (val);"}
             {db.execute "PRAGMA synchronous=OFF;"}
 
@@ -253,7 +253,7 @@ CREATE TABLE work.test (
                 stmt = "INSERT INTO test VALUES (?);" 
              do
 
-                {with-database db2 = {SQLiteDatabase dbloc, "test"} do
+                {with-database db2 = {SQLiteDatabase dbloc} do
                     {db2.execute "PRAGMA synchronous=OFF;"}
 
                     {with-statement in db2 
@@ -298,7 +298,7 @@ CREATE TABLE work.test (
             }}
     },
     {test-case "bind, iterator, progress, authorizer",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             let operations:{Array-of SQLiteOperation} =
                 {new {Array-of SQLiteOperation}}
             let data1-array:{Array-of #String} =

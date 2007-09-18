@@ -23,7 +23,6 @@
 {import * from CURL.LANGUAGE.REGEXP}
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
 {import public * from COM.CURL.CDK.SQLITE.SYNTAX}
-{import InitRestArgParser from CURL.UTIL.OPTION}
 
 {import * from COM.CURL.CDK.SQLITE-LIBRARY}
 

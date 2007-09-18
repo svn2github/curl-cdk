@@ -24,7 +24,7 @@
 
 {TestSuite "functions",
     {test-case "1 arg",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -41,7 +41,7 @@
         }
     },
     {test-case "1 arg from table",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES ('x')"}
@@ -64,7 +64,7 @@
         }
     },
     {test-case "1 arg error",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -84,7 +84,7 @@
         }
     },
     {test-case "1 any arg pass String",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -101,7 +101,7 @@
         }
     },
     {test-case "1 any arg pass int",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -119,7 +119,7 @@
         }
     },
     {test-case "1 arg pass int to String, return any",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -136,7 +136,7 @@
         }
     },
     {test-case "1 arg pass double to String, error",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -155,7 +155,7 @@
         }
     },
     {test-case "1 float arg rest args, return String",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -172,7 +172,7 @@
         }
     },
     {test-case "1 float arg rest args, return String",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -189,7 +189,7 @@
         }
     },
     {test-case "1 arg to rest args, return String",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 1,
@@ -207,7 +207,7 @@
         }
     },
     {test-case "3 arg to rest:String args, return String",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 3,
@@ -225,7 +225,7 @@
         }
     },
     {test-case "String, int16, String, return int",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 3,
@@ -242,7 +242,7 @@
         }
     },
     {test-case "... with int64 return",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 -1,
@@ -278,7 +278,7 @@
         }
     },
     {test-case "...:any with int64 return",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "say_hi",
                 -1,
@@ -314,7 +314,7 @@
         }
     },
     {test-case "aggregate int",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES (1)"}
@@ -348,7 +348,7 @@
         }
     },
     {test-case "aggregate any as int",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES (1)"}
@@ -395,7 +395,7 @@
         }
     },
     {test-case "aggregate int64",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val INTEGER);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES (1)"}
@@ -430,7 +430,7 @@
         }
     },
     {test-case "aggregate float in ... avg",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val REAL);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES (1.0)"}
@@ -506,7 +506,7 @@
         }
     },
     {test-case "aggregate blob",
-        {with-database db = {SQLiteDatabase null, "test"} do
+        {with-database db = {SQLiteDatabase null} do
             {db.execute "CREATE TABLE test (val BLOB);"}
             {db.execute throw-on-error? = false,
                 "INSERT INTO test VALUES (X'01')"}

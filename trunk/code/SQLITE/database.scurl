@@ -70,13 +70,6 @@
     }
 }
 {define-class public open SQLiteDatabase
-  {doc-next
-    {purpose
-        The name of the SQLite database.
-    }
-  }
-  field constant public name:String
-
   field private _sqlite3:SQLiteDatabaseHandle
 
   {doc-next
@@ -247,9 +240,9 @@
 
     }
   }
-  {constructor public {default u:#Url, name:String}
+  || TODO: Should we make an implicit constructor from #Url?
+  {constructor public {default u:#Url}
     set self.u = u
-    set self.name = name
     set self.statements = {{Array-of SQLiteStatement}}
   }
 

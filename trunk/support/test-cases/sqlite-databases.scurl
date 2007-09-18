@@ -24,7 +24,6 @@
   field public-get constant database:SQLiteDatabase
   {constructor public {default 
                           location:#Url,
-                          name:#String = null,
                           init-proc:#{proc-type {SQLiteDatabase}:void} = null
                       }
     set self.location = location
@@ -32,7 +31,7 @@
         {if-non-null location 
          then location.filename 
          else ":memory:"}}
-    set self.database = {SQLiteDatabase self.location, self.name}
+    set self.database = {SQLiteDatabase self.location}
     {if-non-null init-proc then
         {init-proc self.database}}
     {self.generate-tests}
@@ -73,7 +72,7 @@
 {TestSuite "databases",
     {SQLiteDatabaseTestSuite {url "../test-data/cbi-data.db"}},
     {SQLiteDatabaseTestSuite {url "../test-data/census.db"}},
-    {SQLiteDatabaseTestSuite null, name = "OE",
+    {SQLiteDatabaseTestSuite null,
         init-proc =
             {proc {db:SQLiteDatabase}:void
                 let sql:StringBuf = 

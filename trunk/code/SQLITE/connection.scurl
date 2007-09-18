@@ -37,7 +37,7 @@
 || - but maybe useful for Curl UI
 
 {define-class public SQLiteConnection 
-  {inherits Connection, EventTarget, InitRestArgParser}
+  {inherits Connection, EventTarget}
   || state
   || -----------
   field public-get private-set main-database:SQLiteDatabase
@@ -47,7 +47,11 @@
   {constructor public {default 
                           loc:#Url,
                           error-if-missing?:bool = false,
-                          ...}
+                          note-commit?:bool = false,
+                          note-rollback?:bool = false,
+                          note-update?:bool = false,
+                          ...:EventHandler
+                      }
     || open database
     {if-non-null loc then
         {if error-if-missing? and not {local-file-exists? loc} then
@@ -56,33 +60,23 @@
             }
         }
     }
-    set self.main-database = {SQLiteDatabase loc, "main"}
+    set self.main-database = {SQLiteDatabase loc}
 
     || Notification
     set (self.update-callback, self.rollback-callback, self.commit-callback) =
         {self.define-callbacks}
+    set self.note-commit? = note-commit?
+    set self.note-rollback? = note-rollback?
+    set self.note-update? = note-update?
     
     || superclasses
     {construct-super.Connection 
         {if-non-null loc then loc
          else {url "curl://temp/"}}}
-    {self.process-rest-args {splice ...}}
-  }
-  {method protected {non-keyword-init-arg x:any}:void
-    {type-switch x
-     case x:EventHandler do
-        {self.add-event-handler x}
-     else {super.non-keyword-init-arg x}}
-  }
-  {method protected {keyword-init-arg k:String, x:any}:void
-    {switch k
-     case "note-commit?" do
-        set self.note-commit? = x asa bool
-     case "note-rollback?" do
-        set self.note-rollback? = x asa bool
-     case "note-update?" do
-        set self.note-update? = x asa bool
-     else {super.keyword-init-arg k, x}}
+    
+    {for eh in ... do
+        {self.add-event-handler eh}
+    }
   }
 
   || Connection protocol
@@ -128,7 +122,7 @@
         {SQLiteRecordSet self, database, query,
             request-modifiable? = request-modifiable?,
             size-limit = size-limit,
-            {splice ...}
+            ...
         }
     {return rs}
   }
@@ -137,7 +131,7 @@
   }
 
   || TODO: should this be public?
-  {method {dwim-query query:String}:String
+  {method private {dwim-query query:String}:String
     || use ROWID with tables, for later update operataions
     || NOTE: the "AS ROWID" is necessary
     || -- SQLite uses alias to PK if possible
@@ -150,67 +144,12 @@
 
   || queries
   || -----------
-  || -- using prepared statement
   {method public {select sql:String}:{Array-of Array}
-    let statement:SQLiteStatement = 
-        {self.main-database.create-statement sql}
-    let rows:{Array-of Array} = {statement.get-rows}
-    {statement.finalize}
-    {return rows}
-  }
-
-  || -- using callback [EXPERIMENTAL -- not needed]
-  {method public {select-callback sql:String}:{Array-of RecordData}
-    {self.work.clear}
-    {self.main-database.execute
-        sql,
-        callback =
-            {proc {data:StringArray,
-                   column-names:StringArray
-                  }:int
-                {return {self.row-callback-proc data, column-names}}
-            }
+    {with-statement in self.main-database
+        statement = sql
+     do
+        {return {statement.get-rows}}
     }
-    {return {self.work.clone}}
-  }
-  || TODO: should this be private?
-  field constant work:{Array-of RecordData} = {{Array-of RecordData}}
-  {method private {row-callback-proc 
-                      data:StringArray,
-                      column-names:StringArray
-                  }:int
-    || TODO: is there a better way?
-    let r:RecordData = {RecordData}
-    {for d key i in data do
-        set r[column-names[i]] = d
-    }
-    {self.work.append r}
-    {return 0}
-  }
-
-  || -- using array [EXPERIMENTAL -- not needed]
-  {method public {select-array sql:String}:{Array-of RecordData}
-    let rs:{Array-of RecordData} = {{Array-of RecordData}}
-    
-    let (columns:StringArray, 
-         result:{Array-of Array}) =
-        {with-statement in self.main-database stmt = sql do
-            (stmt.column-names, {stmt.get-rows})
-        }
-
-    || No need to check status as "get-table" above will throw on
-    || error as we did not ask it not to do.
-    || rows
-    let nrow:int = result.size
-    let ncol:int = columns.size
-    {for j = 0 below nrow do
-        let r:RecordData = {RecordData}
-        {for col key i in columns do
-            set r[col] = result[j][i]
-        }
-        {rs.append r}
-    }
-    {return rs}
   }
 
   || metadata
