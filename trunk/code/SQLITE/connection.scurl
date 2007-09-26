@@ -156,8 +156,6 @@
   || -----------
   {method public {select-metadata sql:String}:RecordFields
     let fs:{Array-of RecordField} = {{Array-of RecordField}}
-    let statement:SQLiteStatement = 
-        {self.main-database.create-statement sql}
     
     || info from schema, if a table
     let table-name:#String = 
@@ -173,47 +171,49 @@
          else 
             {{Array-of Array}}
         }
-    let constant interface:SQLiteInterface = {SQLiteInterface}
-    || info from prepared statement
-    let nval:int = statement.column-count
-    {for i = 0 below nval do
-        let name:String = {statement.get-column-name i}
-        let decltype:#String = {statement.get-column-decltype i}
-        let type:String = {if-non-null decltype then decltype else ""}
-        let affinity:SQLiteDatatypeAffinity = 
-            {SQLiteDatatypeAffinity-from-declared-type type}                
-        let domain:Domain = {SQLiteVariantDomain.from-affinity affinity}
-        || use schema info, if a table
-        let (nullable?:bool,
-             primary-key?:bool) =
-            {if-non-null table-name then
+    {with-statement in self.main-database
+        statement = sql
+     do
+        || info from prepared statement
+        let nval:int = statement.column-count
+        {for i = 0 below nval do
+            let name:String = {statement.get-column-name i}
+            let decltype:#String = {statement.get-column-decltype i}
+            let type:String = {if-non-null decltype then decltype else ""}
+            let affinity:SQLiteDatatypeAffinity = 
+                {SQLiteDatatypeAffinity-from-declared-type type}                
+            let domain:Domain = {SQLiteVariantDomain.from-affinity affinity}
+            || use schema info, if a table
+            let (nullable?:bool,
+                 primary-key?:bool) =
+                {if-non-null table-name then
 || FIXME: that is only rowid if selecting on *
-                {if i == 0 then
-                    || special case: ROWID
-                    || NOTE: needs to be nullable to defeat Curl check
-                    || -- so autoincrement can happen
-                    (true, true)
-                 else
+                    {if i == 0 then
+                        || special case: ROWID
+                        || NOTE: needs to be nullable to defeat Curl check
+                        || -- so autoincrement can happen
+                        (true, true)
+                     else
 || FIXME: that is only valid if selecting on * from one table
-                    || info from schema
-                    let info:Array = schema-info[i - 1]
-                    (|| notnull
-                     info[3] == 0,
-                     || pk
-                     info[5] != 0)}
-             else
-                || fallback if no schema
-                (true, false)}
-        let f:ExtendedRecordField = 
-            {ExtendedRecordField name, 
-                domain = domain,
-                nullable? = nullable?,
-                primary-key? = primary-key?,
-                modifiable? = not primary-key?
-            }
-        {fs.append f}
+                        || info from schema
+                        let info:Array = schema-info[i - 1]
+                        (|| notnull
+                         info[3] == 0,
+                         || pk
+                         info[5] != 0)}
+                 else
+                    || fallback if no schema
+                    (true, false)}
+            let f:ExtendedRecordField = 
+                {ExtendedRecordField name, 
+                    domain = domain,
+                    nullable? = nullable?,
+                    primary-key? = primary-key?,
+                    modifiable? = not primary-key?
+                }
+            {fs.append f}
+        }
     }
-    {statement.finalize}
     {return {RecordFields {splice fs}}}
   }
 

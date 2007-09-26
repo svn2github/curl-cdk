@@ -112,9 +112,9 @@
     {return
         {switch t
          case String do ("TEXT", true)
-         case int do ("INTEGER", true)
          case double do ("FLOAT", true)
-         case int8, int16, int64, uint8, uint16 do ("INTEGER", true)
+         case int, int8, int16, int64, uint8, uint16 do ("INTEGER", true)
+||--         case uint32, uint64 do ("INTEGER", true)
          case Null do ("NULL", true)
          case ByteArray do ("BLOB", true)
          else ("NULL", false)}}
@@ -151,7 +151,8 @@
           SQLiteDatatypeAffinity.NONE
 
        else
-          SQLiteDatatypeAffinity.NUMERIC}}
+          SQLiteDatatypeAffinity.NUMERIC}
+    }
 }
 {define-proc {ByteArray-compare xs:ByteArray, ys:ByteArray}:int
     let n:int = {min xs.size, ys.size}
@@ -172,7 +173,7 @@
     let n:int = x.size
     || enforce "x'dddd' pattern
     {if not {x.prefix? "x'"} || prefix: x'
-        or n mod 2 == 0      || even number of characters
+        or n mod 2 == 0      || even number of characters (made odd by x'')
         or x[n - 1] != '\''  || suffix: '
      then
         {error {lmessage Unexpected format in 'hex-decode'}}}

@@ -593,13 +593,14 @@
                           callback:#SQLiteBusyHandlerProcType
                       }:void
 
-    set self.busy-handler-callback = callback
+    set self.busy-handler-callback = null
     let status:SQLiteStatus
     set (status, self.busy-handler-callback-ptr) =
         {{SQLiteInterface}.busy-handler
             self.non-null-sqlite3,
             callback
         }
+    set self.busy-handler-callback = callback
     {if status != SQLiteStatus.OK then
         {self.check-status}
      else
@@ -677,9 +678,10 @@
                           callback:#SQLiteUpdateHookProcType
                       }:void
 
-    set self.update-callback = callback
+    set self.update-callback = null
     set self.update-callback-ptr =
         {{SQLiteInterface}.update-hook self.non-null-sqlite3, callback}
+    set self.update-callback = callback
   }
 
   {doc-next
@@ -705,9 +707,10 @@
   {setter public open {commit-hook
                           callback:#SQLiteCommitHookProcType
                       }:void
-    set self.commit-callback = callback
+    set self.commit-callback = null
     set self.commit-callback-ptr =
         {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
+    set self.commit-callback = callback
 
   }
 
@@ -741,35 +744,39 @@
                           callback:#SQLiteRollbackHookProcType
                      }:void
 
-    set self.rollback-callback = callback
+    set self.rollback-callback = null
     set self.rollback-callback-ptr =
         {{SQLiteInterface}.rollback-hook
             self.non-null-sqlite3,
             callback
         }
+    set self.rollback-callback = callback
   }
 
   {method public {set-progress-handler
                      instruction-count:int,
                      callback:#SQLiteProgressHandlerProcType
                  }:void
-    set self.progress-callback = callback
-    set self.progress-callback-arg = instruction-count
+    set self.progress-callback = null
     set self.progress-callback-ptr =
         {{SQLiteInterface}.progress-handler
             self.non-null-sqlite3, instruction-count, callback}
+    set self.progress-callback-arg = instruction-count
+    set self.progress-callback = callback
   }
 
   {setter public {authorizer
                      callback:#SQLiteAuthorizerProcType
                  }:void
-    set self._authorizer = callback
+    set self._authorizer = null
     let status:SQLiteStatus
     set (status, self.authorizer-ptr) =
         {{SQLiteInterface}.set-authorizer
             self.non-null-sqlite3, callback}
     {if status != SQLiteStatus.OK then
         {self.check-status}
+     else
+        set self._authorizer = callback
     }
   }
 
