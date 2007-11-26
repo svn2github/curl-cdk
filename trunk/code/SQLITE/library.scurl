@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 5.0 package}
+{curl 6.0 package}
 {package COM.CURL.CDK.SQLITE-LIBRARY,
     {compiler-directives careful? = true}
 }
@@ -477,7 +477,7 @@
     }
     {details
         This is a singleton object. So calling {ctext
-        {SQLiteInterface}} will return the same {SQLiteInterface}
+        {SQLiteInterface}} will return the same {docref SQLiteInterface}
         object in a given Curl process.
     }
   }
