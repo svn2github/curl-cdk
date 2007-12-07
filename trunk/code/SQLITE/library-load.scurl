@@ -14,33 +14,12 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
-{manifest COM.CURL.CDK}
-
-{component package COM.CURL.CDK.SQLITE,
-    location = "SQLITE/load.scurl"
+{curl 6.0 package}
+{package COM.CURL.CDK.SQLITE-LIBRARY,
+    {compiler-directives careful? = true}
 }
+{import * from CURL.LANGUAGE.DLL-INTERFACE}
 
-{component package COM.CURL.CDK.SQLITE-LIBRARY,
-    location = "SQLITE/library-load.scurl"
-}
-
-{component package COM.CURL.CDK.SQLITE.SYNTAX,
-    location = "SQLITE/syntax.scurl"
-}
-
-{component file libsqlite,
-    platform = "win32",
-    location = "SQLITE/sqlite_3-4-2.dll"
-}
-
-{component file libsqlite,
-    platform = "linux",
-    location = "SQLITE/sqlite_3-4-2.so"
-}
-
-{component directory docs,
-    location = "docs"
-}
-
-
+{include "library-defs.scurl"}
+{include "library-dll.scurl"}
+{include "library.scurl"}
