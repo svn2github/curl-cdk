@@ -496,7 +496,114 @@
     }
   }
 
-  || =====
+  {doc-next
+    {purpose
+        Return the column values in the current row of this statement.
+    }
+    {return-vals
+        The column values.
+
+        These will be undefined if there is no current row.
+    }
+  }
+
+  {getter public {row}:Array
+    || TODO: consider data-count
+    || - zero if no current row
+    let nval:int = self.column-count
+    let row:Array = {Array efficient-size = nval}
+    {for i = 0 below nval do
+        {row.append {self.get-column-value i}}
+    }
+    {return row}
+  }
+
+  || TODO: docstring
+  {method public {rows-to-Iterator}:{Iterator-of Array}
+    {self.reset}
+    {return {SQLiteStatementRowsIterator self}}
+  }
+
+  || SQL convenience functions
+  || --------------------
+  
+  {doc-next
+    {purpose
+        Return whether this statement contains rows.
+    }
+    {return-vals
+        If any rows are selected by the statement, returns {ctext true}.
+    }
+  }
+
+  {method public {get-exists?}:bool
+    def status = {self.step}
+    def exists? = 
+        {switch status
+         case SQLiteStatus.ROW do true
+         case SQLiteStatus.DONE do false
+         else
+            {self.database.check-status}
+            {unreachable}
+        }
+    {self.reset}
+    {return exists?}
+  }
+  
+  {doc-next
+    {purpose
+        Return one value from this statement.
+        {parameter index, specifies which column.}
+    }
+    {return-vals
+        The value of the specifed column for the first row,
+        or null if no rows are selected by the statement.
+    }
+  }
+
+  {method public {get-value index:int = 0}:any
+    {self.reset}
+    def status = {self.step}
+    def val = 
+        {switch status
+         case SQLiteStatus.ROW do
+            {self.get-column-value index}
+         case SQLiteStatus.DONE do
+            null
+         else
+            {self.database.check-status}
+            {unreachable}
+        }
+    {self.reset}
+    {return val}
+  }
+
+  {doc-next
+    {purpose
+        Return the values in the first row of this statement.
+    }
+    {return-vals
+        An array of values.
+
+        These will be undefined if there is no current row.
+    }
+  }
+
+  {method public {get-row}:Array
+    {self.reset}
+    def status = {self.step}
+    def row:Array =
+        {switch status
+         case SQLiteStatus.DONE, SQLiteStatus.ROW do
+            self.row
+         else
+            {self.database.check-status}
+            {unreachable}
+        }
+    {self.reset}
+    {return row}
+  }
+
   {doc-next
     {purpose
         Return the values in each row of this statement.
@@ -519,10 +626,10 @@
             {rows.append self.row}
          else
             || signal exception
-||--            {self.reset}
             {self.database.check-status}
         }
     }
+    {self.reset}
     {return rows}
   }
 
@@ -551,32 +658,11 @@
             {self.database.check-status}
         }
     }
+    {self.reset}
     {return col}
   }
 
-  {doc-next
-    {purpose
-        Return the column values in the current row of this statement.
-    }
-    {return-vals
-        The column values.
-
-        These will be undefined if there is no current row.
-    }
-  }
-
-  {getter public {row}:Array
-    let nval:int = self.column-count
-    let row:Array = {Array efficient-size = nval}
-    {for i = 0 below nval do
-        {row.append {self.get-column-value i}}
-    }
-    {return row}
-  }
-  
-  {method public {rows-to-Iterator}:{Iterator-of Array}
-    {return {SQLiteStatementRowsIterator self}}
-  }
+  || ==========
 
 
   {doc-next
@@ -633,6 +719,7 @@
     {return {{SQLiteInterface}.reset self.stmt}}
   }
 
+  || TODO: docstring
   {method public open {clear-bindings}:void
     {if self.stmt == 0 then {return}}
     

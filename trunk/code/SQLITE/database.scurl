@@ -1296,6 +1296,14 @@
     }
   }
 
+  || statement convenience functions
+  || --------------------
+
+  || TODO: docstring
+  {method public {create-statement sql:String}:SQLiteStatement
+    {return {SQLiteStatement self, sql}}
+  }
+
   {method package {prepare-statement stmt:SQLiteStatement}:void
     let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
         {{Pointer-to SQLiteStatementHandle} value = 0}
@@ -1328,7 +1336,69 @@
     {return status}
   }
 
-  {method public {create-statement sql:String}:SQLiteStatement
-    {return {SQLiteStatement self, sql}}
+  || SQL convenience functions
+  || --------------------
+
+  || TODO: docstring
+  {method public {sql-exists?
+                     sql:String,
+                     ...:any
+                 }:bool
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.get-exists?}
+        }}
   }
+
+  || TODO: docstring
+  {method public {sql-value
+                     sql:String,
+                     index:int = 0,
+                     ...:any
+                 }:any
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.get-value index = index}
+        }}
+  }
+  
+  || TODO: docstring
+  {method public {sql-column
+                     sql:String,
+                     index:int = 0,
+                     ...:any
+                 }:Array
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.get-column index = index}
+        }}
+  }
+
+  || TODO: docstring
+  {method public {sql-row
+                     sql:String,
+                     ...:any
+                 }:Array
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.get-row}
+        }}
+  }
+
+  || TODO: docstring
+  {method public {sql-rows
+                     sql:String,
+                     ...:any
+                 }:{Array-of Array}
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.get-rows}
+        }}
+  }
+  
 }
