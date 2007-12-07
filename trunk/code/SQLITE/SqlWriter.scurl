@@ -34,30 +34,35 @@
   }  
   {method public {gen-sql-values qs:StringBuf, record:Record}:void
     {qs.concat "VALUES("} ||""
-    {for fi:int = 0 below self.fields.size do
-        let f:RecordField = {self.fields.get-by-index fi}
-        let v:any = {record.get f.name, pending?=true}
-        {if fi != 0 then 
+    let first?:bool = true
+    {for f in self.fields do
+        || never insert ROWID
+        {if f == self.rowid-field then
+            {continue}
+        }
+        let k:String = f.name
+        let v:any = record[k]
+        {if not first? then 
             {qs.concat ", "} ||""
         }
         {qs.concat 
             {self.gen-sql-value f, v}
         }
+        set first? = false
     }
     {qs.concat ")"} ||""
   }
   {method public {gen-sql-assign qs:StringBuf, record:Record}:void
     {qs.concat " SET\n"} ||""
     let first?:bool = true
-    {for fi = 0 below self.fields.size do
-        let f:RecordField =  {self.fields.get-by-index fi}
-        let k:String = f.name
+    {for f in self.fields do
         || never assign ROWID
         {if f == self.rowid-field then
             {continue}}
         || never assign if not modifiable?
         {if not f.modifiable? then
             {continue}}
+        let k:String = f.name
         let v:any = record[k]
         || check if changed 
         let vp:any = record[k , pending? = false]
@@ -144,7 +149,9 @@
         {qs.concat self.table-name}
         {self.gen-sql-where qs, record, keys-only?=true}
         || TODO: bogus to get deleted record count?
-        {qs.concat " LIMIT 1;\n"} ||""
+        || TODO: code review flushing this
+||--        {qs.concat " LIMIT 1;\n"} ||""
+        {qs.concat ";\n"} ||""
     }
   }
   {method public {gen-sql-value f:RecordField, v:any}:String
