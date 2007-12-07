@@ -176,8 +176,16 @@
      do
         || info from prepared statement
         let nval:int = statement.column-count
+||--        || HACK: avoid duplicate names
+||--        def names = {{HashTable-of String, Array}}
         {for i = 0 below nval do
             let name:String = {statement.get-column-name i}
+||--            {if-non-null xs = {names.get-if-exists name} asa #Array then
+||--                {xs.append i}
+||--                set name = {format "%s_%02d", name, xs.size}
+||--             else
+||--                set names[name] = {Array i}
+||--            }
             let decltype:#String = {statement.get-column-decltype i}
             let type:String = {if-non-null decltype then decltype else ""}
             let affinity:SQLiteDatatypeAffinity = 
@@ -187,14 +195,14 @@
             let (nullable?:bool,
                  primary-key?:bool) =
                 {if-non-null table-name then
-|| FIXME: that is only rowid if selecting on *
+                    || FIXME: that is only rowid if selecting on *
                     {if i == 0 then
                         || special case: ROWID
                         || NOTE: needs to be nullable to defeat Curl check
                         || -- so autoincrement can happen
                         (true, true)
                      else
-|| FIXME: that is only valid if selecting on * from one table
+                        || FIXME: that is only valid if selecting on * from one table
                         || info from schema
                         let info:Array = schema-info[i - 1]
                         (|| notnull
@@ -207,9 +215,11 @@
             let f:ExtendedRecordField = 
                 {ExtendedRecordField name, 
                     domain = domain,
-                    nullable? = nullable?,
+                    || NOTE: needs to be nullable to defeat Curl check
+                    nullable? = true, ||nullable?,
                     primary-key? = primary-key?,
-                    modifiable? = not primary-key?
+                    || NOTE: SQLite allows this
+                    modifiable? = true ||not primary-key?
                 }
             {fs.append f}
         }
@@ -234,8 +244,8 @@
                         }:void},
              {proc-type {}:void},
              {proc-type {}:int})
-|| FIXME: This will result in event handling in the middle of other code,
-|| at possibly illegal points in time, or unusual times anyway.
+    || FIXME: This will result in event handling in the middle of other code,
+    || at possibly illegal points in time, or unusual times anyway.
     {return
         {proc {operation:SQLiteOperation,
                database-name:String,
