@@ -148,7 +148,7 @@
     {with-statement in self.main-database
         statement = sql
      do
-        {return {statement.get-rows}}
+        {return {statement.data-rows}}
     }
   }
 
@@ -176,16 +176,16 @@
      do
         || info from prepared statement
         let nval:int = statement.column-count
-||--        || HACK: avoid duplicate names
-||--        def names = {{HashTable-of String, Array}}
+        || HACK: avoid duplicate names
+        def names = {{HashTable-of String, Array}}
         {for i = 0 below nval do
             let name:String = {statement.get-column-name i}
-||--            {if-non-null xs = {names.get-if-exists name} asa #Array then
-||--                {xs.append i}
-||--                set name = {format "%s_%02d", name, xs.size}
-||--             else
-||--                set names[name] = {Array i}
-||--            }
+            {if-non-null xs = {names.get-if-exists name} asa #Array then
+                {xs.append i}
+                set name = {format "%s_%02d", name, xs.size}
+             else
+                set names[name] = {Array i}
+            }
             let decltype:#String = {statement.get-column-decltype i}
             let type:String = {if-non-null decltype then decltype else ""}
             let affinity:SQLiteDatatypeAffinity = 

@@ -507,7 +507,7 @@
     }
   }
 
-  {getter public {row}:Array
+  {getter public {current-row}:Array
     || TODO: consider data-count
     || - zero if no current row
     let nval:int = self.column-count
@@ -529,14 +529,15 @@
   
   {doc-next
     {purpose
-        Return whether this statement contains rows.
+        Return whether this statement contains any data.
     }
     {return-vals
         If any rows are selected by the statement, returns {ctext true}.
     }
   }
 
-  {method public {get-exists?}:bool
+  {method public {data-exists?}:bool
+    {self.reset}
     def status = {self.step}
     def exists? = 
         {switch status
@@ -552,7 +553,7 @@
   
   {doc-next
     {purpose
-        Return one value from this statement.
+        Return one value from the first row of this statement.
         {parameter index, specifies which column.}
     }
     {return-vals
@@ -561,7 +562,7 @@
     }
   }
 
-  {method public {get-value index:int = 0}:any
+  {method public {data-value index:int = 0}:any
     {self.reset}
     def status = {self.step}
     def val = 
@@ -589,13 +590,13 @@
     }
   }
 
-  {method public {get-row}:Array
+  {method public {data-row}:Array
     {self.reset}
     def status = {self.step}
     def row:Array =
         {switch status
          case SQLiteStatus.DONE, SQLiteStatus.ROW do
-            self.row
+            self.current-row
          else
             {self.database.check-status}
             {unreachable}
@@ -609,11 +610,8 @@
         Return the values in each row of this statement.
     }
     {return-vals
-        An array of rows.
-    }
-  }
-
-  {method public {get-rows}:{Array-of Array}
+        An array of 
+  {method public {data-rows}:{Array-of Array}
     let constant rows:{Array-of Array} = {{Array-of Array}}
     {self.reset}
     {while true do
@@ -623,7 +621,7 @@
          case SQLiteStatus.DONE do
             {break}
          case SQLiteStatus.ROW do
-            {rows.append self.row}
+            {rows.append self.current-row}
          else
             || signal exception
             {self.database.check-status}
@@ -642,7 +640,7 @@
     }
   }
 
-  {method public {get-column index:int = 0}:Array
+  {method public {data-column index:int = 0}:Array
     let constant col:Array = {Array}
     {self.reset}
     {while true do
@@ -1221,7 +1219,7 @@
     {switch {self.stmt.step}
      case SQLiteStatus.OK, SQLiteStatus.DONE do
      case SQLiteStatus.ROW do
-        {return self.stmt.row, false}
+        {return self.stmt.current-row, false}
      else
         {self.stmt.database.check-status}
     }

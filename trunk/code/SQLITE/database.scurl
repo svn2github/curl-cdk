@@ -289,10 +289,13 @@
   }
   {method protected {open}:void
     {if self._sqlite3 != 0 then {return}}
-
     let constant filename:String = 
         {if-non-null u = self.u then
-            {non-null u.local-filename}
+            {if-non-null f = u.local-filename then f
+             else
+                || must be http(s)
+                def loc = {local-data-copy-of u, "DB"}
+                {non-null loc.local-filename}}
          else
             ":memory:"
         }
@@ -1108,11 +1111,8 @@
             double asa Type
          case int8, uint8, int16, uint16, int do
             int asa Type
-         case int64 do
+         case uint32, uint64 do
             int64 asa Type
-|| add in 6.0
-||--         case uint32, uint64 do
-||--            int64 asa Type
          case ByteArray do
             ByteArray
          else
@@ -1339,7 +1339,18 @@
   || SQL convenience functions
   || --------------------
 
-  || TODO: docstring
+  {doc-next
+    {purpose
+        Return whether specified SQL query returns any data.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        If any rows are selected by the query, returns {ctext true}.
+    }
+  }
+  
   {method public {sql-exists?
                      sql:String,
                      ...:any
@@ -1347,11 +1358,25 @@
     {return
         {with-statement in self s = sql do
             {s.bind {splice ...}}
-            {s.get-exists?}
+            {s.data-exists?}
         }}
   }
 
-  || TODO: docstring
+  {doc-next
+    {purpose
+        Return one value from the first row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter index, specifies which column.}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        The value of the specifed column for the first row,
+        or null if no rows are selected by the query.
+    }
+  }
+  
   {method public {sql-value
                      sql:String,
                      index:int = 0,
@@ -1360,11 +1385,24 @@
     {return
         {with-statement in self s = sql do
             {s.bind {splice ...}}
-            {s.get-value index = index}
+            {s.data-value index = index}
         }}
+  }  
+
+  {doc-next
+    {purpose
+        Return the values in a column 
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter index, specifies which column.}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of values.
+    }
   }
-  
-  || TODO: docstring
+
   {method public {sql-column
                      sql:String,
                      index:int = 0,
@@ -1373,11 +1411,24 @@
     {return
         {with-statement in self s = sql do
             {s.bind {splice ...}}
-            {s.get-column index = index}
+            {s.data-column index = index}
         }}
   }
 
-  || TODO: docstring
+  {doc-next
+    {purpose
+        Return the values in the first row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of values.
+        These will be undefined if there is no data.
+    }
+  }
+
   {method public {sql-row
                      sql:String,
                      ...:any
@@ -1385,11 +1436,23 @@
     {return
         {with-statement in self s = sql do
             {s.bind {splice ...}}
-            {s.get-row}
+            {s.data-row}
         }}
   }
 
-  || TODO: docstring
+  {doc-next
+    {purpose
+        Return the values in each row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of rows.
+    }
+  }
+  
   {method public {sql-rows
                      sql:String,
                      ...:any
@@ -1397,7 +1460,7 @@
     {return
         {with-statement in self s = sql do
             {s.bind {splice ...}}
-            {s.get-rows}
+            {s.data-rows}
         }}
   }
   
