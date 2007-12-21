@@ -35,7 +35,7 @@
             {with-statement in db 
                 q = "SELECT say_hi('bye')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "byehi"}
             }
         }
@@ -57,7 +57,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(val) FROM test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 2 and ys[0] == "xhi" and ys[1] == "yhi"}
             }
@@ -95,7 +95,7 @@
             {with-statement in db 
                 q = "SELECT say_hi('bye')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "byehi"}
             }
         }
@@ -113,7 +113,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(2)"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "2"}
             }
         }
@@ -130,7 +130,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(2)"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "2hi"}
             }
         }
@@ -166,7 +166,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(2.0)"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "3.1"}
             }
         }
@@ -183,7 +183,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(2.0)"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "3.1"}
             }
         }
@@ -201,7 +201,7 @@
             {with-statement in db 
                 q = "SELECT say_hi('a')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "a"}
             }
         }
@@ -219,7 +219,7 @@
             {with-statement in db 
                 q = "SELECT say_hi('a', 1, 2.1)"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == "a12.1"}
             }
         }
@@ -236,7 +236,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(11, 7, 'x')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == 10}
             }
         }
@@ -257,21 +257,21 @@
             {with-statement in db 
                 q = "SELECT say_hi(11, 7.1, '1')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 6}
             }
             {with-statement in db 
                 q = "SELECT say_hi('abc')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 3}
             }
             {with-statement in db 
                 q = "SELECT say_hi()"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 0}
             }
@@ -293,21 +293,21 @@
             {with-statement in db 
                 q = "SELECT say_hi(11, 7.1, '1')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 6}
             }
             {with-statement in db 
                 q = "SELECT say_hi('abc')"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 3}
             }
             {with-statement in db 
                 q = "SELECT say_hi()"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] isa int and ys[0] == 0}
             }
@@ -336,13 +336,13 @@
             {with-statement in db 
                 q = "SELECT lame_sum(val) from test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == 6}
             }
             {with-statement in db 
                 q = "SELECT lame_sum(val) from test where val = 4"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == 0}
             }
         }
@@ -382,14 +382,14 @@
             {with-statement in db 
                 q = "SELECT lame_sum(val) FROM test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] == 6}
             }
             {with-statement in db 
                 q = "SELECT lame_sum(val) FROM test WHERE val = 4"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == 0}
             }
         }
@@ -417,14 +417,14 @@
             {with-statement in db 
                 q = "SELECT lame_sum(val) FROM test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0] == 6}
             }
             {with-statement in db 
                 q = "SELECT lame_sum(val) FROM test WHERE val = 4;"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == 0}
             }
         }
@@ -488,7 +488,7 @@
             {with-statement in db 
                 q = "SELECT lame_avg(val) FROM test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and 
                     {type-of ys[0]} == double and
@@ -497,7 +497,7 @@
             {with-statement in db 
                 q = "SELECT lame_avg(val) FROM test WHERE val = 100.0"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and 
                     {type-of ys[0]} == double and
@@ -541,7 +541,7 @@
             {with-statement in db 
                 q = "SELECT byte_concat(val) FROM test"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     ys.size == 1 and ys[0].size == 4 and
                     {ys[0].find 1} >= 0 and {ys[0].find 2} >= 0 and
@@ -550,7 +550,7 @@
             {with-statement in db 
                 q = "SELECT byte_concat(val) FROM test WHERE val = X'07'"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert ys.size == 1 and ys[0] == null}
             }
         }

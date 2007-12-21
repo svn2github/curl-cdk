@@ -27,7 +27,7 @@
                           init-proc:#{proc-type {SQLiteDatabase}:void} = null
                       }
     set self.location = location
-    {construct-super 
+    {construct-super
         {if-non-null location 
          then location.filename 
          else ":memory:"}}
@@ -37,26 +37,25 @@
     {self.generate-tests}
   }
   {method {generate-tests}:void
-    let s-tables:SQLiteStatement = 
-        {self.database.create-statement
+    def tables = 
+        {self.database.sql-column
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"}
-    {for table in {s-tables.get-column} do
+    {for table in tables do
         {self.add
             {self.generate-test table asa String, "table"}}}
-    let s-views:SQLiteStatement = 
-        {self.database.create-statement
+    def views = 
+        {self.database.sql-column
             "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"}
-    {for view in {s-views.get-column} do
+    {for view in views do
         {self.add
             {self.generate-test view asa String, "view"}}}
   }
   {method {generate-test name:String, kind:String}:Test
     {return
         {test-case name,
-            let s:SQLiteStatement = 
-                {self.database.create-statement 
-                    {format "SELECT * from %s;", name}}
-            let xs:{Array-of Array} = {s.get-rows}
+            def xs =
+                {self.database.sql-rows
+                    {format "SELECT * from %s", name}}
             {TestCondition.succeed message = 
                 {lmessage {value kind} '{value name}' : {value xs.size} rows}}
         }}
@@ -75,7 +74,7 @@
     {SQLiteDatabaseTestSuite null,
         init-proc =
             {proc {db:SQLiteDatabase}:void
-                let sql:StringBuf = 
+                def sql = 
                     {read-from {url "../test-data/oe-data/define.sql"}}
                 {db.execute {sql.to-String}}
                 {import-csv-files db,

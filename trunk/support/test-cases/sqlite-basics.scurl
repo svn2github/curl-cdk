@@ -80,7 +80,7 @@ CREATE TABLE test (
             {with-statement in db
                 q = "SELECT val FROM test ORDER BY id"
              do
-                let ys:Array = {q.get-column}
+                let ys:Array = {q.data-column}
                 {TestCondition.assert
                     {any-equal? xs, ys}}
             }
@@ -289,12 +289,12 @@ CREATE TABLE work.test (
                         {with-statement in db2 
                             q = "SELECT val FROM test"
                          do
-                            {output {message DB2 : {value {q.get-column}.size}}}}
+                            {output {message DB2 : {value {q.data-column}.size}}}}
                     }}
                 {with-statement in db 
                     q = "SELECT val FROM test"
                  do
-                    {output {message DB1 : {value {q.get-column}.size}}}}
+                    {output {message DB1 : {value {q.data-column}.size}}}}
             }}
     },
     {test-case "bind, iterator, progress, authorizer",
