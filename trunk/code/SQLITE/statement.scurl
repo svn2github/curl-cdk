@@ -610,7 +610,10 @@
         Return the values in each row of this statement.
     }
     {return-vals
-        An array of 
+        An array of rows.
+    }
+  }
+
   {method public {data-rows}:{Array-of Array}
     let constant rows:{Array-of Array} = {{Array-of Array}}
     {self.reset}
