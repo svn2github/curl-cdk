@@ -26,17 +26,36 @@
         {return loc}}
     def uloc = "curl://user-data/" & path
     def cloc = {{url uloc}.canonicalize}
-    def file = {cloc.concat loc.filename}
+    {return {local-copy-of loc, cloc}}
+}
+{define-proc public {local-data-copy-of
+                        loc:Url,
+                        path:String
+                    }:Url
+    {if not {http-url? loc} then
+        {return loc}}
+    || TODO: needed only when libqlite can run without privilege
+    || -- request-local-data-permission
+    || -- fallback to get-temp-filename, choose-file
+    def uloc = "curl://local-data/" & path
+    def cloc = {{url uloc}.canonicalize}
+    {return {local-copy-of loc, cloc}}
+}
+{define-proc public {local-copy-of
+                        loc:Url,
+                        dir:Url
+                    }:Url
+    {if not {http-url? loc} then
+        {return loc}}
+    {assert dir.local-filename !=  null}
+    def file = {dir.concat loc.filename}
+    || TODO: check validators: timestamp and content-hash
     {if not {local-file-exists? file} then
-        {create-Directory cloc,
+        {create-Directory dir,
             create-missing-parents? = true,
             error-if-exists? = false}
-        {with-open-streams 
-            out = {write-open-byte file},
-            in = {read-open-byte loc}
-         do
-            {in.copy-out out}
-        }
+        {with-local-file-lock file do
+            {copy loc, file}}
     }
     {return file}
 }
