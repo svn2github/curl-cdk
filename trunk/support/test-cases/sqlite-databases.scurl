@@ -74,9 +74,7 @@
     {SQLiteDatabaseTestSuite null,
         init-proc =
             {proc {db:SQLiteDatabase}:void
-                def sql = 
-                    {read-from {url "../test-data/oe-data/define.sql"}}
-                {db.execute {sql.to-String}}
+                {db.execute {read-from {url "../test-data/oe-data/define.sql"}}}
                 {import-csv-files db,
                     {UrlArray
                         {url "../test-data/oe-data/customer.csv"},

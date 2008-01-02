@@ -27,6 +27,18 @@
             {lmessage SQLite exception {value result.name} (code {value result.value})}}}
 }
 {define-proc {any-equal? x:any, y:any}:bool
+    def array-equal? =
+        {proc {xs:any, ys:any}:bool
+            {if xs.size != ys.size then
+                {return false}
+            }
+            {for xv key i in xs do
+                {if not {any-equal? xv, ys[i]} then
+                    {return false}
+                }
+            }
+            {return true}
+        }
     {if x == y then
         {return true}
     }
@@ -41,15 +53,12 @@
      case xs:Array do
         {type-switch y
          case ys:Array do
-            {if xs.size != ys.size then
-                {return false}
-            }
-            {for xv key i in xs do
-                {if not {any-equal? xv, ys[i]} then
-                    {return false}
-                }
-            }
-            {return true}
+            {return {array-equal? xs, ys}}
+        }
+     case xs:{Array-of Array} do
+        {type-switch y
+         case ys:{Array-of Array} do
+            {return {array-equal? xs, ys}}
         }
     }
     {return false}
@@ -170,8 +179,7 @@ CREATE TABLE work.test (
         let db:SQLiteDatabase = {non-null con.main-database}
 
         || schema
-        let defs:StringBuf = {read-from {url "../test-data/oe-data/define.sql"}}
-        {db.execute {defs.to-String}}
+        {db.execute {read-from {url "../test-data/oe-data/define.sql"}}}
 
         || data
         {SQLiteStatement.import-csv db,
@@ -297,6 +305,67 @@ CREATE TABLE work.test (
                     {output {message DB1 : {value {q.data-column}.size}}}}
             }}
     },
+    || --------------------
+    {value
+        def testsql = "
+DROP TABLE IF EXISTS products;
+CREATE TABLE products (
+ id TEXT NOT NULL PRIMARY KEY,
+ name TEXT NOT NULL,
+ price DOUBLE NOT NULL
+);
+INSERT INTO products VALUES ('0001','paper',10.00);
+INSERT INTO products VALUES ('0002','envelope',5.00);
+INSERT INTO products VALUES ('0003','pen',4.00);
+INSERT INTO products VALUES ('0004','pencil',2.00);
+INSERT INTO products VALUES ('0005','marker',7.00);
+INSERT INTO products VALUES ('0006','folder',9.00);
+INSERT INTO products VALUES ('0007','calendar',4.00);
+"
+        def testdb =
+            {proc {}:SQLiteDatabase
+                def db = {SQLiteDatabase null}
+                {db.execute testsql}
+                {return db}}
+        {TestSuite "convenience functions",
+            {test-case "sql-value",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-value "SELECT AVG(price) FROM products"},
+                            5.8571428571428568}}}},
+            {test-case "sql-row",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-row "SELECT * FROM products WHERE id = ?", "0001"},
+                            {Array "0001","paper",10}}}}},
+            {test-case "sql-rows",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-rows "SELECT * FROM products"},
+                            {{Array-of Array}
+                                {Array "0001","paper",10},
+                                {Array "0002","envelope",5},
+                                {Array "0003","pen",4},
+                                {Array "0004","pencil",2},
+                                {Array "0005","marker",7},
+                                {Array "0006","folder",9},
+                                {Array "0007","calendar",4}}
+                        }}}},
+            {test-case "sql-column",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal?
+                            {db.sql-column
+                                "SELECT name FROM products WHERE price > ? ORDER BY name", 5},
+                            {Array "folder", "marker", "paper"}
+                        }}}},
+            {test-case "sql-exists?",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}}
+        }
+    },
+    || --------------------
     {test-case "bind, iterator, progress, authorizer",
         {with-database db = {SQLiteDatabase null} do
             let operations:{Array-of SQLiteOperation} =
@@ -408,8 +477,7 @@ CREATE TABLE work.test (
                 }
                 {TestCondition.assert total < values.size}
             }
-            {TestCondition.assert operations[0] == SQLiteOperation.CREATE_TABLE
-                and
+            {TestCondition.assert operations[0] == SQLiteOperation.CREATE_TABLE and
                 data1-array[0] == "test"}
             {TestCondition.assert operations[1] == SQLiteOperation.INSERT and
                 data1-array[1] == "test"}
