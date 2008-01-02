@@ -1117,7 +1117,7 @@
             double asa Type
          case int8, uint8, int16, uint16, int do
             int asa Type
-         case uint32, uint64 do
+         case uint32, uint64, int64 do
             int64 asa Type
          case ByteArray do
             ByteArray
