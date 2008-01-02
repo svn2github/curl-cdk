@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 {define-class public SQLiteVariantDomain {inherits StandardAnyDomain}
-  field affinity:SQLiteDatatypeAffinity
+  field public-get affinity:SQLiteDatatypeAffinity
   {constructor public {default 
                           affinity:SQLiteDatatypeAffinity = 
                               SQLiteDatatypeAffinity.NONE,
@@ -130,7 +130,9 @@
     TEXT,
     NONE
 }
-{define-proc {SQLiteDatatypeAffinity-from-declared-type decltype:String}:SQLiteDatatypeAffinity
+{define-proc public {SQLiteDatatypeAffinity-from-declared-type 
+                        decltype:String
+                    }:SQLiteDatatypeAffinity
   {return
       {if decltype.empty?
        then

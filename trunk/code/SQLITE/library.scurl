@@ -46,8 +46,7 @@
         Constructs a {ctext SQLiteInterface} object.
     }
     {details
-        This is a singleton object. So calling {ctext
-        {SQLiteInterface}} will return the same {SQLiteInterface}
+        This is a singleton object. So calling {ctext {SQLiteInterfac}e} will return the same {ctext SQLiteInterface}
         object in a given Curl process.
     }
   }

@@ -70,7 +70,7 @@
         Construct a {docref SQLiteStatement} object.
     }
     {parameter database,
-        The {docref SQLiteDatabase} this statemet is associated with.
+        The {docref SQLiteDatabase} this statement is associated with.
     }
     {parameter sql,
         The SQL statemet this object represents.
@@ -84,10 +84,10 @@
   || SQLiteDatabase.create-statement?
   {constructor public {default 
                            database:SQLiteDatabase, 
-                           sql:String
+                           sql:StringInterface
                        }
     set self.database = database
-    set self.sql = sql
+    set self.sql = {sql.to-String}
   }
 
   {doc-next
@@ -706,6 +706,7 @@
         After this call this {ctext SQLiteStatement} is ready to be
         re-executed. Any SQL parameters that have values bound to them
         will retain their values on the subsequent execution.
+        Use {docref-abbr SQLiteStatement.clear-bindings} to unset parameter bindings.
     }
     {notes
         If the {ctext SQLiteStatement} is not yet prepared or it is
@@ -720,7 +721,15 @@
     {return {{SQLiteInterface}.reset self.stmt}}
   }
 
-  || TODO: docstring
+
+  {doc-next
+    {purpose
+        Clears parameter bindings for the {docref SQLiteStatement}.
+    }
+    {notes
+        Any SQL parameters that have values bound to {ctext null}.
+    }
+  }
   {method public open {clear-bindings}:void
     {if self.stmt == 0 then {return}}
     

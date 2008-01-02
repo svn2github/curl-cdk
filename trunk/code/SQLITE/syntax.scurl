@@ -26,6 +26,45 @@
 
 || transaction shorthand
 || --------------------
+{doc-next
+    {purpose Execute code containing SQLite database operations
+        as an atomic transaction. This ensures that either
+        all operations succeed, and the transaction is committed
+        or else, if any exception is thrown,
+        then the transaction is rolled back.
+    }
+    {syntax
+        The "with-transaction" macro uses the following syntax:
+        
+        {ctext
+            {with-statement in {metavar database}
+                [{metavar lock-type}]
+             do {metavar body}}
+        }
+
+        where the {metavar body} is executed inside a try/catch block,
+        preceded by SQL {monospace BEGIN {metavar lock-type}}
+        and followed by either SQL {monospace COMMIT} or SQL {monospace REVERT}.
+    }
+    {details
+        The {metavar lock-type} governs how aggressively the SQLite engine
+        locks access to the database during the transaction.
+        This is relevant when more than one process might be using the database.
+        Allowable values are
+        {itemize
+            {item {ctext deferred} - this is the dafult,
+                if {metavar lock-type} is unspecified}
+            {item {ctext immediate}}
+            {item {ctext exclusive}}
+        }
+        See {link href = {url "http://www.sqlite.org"}, SQLite}
+        documentation pages for a full explanation of how
+        SQLite handles locking and concurency.
+    }
+    {notes
+        NOTE: SQLite transactions can {bold not} be nested.
+    }
+}
 {define-macro public {with-transaction
                       in ?db:expression
                          ?lock:{one-of 
@@ -42,17 +81,20 @@
          else {{lock.get-text}.to-String}}
     {return
         {expand-template
-            let body-failed?:bool
-            {?db.execute "BEGIN " & ?{Literal lock-type}}
-            {try
-                ?body
-             catch e:Exception do
-                set body-failed? = true
-                {?db.execute "ROLLBACK"}
-                {throw e}
-             finally
-                {if not body-failed? then
-                    {?db.execute "COMMIT"}
+            {do
+                let db:{compile-time-type-of ?db} = ?db
+                let body-failed?:bool
+                {db.execute "BEGIN " & ?{Literal lock-type}}
+                {try
+                    ?body
+                 catch e:Exception do
+                    set body-failed? = true
+                    {db.execute "ROLLBACK"}
+                    {throw e}
+                 finally
+                    {if not body-failed? then
+                        {db.execute "COMMIT"}
+                    }
                 }
             }
         }
@@ -61,6 +103,24 @@
 
 || ecological shorthand
 || --------------------
+{doc-next
+    {purpose Execute code using an SQLite database,
+        ensuring that the database is always closed.
+    }
+    {syntax
+        The "with-database" macro uses the following syntax:
+        
+        {ctext
+            {with-database
+                {metavar database} = {metavar expr}
+             do {metavar body}}
+        }
+
+        where within {metavar body}, the variable {metavar database}
+        is bound to the {docref SQLiteDatabase} created
+        from {metavar expr}.
+    }
+}
 {define-macro public {with-database
                          ?db:identifier = ?database:expression               
                       do
@@ -74,6 +134,31 @@
                 {try ?body
                  finally {?db.close}}}
         }
+    }
+}
+{doc-next
+    {purpose Execute code using a prepared SQL statement,
+        ensuring that statement is always finalized.
+    }
+    {syntax
+        The "with-statement" macro uses the following syntax:
+        
+        {ctext
+            {with-statement in {metavar database}
+                {metavar statement} = {metavar SQL}
+             do {metavar body}}
+        }
+
+        where within {metavar body}, the variable {metavar statement}
+        is bound to the {docref SQLiteStatement} prepared
+        from the {ctext String} {metavar SQL}.
+    }
+    {notes
+        Every {ctext SQLiteStatement} will eventually be finalized,
+        and its resources released, either when its applet is suspended,
+        or if it is garbage collected.
+        However, using the {ctext with-statement} macro
+        causes that to happen immediately. 
     }
 }
 {define-macro public {with-statement

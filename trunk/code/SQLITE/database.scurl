@@ -92,7 +92,7 @@
         database.
     }
   }
-  field constant protected u:#Url
+  field constant public url:#Url
 
   {doc-next
     {purpose
@@ -242,7 +242,7 @@
   }
   || TODO: Should we make an implicit constructor from #Url?
   {constructor public {default u:#Url}
-    set self.u = u
+    set self.url = u
     set self.statements = {{Array-of SQLiteStatement}}
   }
 
@@ -290,7 +290,7 @@
   {method protected {open}:void
     {if self._sqlite3 != 0 then {return}}
     let constant filename:String = 
-        {if-non-null u = self.u then
+        {if-non-null u = self.url then
             {if-non-null f = u.local-filename then f
              else
                 || must be http(s)
@@ -390,7 +390,9 @@
         
     let constant interface:SQLiteInterface = {SQLiteInterface}
     let constant code:SQLiteStatus = {interface.errcode self.sqlite3}
-    {if code != SQLiteStatus.OK then
+    {if code != SQLiteStatus.OK and
+        code != SQLiteStatus.DONE
+     then
         {throw {SQLiteException code, {interface.errmsg self.sqlite3}}}
     }
   }
@@ -513,7 +515,7 @@
     }
   }
   {method public open {execute
-                          sql:String,
+                          sql:StringInterface,
                           callback:#{proc-type
                                         {data:StringArray,
                                          column-names:StringArray
@@ -525,7 +527,7 @@
     let constant (status:SQLiteStatus, errmsg:String) =
         {{SQLiteInterface}.exec
             self.non-null-sqlite3,
-            sql,
+            {sql.to-String},
             callback
         }
 
@@ -781,6 +783,10 @@
      else
         set self._authorizer = callback
     }
+  }
+
+  {getter public {authorizer}:#SQLiteAuthorizerProcType
+    {return self._authorizer}
   }
 
   {method public {interrupt}:void
@@ -1296,14 +1302,6 @@
     }
   }
 
-  || statement convenience functions
-  || --------------------
-
-  || TODO: docstring
-  {method public {create-statement sql:String}:SQLiteStatement
-    {return {SQLiteStatement self, sql}}
-  }
-
   {method package {prepare-statement stmt:SQLiteStatement}:void
     let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
         {{Pointer-to SQLiteStatementHandle} value = 0}
@@ -1336,6 +1334,18 @@
     {return status}
   }
 
+  || statement convenience functions
+  || --------------------
+  
+  {doc-next
+    {purpose
+        Create a prepared SQLite statement.
+    }
+  }
+  {method public {create-statement sql:StringInterface}:SQLiteStatement
+    {return {SQLiteStatement self, sql}}
+  }
+
   || SQL convenience functions
   || --------------------
 
@@ -1352,7 +1362,7 @@
   }
   
   {method public {sql-exists?
-                     sql:String,
+                     sql:StringInterface,
                      ...:any
                  }:bool
     {return
@@ -1378,7 +1388,7 @@
   }
   
   {method public {sql-value
-                     sql:String,
+                     sql:StringInterface,
                      index:int = 0,
                      ...:any
                  }:any
@@ -1404,7 +1414,7 @@
   }
 
   {method public {sql-column
-                     sql:String,
+                     sql:StringInterface,
                      index:int = 0,
                      ...:any
                  }:Array
@@ -1430,7 +1440,7 @@
   }
 
   {method public {sql-row
-                     sql:String,
+                     sql:StringInterface,
                      ...:any
                  }:Array
     {return
@@ -1454,7 +1464,7 @@
   }
   
   {method public {sql-rows
-                     sql:String,
+                     sql:StringInterface,
                      ...:any
                  }:{Array-of Array}
     {return
