@@ -26,8 +26,10 @@
     CDK Overview
 }
 {paragraph
-    The Curl Data Kit (CDK) provides the technologies necessary for building applications in Curl
-    that make use of local SQL databases.
+    The Curl Data Kit (CDK) library
+    facilitates building data-centric applications in Curl.
+    
+    It includes support for client side SQLite databases.
 }
 
 {heading level=2,
@@ -38,141 +40,27 @@
     This is the first CDK Release.
 }
 
-|| ====================
-{heading level=2,
-    SQLITE Overview
-}
-
 {paragraph
-   TODO.
+    This CDK Release is for use with Curl API Version 6.0.
+    
+    Core CDK Release packages are marked as version 1.0.
+    
+    {itemize
+        {item
+            {link href = {url "sqlite-overview.curl"},
+            SQLite Overview}}
+    }
+
+||--    Some CDK Extras packages remain in prototype form,
+||--    and are marked as version 0.9.
+||--    
+||--    {itemize
+||--        {item
+||--            {link href = {url "cdk-extras.curl"},
+||--            CDK Extras}}
+    
 }
 
-|| ====================
-{heading level=3,
-   Databases
-}
-
-{itemize
-    {item {docref SQLiteDatabase}}
-    {item opening}
-    {item creating}
-    {item executing SQL}
-    {item transactions}
-    {item exceptions}
-}
-
-|| ====================
-{heading level=3,
-   Statements
-}
-
-{itemize
-    {item {docref SQLiteStatement}}
-    {item creation}
-    {item results}
-    {item parameters}
-    {item life cycle}
-    {item data binding}
-}
-
-|| ====================
-{heading level=3,
-   RecordSets
-}
-
-{itemize
-    {item {docref SQLiteRecordSet}}
-    {item table recordsets}
-    {item view recordsets}
-
-    {item Curl DATA-ACCESS}
-}
-
-|| ====================
-{heading level=3,
-   Feedback
-}
-
-{itemize
-    {item update notification}
-    {item concurrency}
-    {item progress}
-}
-
-|| ====================
-{heading level=3,
-   Extension
-}
-
-{itemize
-    {item functions}
-    {item aggregates}
-    {item authorization}
-}
-
-|| ====================
-{heading level=3,
-   Advanced
-}
-
-{itemize
-    {item lifecycle and resource usage}
-    {item transactions and locking}
-    {item server interaction}
-    {item attached databases}
-}
-
-|| ====================
-{heading level=2,
-    SQLITE Samples
-}
-
-||-- scenarios
-||-- * basic
-||-- ** create
-||-- ** populate
-||-- ** query
-||-- *** exists, value, row, col, rows
-||-- * advanced sql
-||-- ** triggers
-||-- ** constraints
-||-- ** views
-||-- * parameterized queries
-||-- ** API
-||-- ** callbacks
-||-- ** functions
-||-- * concurrency
-
-{paragraph
-   TODO.
-}
-|| ====================
-{heading level=3,
-   Examples
-}
-
-{itemize
-    {item order entry}
-    {item aggregation}
-    {item undo history}
-    {item settings}
-    {item logging}
-    {item example index}
-    {item translation history}
-    {item OCC}
-}
-
-|# TEMPLATE
-|| ====================
-{heading level=3,
-   XXX
-}
-
-{itemize
-    {item {docref XXX}}
-    {item xxx}
-}
-#|
 || ====================
 {curl-copyright}
 

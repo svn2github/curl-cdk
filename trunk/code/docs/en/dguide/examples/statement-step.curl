@@ -1,0 +1,27 @@
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    def db = {SQLiteDatabase null}
+    {db.execute {read-from {url "products.sql"}}}
+
+    def display = {VBox}
+    {with-statement in db
+        s = "select id, name, price from products order by price desc"
+     do
+        {while {s.step} == SQLiteStatus.ROW do
+            def id:String = {s.get-column-text 0}
+            def name:String = {s.get-column-text 1}
+            def price:double = {s.get-column-double 2}
+            {display.add
+                {text
+                    tooltip =
+                        {Tooltip style = "immediate",
+                            {text {bold {value name}} (#{value id}) ${format "%.02f", price}}},
+                    {value name}}}
+        }}
+    display
+}
+

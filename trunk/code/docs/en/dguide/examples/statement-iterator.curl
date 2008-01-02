@@ -1,0 +1,24 @@
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    def db = {SQLiteDatabase null}
+    {db.execute {read-from {url "products.sql"}}}
+
+    def display = 
+        {Table cell-margin = 1px,
+            {column-prototype 
+                {bold Name}},
+            {column-prototype
+                {bold Price},
+                halign = "right"}}
+    {with-statement in db
+        s = "select name, price from products order by price desc"
+     do
+        {for row in {s.rows-to-Iterator} do
+            {display.add
+                {row-prototype row[0], row[1]}}}}
+    display
+}

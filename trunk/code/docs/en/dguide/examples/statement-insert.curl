@@ -1,0 +1,64 @@
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    def con = {SQLiteConnection null}
+    def db = con.main-database
+    {db.execute "
+CREATE TABLE log (
+ id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+ `when` TEXT NOT NULL DEFAULT CURRENT_TIME,
+ what TEXT NOT NULL,
+ `where` TEXT NOT NULL
+);
+CREATE VIEW log_summary AS
+SELECT what, count(what) AS hits
+FROM log 
+GROUP BY what
+ORDER BY hits DESC
+;"}
+    def s-log =
+        {db.create-statement
+            "INSERT INTO log (what, `where`) VALUES (?, ?)"}
+    def log =
+        {proc {what:String, where:String}:void
+            {s-log.reset}
+            {s-log.bind what, where}
+            {s-log.step}
+            {db.check-status}}
+
+    def item =
+        {proc {what:String}:Graphic
+            {return 
+                {Frame
+                    {on PointerLeave at g:Graphic do
+                        {unset g.color}},
+                    {on e:PointerEnter at g:Graphic do
+                        set g.color = "red"
+                        def where = {format "%f, %f", e.x/1pt, e.y/1pt}
+                        {log what, where}},
+                    what}}}
+
+    {VBox
+        {bold Hover over the topics},
+        {item "this"},
+        {item "that"},
+        {item "another"},
+        {item "whatever"},
+        {hrule},
+        {bold See the log},
+        {CommandButton label = "Summary",
+            {on Action do
+                def rs = {con.create-record-set "main", "SELECT * FROM log_summary"}
+                {popup-message title = "Summary",
+                    {RecordGrid record-source = rs}}}},
+        {CommandButton label = "Detail",
+            {on Action do
+                def rs = {con.create-record-set "main", "SELECT * FROM log"}
+                {popup-message title = "Detail",
+                    {RecordGrid record-source = rs,
+                        width = 6in}}}}
+    }
+}

@@ -1,0 +1,38 @@
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    || in-memory database
+    def db = {SQLiteDatabase null}
+    || database schema
+    {db.execute "
+CREATE TABLE products (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  price DOUBLE NOT NULL);"}
+    || insert data
+    {db.execute "
+INSERT INTO products VALUES ('0001','paper',10.00);
+INSERT INTO products VALUES ('0002','envelope',5.00);
+INSERT INTO products VALUES ('0003','pen',4.00);
+INSERT INTO products VALUES ('0004','pencil',2.00);
+INSERT INTO products VALUES ('0005','marker',7.00);
+INSERT INTO products VALUES ('0006','folder',9.00);
+INSERT INTO products VALUES ('0007','calendar',4.00);"}
+    || query for product names
+    def names = {db.sql-column "SELECT name FROM products ORDER BY name"}
+    || display
+    {text Choose product:
+        {DropdownList vorigin = 75%,
+            {splice names},
+            {on ValueFinished at c:DropdownList do
+                || parameterized query for product info
+                def row =
+                    {db.sql-row "SELECT * FROM products WHERE name=?",
+                        c.value}
+                {popup-message
+                    {text item '{value row[1]}' (#{value row[0]}) costs ${value row[2]}}}}
+        }}
+}

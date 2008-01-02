@@ -20,6 +20,10 @@
     {node
         |"CDK Overview"|,
         {url "cdk-overview.curl"}
+    },
+    {node
+        |"SQLIte Overview"|,
+        {url "sqlite-overview.curl"}
     }||,
 ||--    {node
 ||--        |"CDK Worked Examples"|,

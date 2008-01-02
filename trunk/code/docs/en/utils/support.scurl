@@ -25,7 +25,7 @@
             background = "beige",
             border-width = 2px,
             margin = 8px,
-            ...
+            {splice ...}
         }
     }
 }
@@ -38,7 +38,7 @@
             {bold Note:},
             {paragraph
                 font-size = 0.8em,
-                {value ...}}
+                {splice ...}}
         }}
 }
 {define-proc {privilege-note}:Visual
@@ -102,7 +102,7 @@
                                 {TextFlowBox 
                                     text-breakable? = true, 
                                     content}}}},
-            ...}}
+            {splice ...}}}
 }
 || example references
 || --------------------
@@ -130,14 +130,14 @@
             {paragraph
                 Error in {bold {value loc}}:{br}                
                 {text color = "red", {value e}}}}
-    {return {Frame result, ...}}
+    {return {Frame result, {splice ...}}}
 }
 {define-proc {x-example-ref
                  title:String = {message Example},
                  href:Url,
                  ...}:Visual
     let display:Graphic = 
-        {example-ref title = title, href, ...}
+        {example-ref title = title, href, {splice ...}}
     {return
         {text-width-display 
             {expandable
@@ -154,7 +154,8 @@
             {expandable
                 border-width = 2px, 
                 {bold {value title}},
-                {code-box display}}}}
+                {code-box display,
+                    {splice ...}}}}}
 }
 || sourceref
 || --------------------

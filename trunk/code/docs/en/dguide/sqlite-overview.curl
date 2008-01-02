@@ -1,0 +1,358 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+
+{applet manifest = "manifest.mcurl", locale = "en"}
+
+{include "../utils/guide-header.scurl"}
+{include "../utils/support.scurl"}
+
+{chapter
+    index= {HeadingIndex primary-key="SQLite Databases"},
+    SQLite Overview
+}
+
+|| ====================
+{heading level=2,
+    SQLITE Overview
+}
+{summary
+    {itemize
+        {item Use {ctext SQLiteDatabase} to organize data.}
+        {item Use {ctext SQLiteStatement} for queries.}
+        {item Use {ctext SQLiteRecordSet} to present and manipulate query results in Curl.}
+    }
+}
+{paragraph
+    The Curl Data Kit package {docref COM.CURL.CDK.SQLITE}
+    allows you to build applications that make use of local SQL databases,
+    using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
+    SQL engine.
+
+    This allows data centric Curl applications to take advantage of the
+    full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
+
+    SQLite databases are fully integrated with Curl {docref COM.CURL.DATA-ACCESS} package:
+    query results are represented using {docref SQLiteRecordSet} subclasses,
+    so standard Curl techniques to present and manipulate data can be used
+    (like {docref RecordView}, {docref RecordGrid}, {docref RecordForm} and {docref DataBinding}).
+}
+
+|| ====================
+{heading level=3,
+   Databases
+}
+{paragraph
+    SQLite databases are self-contained files.
+    
+    Use {docref SQLiteDatabase} to create or read a database.
+    
+    {itemize
+        {item specify the {ctext Url} of the database file.}
+        {item The specified database file will be opened.}
+        {item If the specified file does not exist, it will be created.}
+        {item To create an "in-memory" database, supply {ctext null}.}
+        {item SQLite database files use the local filesystem.}
+        {item If an {monospace http} location is specified,
+            its contents will be copied to {monospace curl://user-data/}.}
+    }
+
+    Use {docref SQLiteDatabase.execute} to perform SQL operations.
+
+    {code-box 
+        || NOTE: curl-code display is problematic with left "outdent"
+        || - code must be flush left for applet to display properly.
+        || - don't let the IDE indent the "db.execute" line
+        {curl-code
+{db.execute "
+CREATE TABLE products (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  price DOUBLE NOT NULL);"}}}
+
+    Use {ctext sql-} methods to obtain data. They take a SQL expression,
+    and optional parameters, and return the result.
+
+    {itemize
+        {item {docref-abbr SQLiteDatabase.sql-value} returns a single value.
+            {curl-code {db.sql-value "SELECT AVG(price) FROM products"}}}
+        {item {docref-abbr SQLiteDatabase.sql-row} returns the values from a row.
+            {curl-code {db.sql-row "SELECT * FROM products WHERE id = ?", "0001"}}}
+        {item {docref-abbr SQLiteDatabase.sql-rows} returns the values from all the rows.
+            {curl-code {db.sql-rows "SELECT * FROM products"}}}
+        {item {docref-abbr SQLiteDatabase.sql-column} returns the values from a column.
+            {curl-code {db.sql-column  "SELECT name FROM products WHERE price > ?", 10}}}
+        {item {docref-abbr SQLiteDatabase.sql-exists?} returns whether any rows were selected.
+            {curl-code {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}
+    }
+
+    ||  TODO: about privilege
+
+    {x-example-ref title = "Create database",
+        {url "examples/create-database.curl"}}
+
+    The {docref SQLiteDatabase} object manages all resources associated with database access.
+    Databases will be closed, and resources released, whenever a Curl applet is suspended,
+    and reactivated when it is resumed, so no bookkeeping is needed in the application itself.
+
+    Any database errors are signaled using {docref SQLiteException}.
+    This includes the SQLite error code, and explanatory message.
+    When you need several database operations to be treated atomically,
+    you can use a transaction (starting with SQL {monospace BEGIN},
+    and ending with SQL {monospace COMMIT} or SQL {monospace ROLLBACK}).
+    The {docref with-transaction} syntax is a convenient way to specify a transaction.
+
+    {code-box 
+        {curl-code
+            {with-transaction in db do
+                {db.execute
+                    "INSERT INTO products VALUES ('0008', 'notebook', 9.00)"}
+                {db.execute
+                    "INSERT INTO products VALUES ('0009', 'paperclips', 2.75);"}
+            }}}
+
+}
+
+|| ====================
+{heading level=3,
+   Statements
+}
+{paragraph    
+    Use {docref SQLiteStatement}s to encapsulate SQL operations.
+    There are several advantages to using prepared statements.
+
+    {itemize
+        {item modularity - SQL can be isolated from other code}
+        {item efficiency - SQL compiles statements into byte code before execution.
+            When statements are reused, the overhead of parsing and compiling is avoided.}
+        {item security - using parameters protects statements from "SQL injection" attacks}
+    }
+
+    Use {docref SQLiteDatabase.create-statement} or {docref SQLiteStatement}
+    to create an SQL statement object.
+
+    Statements can be defined with variable parameters,
+    which can be supplied by the caller.
+
+    A statement, once prepared (or {docref-abbr SQLiteStatement.reset}),
+    is essentially a cursor on the query results.
+
+    Use {docref-abbr SQLiteStatement.step} to obtain each data row.
+    The {ctext step} return value indicates the kind of result.
+    {itemize
+        {item {docref SQLiteStatus}.ROW indicates that a data row is available.}
+        {item {docref SQLiteStatus}.DONE indicates that  no further data is available.}
+        {item Other {docref SQLiteStatus} codes indicate error conditions.}
+    }
+
+    Use high level {ctext data-} methods for consolidated results.
+    Use {docref-abbr SQLiteStatement.rows-to-Iterator} to iterate on rows.
+    Lower level {ctext get-} methods can be used to obtain individual data items.
+
+    This is the "life cycle" of a statement.
+    {itemize
+        {item create with {docref SQLiteDatabase.create-statement}.}
+        {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.}
+        {item execute with {docref-abbr SQLiteStatement.step}.}
+        {item obtain data with {docref-abbr SQLiteStatement.get-column-value} and other {ctext get-column-} methods.}
+        {item reset for further use with {docref-abbr SQLiteStatement.reset}.
+            Note that parameter bindings are retained when a statement is reset.
+            Use {docref-abbr SQLiteStatement.clear-bindings} to unset bound parameters.}
+        {item dispose with {docref-abbr SQLiteStatement.finalize}.
+            Every statement will eventually be finalized, and its resources released,
+            when the database is closed, or when the applet is suspended.
+            You can use the {docref with-statement} syntax to ensure that
+            a statement is immediately finalized.}
+    }
+
+    {x-example-ref title = {message Statement with iterator},
+        {url "examples/statement-iterator.curl"}
+    }
+    
+    {x-example-ref title = {message Statement with step},
+        {url "examples/statement-step.curl"}
+    }
+    
+    {x-example-ref title = {message Statements with step}, 
+        {url "examples/statements.curl"}
+    }
+
+    Parameterized statements are also useful for creation and update operations.
+    For example, a statement can be used for inserting rows into a table
+    
+    {code-box
+        {curl-code
+            def insert =
+                {db.create-statement
+                    "INSERT INTO log (when, where, what) VALUES (?, ?, ?)"}
+            {insert.reset}
+            {insert.bind "now", "here", "this"}
+            {insert.step}
+        }}
+    
+    {x-example-ref title = {message Statement for insert},
+        {url "examples/statement-insert.curl"}
+    }
+
+    In fact, there are predefined functions for bulk data insertion
+    that use that technique.
+    
+    {itemize
+        {item {docref SQLiteStatement.insert-proc}
+            returns an insertion procedure for a specified table.}
+        {item {docref SQLiteStatement.import-csv}
+            inserts rows into a specified table from a CSV file.}
+    }
+
+    This example uses boston temperature data in CSV format
+    (also used in {link href = {dguide.merge "charts.curl"}, Charts chapter})
+    to compute annual summary informetion ussing SQL.
+    
+    {x-example-ref title = {message Bulk insertion},
+        {url "examples/import-csv.curl"}
+    }
+}
+
+|| TODO: datatypes
+
+|| ====================
+{heading level=3,
+   RecordSets
+}
+{paragraph
+   TODO.
+}
+
+{itemize
+    {item {docref SQLiteRecordSet}}
+    {item table recordsets}
+    {item view recordsets}
+}
+
+{itemize
+    {item Curl DATA-ACCESS issues}
+    {item commit/revert}
+    {item sort/filter}
+    {item autocommit}
+}
+
+|| ====================
+{heading level=3,
+   Feedback
+}
+{paragraph
+   TODO.
+}
+
+{itemize
+    {item update notification}
+    {item concurrency}
+    {item busy handler}
+    {item progress}
+}
+
+|| ====================
+{heading level=3,
+   Extension
+}
+{paragraph
+   TODO.
+}
+
+{itemize
+    {item functions}
+    {item aggregates}
+    {item authorization}
+}
+
+|| ====================
+{heading level=3,
+   Advanced
+}
+{paragraph
+   TODO.
+}
+
+{itemize
+    {item HTTP considerations}
+    {item server interaction}
+    || consider change log
+    {item lifecycle and resource usage}
+    {item transactions and locking}
+    {item attached databases}
+    || copy example
+    {item pragma settings}
+}
+{paragraph
+    See website for primary docs
+    Recommend book
+}
+
+|| ====================
+{heading level=2,
+    SQLITE Samples
+}
+{paragraph
+   TODO.
+}
+
+||-- scenarios
+||-- * basic
+||-- ** create
+||-- ** populate
+||-- ** query
+||-- *** exists, value, row, col, rows
+||-- * advanced sql
+||-- ** triggers
+||-- ** constraints
+||-- ** views
+||-- * parameterized queries
+||-- ** API
+||-- ** callbacks
+||-- ** functions
+||-- * concurrency
+
+|| ====================
+{heading level=3,
+   Examples
+}
+
+{itemize
+    {item order entry}
+    {item aggregation}
+    {item undo history}
+    {item settings}
+    {item logging}
+    {item example index}
+    {item translation history}
+    {item OCC}
+}
+
+|# TEMPLATE
+|| ====================
+{heading level=3,
+   XXX
+}
+
+{itemize
+    {item {docref XXX}}
+    {item xxx}
+}
+#|
+|| ====================
+{curl-copyright}
+

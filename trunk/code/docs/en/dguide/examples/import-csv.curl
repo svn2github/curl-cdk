@@ -1,0 +1,36 @@
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    def con = {SQLiteConnection null}
+    def db = con.main-database
+    || schema
+    {db.execute "
+CREATE TABLE temp (
+ year INT NOT NULL,
+ month INT NOT NULL,
+ day INT NOT NULL,
+ max INT NOT NULL,
+ mean INT NOT NULL,
+ min INT NOT NULL,
+ PRIMARY KEY (year, month, day)
+);"}
+    || data
+    {SQLiteStatement.import-csv db, "temp",
+        {url "boston-temp.csv"}}
+    || aggregation
+    def row =
+        {db.sql-row
+            "SELECT min(min), round(avg(mean)), max(max) as max FROM temp"}
+    || display
+    {Table cell-margin = 2px,
+        {column-prototype
+            {text Low},
+            {text Average},
+            {text High}},
+        {column-prototype halign = "right",
+            {splice row}}
+    }
+}
