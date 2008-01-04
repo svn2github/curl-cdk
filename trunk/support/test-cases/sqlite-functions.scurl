@@ -14,9 +14,8 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| ==================== \\
-|| test extenstions
 {import * from COM.CURL.CDK.SQLITE}
+
 {define-class public AvgData
   field public sum:double
   field public count:int
@@ -148,7 +147,7 @@
             {with-statement in db 
                 q = "SELECT say_hi(1.0)"
              do
-                let status:SQLiteStatus = {q.step}
+                let status:SQLiteStatus = {q.step throw-on-error? = false}
                 {TestCondition.assert status != SQLiteStatus.OK and
                     status != SQLiteStatus.DONE}
             }

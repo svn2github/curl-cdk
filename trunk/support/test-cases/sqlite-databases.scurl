@@ -14,59 +14,8 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| ==================== \\
-|| test extenstions
 {import * from COM.CURL.CDK.SQLITE}
-{import * from CURL.DATA-ACCESS.BASE}
-
-{define-class public SQLiteDatabaseTestSuite {inherits TestSuite}
-  field public-get constant location:#Url
-  field public-get constant database:SQLiteDatabase
-  {constructor public {default 
-                          location:#Url,
-                          init-proc:#{proc-type {SQLiteDatabase}:void} = null
-                      }
-    set self.location = location
-    {construct-super
-        {if-non-null location 
-         then location.filename 
-         else ":memory:"}}
-    set self.database = {SQLiteDatabase self.location}
-    {if-non-null init-proc then
-        {init-proc self.database}}
-    {self.generate-tests}
-  }
-  {method {generate-tests}:void
-    def tables = 
-        {self.database.sql-column
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"}
-    {for table in tables do
-        {self.add
-            {self.generate-test table asa String, "table"}}}
-    def views = 
-        {self.database.sql-column
-            "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"}
-    {for view in views do
-        {self.add
-            {self.generate-test view asa String, "view"}}}
-  }
-  {method {generate-test name:String, kind:String}:Test
-    {return
-        {test-case name,
-            def xs =
-                {self.database.sql-rows
-                    {format "SELECT * from %s", name}}
-            {TestCondition.succeed message = 
-                {lmessage {value kind} '{value name}' : {value xs.size} rows}}
-        }}
-  }
-}
-{define-proc {import-csv-files db:SQLiteDatabase, locs:UrlArray}:void
-    {for loc in locs do
-        {SQLiteStatement.import-csv db, loc.basename, loc}
-    }
-}
-|| ==================== \\
+{import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
 
 {TestSuite "databases",
     {SQLiteDatabaseTestSuite {url "../test-data/cbi-data.db"}},

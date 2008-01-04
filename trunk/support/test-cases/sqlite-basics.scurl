@@ -14,60 +14,8 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| ==================== \\
-|| test extenstions
 {import * from COM.CURL.CDK.SQLITE}
-
-{define-proc {check-result result:SQLiteStatus}:void
-    {switch result
-     case SQLiteStatus.OK, SQLiteStatus.DONE do
-        || OK
-     else
-        {TestCondition.fail message =
-            {lmessage SQLite exception {value result.name} (code {value result.value})}}}
-}
-{define-proc {any-equal? x:any, y:any}:bool
-    def array-equal? =
-        {proc {xs:any, ys:any}:bool
-            {if xs.size != ys.size then
-                {return false}
-            }
-            {for xv key i in xs do
-                {if not {any-equal? xv, ys[i]} then
-                    {return false}
-                }
-            }
-            {return true}
-        }
-    {if x == y then
-        {return true}
-    }
-    {type-switch x
-     case xs:ByteArray do
-        {type-switch y
-         case ys:ByteArray do
-            {if {xs.equal? ys} then
-                {return true}
-            }
-        }
-     case xs:Array do
-        {type-switch y
-         case ys:Array do
-            {return {array-equal? xs, ys}}
-        }
-     case xs:{Array-of Array} do
-        {type-switch y
-         case ys:{Array-of Array} do
-            {return {array-equal? xs, ys}}
-        }
-    }
-    {return false}
-}
-{define-proc {get-temp-database-file}:Url
-    {return
-        {get-temp-filename extension = ".db"}}
-}
-|| ==================== //
+{import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
 
 {TestSuite "basics",
     || --------------------
@@ -84,7 +32,7 @@ CREATE TABLE test (
                 {for x in xs do
                     {q.reset}
                     {q.bind x}
-                    {check-result {q.step}}
+                    {q.step}
                 }}
             {with-statement in db
                 q = "SELECT val FROM test ORDER BY id"
@@ -131,7 +79,7 @@ CREATE TABLE test (
                 {for x in xs do
                     {q.reset}
                     {q.bind x}
-                    {check-result {q.step}}
+                    {q.step}
                 }}}
         {delete dbloc, error-if-missing? = false}
     },
@@ -150,7 +98,7 @@ CREATE TABLE test (
                 {for x in xs do
                     {q.reset}
                     {q.bind x}
-                    {check-result {q.step}}
+                    {q.step}
                 }}
             let a:String =
                 {format "ATTACH DATABASE '%s' AS work",
@@ -252,6 +200,7 @@ CREATE TABLE work.test (
     || --------------------
     {test-case "concurency",
         let dbloc:Url = {get-temp-database-file}
+        def results = {Array}
 
         {with-database db = {SQLiteDatabase dbloc} do
             {db.execute "CREATE TABLE test (val);"}
@@ -279,30 +228,49 @@ CREATE TABLE work.test (
                                 {stmt.bind d1}
                                 let result:SQLiteStatus = {stmt.step}
                                 {output {message DB1 {value d1} : {value result.name}}}
+                                {results.append result}
 
                                 || DB2 should fail because of lock
                                 {stmt2.reset}
                                 {stmt2.bind d2}
-                                let result2:SQLiteStatus = {stmt2.step}
+                                let result2:SQLiteStatus = {stmt2.step throw-on-error? = false}
                                 {output {message DB2 {value d2} : {value result2.name}}}
+                                {results.append result2}
                             }
 
                             || now DB2 should succeed
-                            || Will return BUSY...
-                            || {stmt2.reset}
-                            || {stmt2.bind d2}
                             let result2:SQLiteStatus = {stmt2.step}
                             {output {message DB2 {value d2} : {value result2.name}}}
+                            {results.append result2}
                         }
-                        {with-statement in db2 
-                            q = "SELECT val FROM test"
-                         do
-                            {output {message DB2 : {value {q.data-column}.size}}}}
+                        def n = {db.sql-value "SELECT count(*) FROM test"}
+                        {output {message DB2 : {value n}}}
+                        {results.append n}
                     }}
-                {with-statement in db 
-                    q = "SELECT val FROM test"
-                 do
-                    {output {message DB1 : {value {q.data-column}.size}}}}
+                def n = {db.sql-value "SELECT count(*) FROM test"}
+                {output {message DB1 : {value n}}}
+                {results.append n}
+            }}
+        {delete dbloc}
+        {TestCondition.assert
+            {any-equal? results,
+                {Array
+                    || 4 * succeed/fail/succeed
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    || 8 rows added
+                    8,
+                    8}
             }}
     },
     || --------------------

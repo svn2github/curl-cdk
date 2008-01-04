@@ -23,6 +23,9 @@
 {delegate-to COM.CURL.CDU,
     location = "../lib/CDU/manifest.mcurl"}
 
+{component package COM.CURL.CDK.SQLITE-TEST-SUPPORT,
+    location = "test-extensions/sqlite-test-support.scurl"}
+
 {component file start-tests.curl,
     location = "start-tests.curl"
 }
