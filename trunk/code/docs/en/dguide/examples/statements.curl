@@ -5,38 +5,35 @@
 
 {value
     def display = {VBox {bold Select Product}}
-   || NOTE: when memory database is closed, it becomes empty
-   ||{with-database db = {SQLiteDatabase null} do
-   {do def db = {SQLiteDatabase null} do
-       {db.execute {read-from {url "products.sql"}}}
-       def ps =
-           {db.create-statement
-               "select id, name, price from products order by price desc"}
-       def p =
-           {db.create-statement
-               "select * from products where id=?"}
-       {while {ps.step} == SQLiteStatus.ROW do
-           def id:String = {ps.get-column-text 0}
-           def name:String = {ps.get-column-text 1}
-           def price:double = {ps.get-column-double 2}
-           {display.add
-               {text cursor = cursor-hand,
-                   {on PointerRelease do
-                       def info = {Table width = 1in}
-                       {p.reset}
-                       {p.bind id}
-                       {p.step}
-                       {for i = 0 below p.data-count do
-                           {info.add
-                               {row-prototype
-                                   {bold {p.get-column-name i}},
-                                   {p.get-column-value i}}}}
-                       set {info.get-column 0}.halign = "right"
-                       {popup-message title = {message Product Info},
-                           info}}
-                   {value name}}
-           }}
-       ||{db.close}
-   }
-   display
+    {do def db = {SQLiteDatabase null} do
+        {db.execute {read-from {url "products.sql"}}}
+        def ps =
+            {db.create-statement
+                "select id, name, price from products order by price desc"}
+        def p =
+            {db.create-statement
+                "select * from products where id=?"}
+        {while {ps.step} == SQLiteStatus.ROW do
+            def id:String = {ps.get-column-text 0}
+            def name:String = {ps.get-column-text 1}
+            def price:double = {ps.get-column-double 2}
+            {display.add
+                {text cursor = cursor-hand,
+                    {on PointerRelease do
+                        def info = {Table width = 1in}
+                        {p.reset}
+                        {p.bind id}
+                        {p.step}
+                        {for i = 0 below p.data-count do
+                            {info.add
+                                {row-prototype
+                                    {bold {p.get-column-name i}},
+                                    {p.get-column-value i}}}}
+                        set {info.get-column 0}.halign = "right"
+                        {popup-message title = {message Product Info},
+                            info}}
+                    {value name}}
+            }}
+    }
+    display
 }
