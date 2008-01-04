@@ -189,7 +189,6 @@
             {self.delete-all}
             {super.commit}}
         {self.load-internal}
-        {self.load-internal}
         set self.load-state = RecordSetLoadState.complete}
   }
   field _load-state:RecordSetLoadState
