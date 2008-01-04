@@ -387,6 +387,20 @@
     DONE =       101  || sqlite3_step() has finished executing
 }
 
+{define-proc public inline {SQLiteStatus-ok? status:SQLiteStatus}:bool
+    {return
+        {switch status
+         case
+            SQLiteStatus.OK,
+            SQLiteStatus.DONE,
+            SQLiteStatus.ROW
+         do
+            true
+         else
+            false
+        }}
+}
+
 {define-enum public SQLiteOperation
     COPY =                  0,
     CREATE_INDEX =          1,

@@ -390,9 +390,7 @@
         
     let constant interface:SQLiteInterface = {SQLiteInterface}
     let constant code:SQLiteStatus = {interface.errcode self.sqlite3}
-    {if code != SQLiteStatus.OK and
-        code != SQLiteStatus.DONE
-     then
+    {if not {SQLiteStatus-ok? code} then
         {throw {SQLiteException code, {interface.errmsg self.sqlite3}}}
     }
   }
@@ -494,7 +492,7 @@
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the {ctext sql} statement fails,
-        an error will be throw. Otherwise no error will be thrown and
+        an error will be thrown. Otherwise no error will be thrown and
         the caller is responsible to check the return value of this
         method to see if the {param sql} statement was successfully
         executed or not.

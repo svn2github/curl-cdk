@@ -161,6 +161,15 @@
     {purpose
         Executes the {docref SQLiteStatement}.
     }
+    {parameter throw-on-error?,
+        If {ctext true} and executing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
+    }
     {return-vals
         The return value is either {ctext SQLiteStatus.BUSY}, {ctext
         SQLiteStatus.DONE}, {ctext SQLiteStatus.ROW}, {ctext
@@ -183,8 +192,16 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {step}:SQLiteStatus
-    {return {{SQLiteInterface}.step self.non-null-stmt}}
+  {method public open {step
+                          throw-on-error?:bool = true
+                      }:SQLiteStatus
+    def status = {{SQLiteInterface}.step self.non-null-stmt}
+    {if throw-on-error? and
+        not {SQLiteStatus-ok? status}
+     then
+        || will throw, with error message
+        {self.database.check-status}}
+    {return status}
   }
 
   {doc-next
@@ -593,14 +610,7 @@
   {method public {data-row}:Array
     {self.reset}
     def status = {self.step}
-    def row:Array =
-        {switch status
-         case SQLiteStatus.DONE, SQLiteStatus.ROW do
-            self.current-row
-         else
-            {self.database.check-status}
-            {unreachable}
-        }
+    def row:Array = self.current-row
     {self.reset}
     {return row}
   }
@@ -617,21 +627,11 @@
   {method public {data-rows}:{Array-of Array}
     let constant rows:{Array-of Array} = {{Array-of Array}}
     {self.reset}
-    {while true do
-        {switch {self.step}
-         case SQLiteStatus.OK do
-            {break}
-         case SQLiteStatus.DONE do
-            {break}
-         case SQLiteStatus.ROW do
-            {rows.append self.current-row}
-         else
-            || signal exception
-            {self.database.check-status}
-        }
+    {while {self.step} == SQLiteStatus.ROW do
+        {rows.append self.current-row}
     }
     {self.reset}
-    {return rows}
+  {return rows}
   }
 
   {doc-next
@@ -646,18 +646,8 @@
   {method public {data-column index:int = 0}:Array
     let constant col:Array = {Array}
     {self.reset}
-    {while true do
-        {switch {self.step}
-         case SQLiteStatus.OK do
-            {break}
-         case SQLiteStatus.DONE do
-            {break}
-         case SQLiteStatus.ROW do
-            {col.append {self.get-column-value index}}
-         else
-            || signal exception
-            {self.database.check-status}
-        }
+    {while {self.step} == SQLiteStatus.ROW do
+        {col.append {self.get-column-value index}}
     }
     {self.reset}
     {return col}
@@ -1140,8 +1130,20 @@
         Returns a procedure that can be used to insert rows
         into the specified table.
     }
+    {parameter database,
+        The database.
+    }
     {parameter table,
         The table.
+    }
+    {parameter throw-on-error?,
+        If {ctext true} and executing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
     }
     {return-vals
         A procedure that inserts a row into the table,
@@ -1150,7 +1152,8 @@
   }
   {define-proc public {insert-proc 
                           database:SQLiteDatabase,
-                          table:String
+                          table:String,
+                          throw-on-error?:bool = true
                       }:({proc-type {...:any}:SQLiteStatus}, SQLiteStatement)
     let statement:SQLiteStatement = 
         {SQLiteStatement.insert-statement-for database, table}
@@ -1158,7 +1161,8 @@
         {proc {...:any}:SQLiteStatus
             {statement.bind ...}
             || execute
-            let constant status:SQLiteStatus = {statement.step}
+            def status:SQLiteStatus =
+                {statement.step throw-on-error? = throw-on-error?}
             {statement.reset}
             {return status}
         },
@@ -1169,11 +1173,23 @@
     {purpose
         Import CSV data into the specified table.
     }
+    {parameter database,
+        The database.
+    }
     {parameter table,
         The table.
     }
     {parameter loc,
         The CSV file.
+    }
+    {parameter throw-on-error?,
+        If {ctext true} and executing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
     }
     {parameter ...,
         The rest args are suppliced to {docref CsvDataReader}.
@@ -1182,10 +1198,12 @@
   {define-proc public {import-csv
                           database:SQLiteDatabase,
                           table:String,
-                          loc:Url, ...
-                      }:void
+                          loc:Url,
+                          throw-on-error?:bool = true,
+                          ...}:void
     let (f:{proc-type {...:any}:SQLiteStatus}, statement:SQLiteStatement) =
-        {SQLiteStatement.insert-proc database, table}
+        {SQLiteStatement.insert-proc database, table,
+            throw-on-error? = throw-on-error?}
     {try
         {with-open-streams
             in:CsvDataReader = {CsvDataReader loc, {splice ...}}
