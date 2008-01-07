@@ -45,19 +45,15 @@
     {return
         {Frame background = "#DDD",
             {paragraph
-                {bold Note about privilege:} Normal Curl applets can obtain data
-                and communicate with resources in their home location,
-                and other locations which permit such access by providing
-                a curl-access.txt file.  Only privileged applets may
-                obtain data from other sources.
-                Thus, in order to call an external web service,
-                or to obtain data from an external location,
-                it is usually necessary for an applet to be privileged.
+                {bold Note about privilege:}
+                In accord with the Curl security provisions,
+                normal Curl applets may not call foreign code.                
+                
+                Thus, in order to call the SQLite engine,
+                it is necessary for an applet to be privileged.
                 
                 See 
-                {link href = {dguide.merge "security.curl"}, Security} and
-                {link href = {dguide.merge "serving-curl-applets.curl#curlhostnames"},
-                Letting Applets Access Web Sites}
+                {link href = {dguide.merge "security.curl"}, Security} 
                 for more on Curl security provisions.
                 
                 These Developer Guide pages, of course, are not normally privileged.
@@ -71,7 +67,9 @@
                 
                 To grant privilege to the examples, you need to use the Surge Control Panel
                 to grant privilege to the directory containing this page, 
+
                 {monospace {value {{get-the-applet}.url.parent-dir.url.canonicalize}.local-filename}}
+                
                 and then issue the {monospace Reload Page} command.    
             }}
     }}

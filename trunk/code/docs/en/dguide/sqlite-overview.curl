@@ -100,7 +100,7 @@ CREATE TABLE products (
             {curl-code {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}
     }
 
-    ||  TODO: about privilege
+    {privilege-note}
 
     {x-example-ref title = "Create database",
         {url "examples/create-database.curl"}}
