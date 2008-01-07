@@ -556,14 +556,7 @@
   {method public {data-exists?}:bool
     {self.reset}
     def status = {self.step}
-    def exists? = 
-        {switch status
-         case SQLiteStatus.ROW do true
-         case SQLiteStatus.DONE do false
-         else
-            {self.database.check-status}
-            {unreachable}
-        }
+    def exists? = status == SQLiteStatus.ROW 
     {self.reset}
     {return exists?}
   }
@@ -582,16 +575,7 @@
   {method public {data-value index:int = 0}:any
     {self.reset}
     def status = {self.step}
-    def val = 
-        {switch status
-         case SQLiteStatus.ROW do
-            {self.get-column-value index}
-         case SQLiteStatus.DONE do
-            null
-         else
-            {self.database.check-status}
-            {unreachable}
-        }
+    def val = {self.get-column-value index}
     {self.reset}
     {return val}
   }
@@ -1246,14 +1230,12 @@
   }
 
   {method public {read-one}:(val:Array, eof?:bool)
-    {switch {self.stmt.step}
-     case SQLiteStatus.OK, SQLiteStatus.DONE do
-     case SQLiteStatus.ROW do
+    def status = {self.stmt.step}
+    {if status == SQLiteStatus.ROW then
         {return self.stmt.current-row, false}
      else
-        {self.stmt.database.check-status}
+        {return {uninitialized-value-for-type Array}, true}
     }
-    {return {uninitialized-value-for-type Array}, true}
   }
 
 }
