@@ -233,21 +233,97 @@ CREATE TABLE products (
 {heading level=3,
    RecordSets
 }
-{paragraph
-   TODO.
+{paragraph    
+    You can combine the power of SQL for data manipulation
+    with that of Curl for application logic and GUI.
+
+    The standard Curl{registered-trademark}
+    {link href = {dguide.merge "data-access.curl"}, Data Access}
+    packages provide for representation and display of
+    data organized in records and fields,
+    using {docref RecordSet}, {docref RecordView} and related classes.
+
+    Any SQLite query can be used to create an {docref SQLiteBasicRecordSet}.
+
+    The standard Curl {link href = {dguide.merge "data-connection.curl"}, Connected Data} package
+    provides a generic mechanism to connect with an external data source.
+
+    Use {docref SQLiteConnection} to apply that API to SQLite databases.
 }
 
+{Frame background = "pink", margin = 6px,
+    {paragraph {bold TODO:}
+        Describe modifiability variants,
+        after update behavior finalized.}
+}
 {itemize
-    {item {docref SQLiteRecordSet}}
     {item table recordsets}
     {item view recordsets}
+    {item query recordsets}
+}
+
+{x-example-ref title = {message Create RecordSet},
+    {url "recordset-create.curl"}
+}
+
+{x-example-ref title = {message RecordSet with Form},
+    {url "recordset-form.curl"}
+}
+
+{x-example-ref title = {message RecordSet with Chart},
+    {url "recordset-chart.curl"}
+}
+
+{paragraph
+    Some kinds of processing can performed either
+    at the level of the database engine (in SQL),
+    or at the level of the application (in Curl).
+    It can be confusing when similar processing is specified at both levels.
+    
+    In general, it is preferable to rely on the database layer
+    for data-centric processing.  
 }
 
 {itemize
-    {item Curl DATA-ACCESS issues}
-    {item commit/revert}
-    {item sort/filter}
-    {item autocommit}
+    {item {bold sort/filter criteria} 
+        These can be specified with {docref RecordView.sort} and {docref RecordView.filter},
+        and are used by {docref RecordGrid} and {docref RecordSetdisplay} subclasses.
+        SQL queries offer powerful facilities for sorting and filtering.
+
+        || RV shadows SQL
+    }
+    {item {bold commit/revert}
+        These methods allow for provisional RecordSet changes,
+        and are useful to manage operations from a GUI form.
+                
+        SQL transactions (bounded by {monospace BEGIN}
+        and {monospace COMMIT} or {monospace ROLLBACK}) allow
+        compound operations to be performed atomically.
+
+        || RS
+        || good practice: "early commit" from Curl - every mod or every record
+    }
+    {item {bold constraints}
+        Certain constraints ({docref RecordField.nullable?} and
+        {docref RecordField.index-type}) are enforced by {ctext RecordSet}s.
+
+        SQL offers powerful facilities for enforcing these (and other) constraints.
+
+        With {ctext SQLiteRecordSet}s, constraints are enforced by SQLite, not by Curl.
+    }
+    {item {bold database selection}
+        The generic {docref Connection} API allows for more than one database
+        to be accessed through a connection, as is typical in a server side DBMS.
+        Therefore, {ctext database-name} is a significant parameter or return value.
+
+        SQLite databases are single files, so the {ctext database-name} parameter is not meaningful.
+        However, using the SQL extensions {ctext ATTACH} and {ctext DETACH}, more than
+        one database can be active through a single SQLite database.
+    }
+}
+
+{x-example-ref title = {message Attach Database},
+    {url "attach.curl"}
 }
 
 || ====================
@@ -255,14 +331,50 @@ CREATE TABLE products (
    Feedback
 }
 {paragraph
-   TODO.
+    The SQLite engine allows for application to be notified of changes,
+    by registration of callbacks.  These notification mechanisms
+    are exposed by {docref SQLiteDatabase} using {docref SQLiteEvent} subclasses.
 }
 
 {itemize
-    {item update notification}
-    {item concurrency}
-    {item busy handler}
-    {item progress}
+    {item {bold progress handler}
+        Use {docref SQLiteDatabase.set-progress-handler}
+        to get periodic calls to a function
+        during long-running SQL operations.
+    }
+    {item {bold busy handler}
+        When more than one process might access the same database concurrently,
+        the SQLite engine uses locking to prevent inconsistent changes.
+        Attempts by an application to perform an operation which is locked
+        will get a {docref SQLiteStatus}.{ctext BUSY} result,
+        which, by default, will be thrown as an exception.
+        Use {docref SQLiteDatabase.busy-timeout}
+        (or the more advanced {docref SQLiteDatabase.set-busy-handler})
+        to control behavior for this condition.
+    }
+    {item {bold update notification}
+        The application can observe changes by adding event handlers
+        for these actions.
+        {itemize
+            {item {docref SQLiteUpdate} when a row is modified.}
+            {item {docref SQLiteCommit} before SQL {ctext COMMIT}.}
+            {item {docref SQLiteRollback} after SQL {ctext REVERT}.}
+        }
+    }
+}
+
+{Frame background = "pink", margin = 6px,
+    {italic {bold TODO:}
+        Confirm how these are specified and enabled,
+        after migration from old Connection is finalized.}
+}
+
+{x-example-ref title = {message progress Notification},
+    {url "progress.curl"}
+}
+
+{x-example-ref title = {message Busy Handler},
+    {url "busy-handler.curl"}
 }
 
 || ====================
@@ -270,18 +382,46 @@ CREATE TABLE products (
    Extension
 }
 {paragraph
-   TODO.
+    The SQLite engine allows for definition of application extensions,
+    by registration of callbacks.  These extension mechanisms
+    are exposed by {docref SQLiteDatabase}.
 }
 
 {itemize
-    {item functions}
-    {item aggregates}
-    {item authorization}
+    {item {bold functions and aggregates}
+        The built-in SQLite functions can be extended using
+        {docref SQLiteDatabase.install-function}.
+        A {bold function} computes a value from its arguments,
+        and can be used anywhere a value is expected.
+        An {bold aggregation function} accumulates values
+        from a set of records, and must be used in a statement
+        with a {ctext GROUP BY} partition. 
+    }
+    {item {bold authorizers}
+        These allow the full range of SQL statements to be restricted.
+        This would be useful, for example, when processing user-supplied
+        SQL, to disallow modification oprations.
+        Use {docref SQLiteDatabase.authorizer} to supply a function
+        that will be called before any statement is prepared,
+        in order to allow or deny the correponding kind of operation.
+    }
+}
+
+{x-example-ref title = {message Install Function},
+    {url "install-function.curl"}
+}
+
+{x-example-ref title = {message Install Aggregate Function},
+    {url "install-aggregate.curl"}
+}
+
+{x-example-ref title = {message Authorization},
+    {url "authorization.curl"}
 }
 
 || ====================
 {heading level=3,
-   Advanced
+   Operational considerations
 }
 {paragraph
    TODO.
@@ -293,13 +433,23 @@ CREATE TABLE products (
     || consider change log
     {item lifecycle and resource usage}
     {item transactions and locking}
+    {item concurrency}
     {item attached databases}
     || copy example
     {item pragma settings}
 }
+
+|| ====================
+{heading level=3,
+   More about SQLITE
+}
 {paragraph
-    See website for primary docs
-    Recommend book
+   TODO.
+}
+
+{itemize
+    {item See website for primary docs}
+    {item Recommend book}
 }
 
 || ====================
@@ -330,7 +480,6 @@ CREATE TABLE products (
 {heading level=3,
    Examples
 }
-
 {itemize
     {item order entry}
     {item aggregation}
@@ -342,17 +491,6 @@ CREATE TABLE products (
     {item OCC}
 }
 
-|# TEMPLATE
-|| ====================
-{heading level=3,
-   XXX
-}
-
-{itemize
-    {item {docref XXX}}
-    {item xxx}
-}
-#|
 || ====================
 {curl-copyright}
 
