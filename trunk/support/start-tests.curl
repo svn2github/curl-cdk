@@ -36,8 +36,9 @@
             {TestSuite.import {url "test-cases/sqlite-functions.scurl"}},
             {TestSuite "dguide",
                 {AppletTestCase {url "../code/docs/en/dguide/cdk-overview.curl"}},
-                || dguide examples
-                {AppletTestCase {url "../code/docs/en/dguide/sqlite-overview.curl"}}},
+                {AppletTestCase {url "../code/docs/en/dguide/sqlite-overview.curl"}},
+                {TestSuite.import
+                    {url "test-cases/dguide-test-cases.scurl"}}},
             {TestSuite "applets",
                 {AppletTestCase {url "../support/test-applets/t-census.curl"}},
                 {AppletTestCase {url "../support/test-applets/t-census-memory.curl"}},
