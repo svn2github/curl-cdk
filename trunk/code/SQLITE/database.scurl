@@ -592,6 +592,9 @@
         {docref SQLiteDatabase.busy-timeout}.
     }
   }
+  {getter public open {busy-handler}:#SQLiteBusyHandlerProcType
+    {return self.busy-handler-callback}
+  }
   {setter public open {busy-handler
                           callback:#SQLiteBusyHandlerProcType
                       }:void
@@ -633,6 +636,9 @@
         Setting this replaces any busy handler set with
         {docref SQLiteDatabase.busy-handler}.
     }
+  }
+  {getter public {busy-timeout}:Time
+    {return self._busy-timeout * 1ms}
   }
   {setter public {busy-timeout t:Time}:void
     let timeout:int = (t / 1ms) asa int 
@@ -973,7 +979,7 @@
          case p:ProcType do
             p
          else
-            {error "You must provide a function to 'install-function'"}
+            {error {lmessage You must provide a function to 'install-function'}}
         }
     let constant aggregate?:bool = final-xfunc != null
     {if aggregate? then
@@ -982,16 +988,17 @@
              case p:ProcType do
                 p
              else
-                {error "You must provide a function to 'install-function'"}
+                {error {lmessage You must provide a function to 'install-function'}}
             }
         {if not (type-of-xfunc.num-args > 0 or
                  type-of-xfunc.takes-rest-args?) or
             not (type-of-final-xfunc.num-args > 0 or
                  type-of-final-xfunc.takes-rest-args?)
          then
-            {error "You must provide a function that can take the " & 
-                "aggregate context value as the first argument to " &
-                "'install-function'"}
+            {error
+                {lmessage You must provide a function that can take the
+                    aggregate context value as the first argument to
+                    'install-function'}}
         }
     }
     let aggregate-arg:int = {if aggregate? then 1 else 0}
@@ -1001,8 +1008,9 @@
                type-of-xfunc.takes-rest-args?)) or
              (nargs < 0 and type-of-xfunc.takes-rest-args?))
      then
-        {error "You must provide a function that can take the right
-                number of arguments to 'install-function'"}
+        {error
+            {lmessage You must provide a function that can take the right
+                number of arguments to 'install-function'}}
     }
     let constant function:SQLiteFunctionProcType =
         {proc {context:SQLiteContextHandle,
@@ -1177,7 +1185,7 @@
          case p:ProcType do
             p
          else
-            {error "You must provide a function to 'install-function'"}
+            {error {lmessage You must provide a function to 'install-function'}}
         }
     let constant xfunc-args:Arguments = {Arguments}
     {if aggregate? then

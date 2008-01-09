@@ -508,7 +508,7 @@
          case SQLiteDatatype.BLOB do
             || TODO: test this
             {self.get-column-blob index}
-         else {error {message Unexpected SQLite datatype {value t}}}
+         else {error {lmessage Unexpected SQLite datatype {value t}}}
         }
     }
   }
@@ -1052,7 +1052,7 @@
          case x:ByteArray do
             {interface.bind-blob stmt, index, x}
          else
-            {error "Unexpected type: ", {type-of val}}
+            {error {lmessage Unexpected type: {type-of val}}}
         }
 
     {if status != SQLiteStatus.OK then

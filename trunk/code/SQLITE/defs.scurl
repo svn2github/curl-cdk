@@ -44,7 +44,7 @@
   {constructor public {default code:SQLiteStatus, msg:#String}
     set self.code = code
     {construct-super 
-        {message SQLITE3 error code {value self.code.value}
+        {lmessage SQLITE3 error code {value self.code.value}
             ({value self.code.name}): 
             {if-non-null msg then msg else ""}
         }
