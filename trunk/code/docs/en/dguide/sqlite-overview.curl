@@ -102,7 +102,7 @@ CREATE TABLE products (
 
     {privilege-note}
 
-    {x-example-ref title = "Create database",
+    {x-example-ref title = {message Create database},
         {url "examples/create-database.curl"}}
 
     The {docref SQLiteDatabase} object manages all resources associated with database access.
@@ -281,20 +281,28 @@ CREATE TABLE products (
     It can be confusing when similar processing is specified at both levels.
     
     In general, it is preferable to rely on the database layer
-    for data-centric processing.  
+    for data-centric processing.
 }
 
 {itemize
     {item {bold sort/filter criteria} 
         These can be specified with {docref RecordView.sort} and {docref RecordView.filter},
-        and are used by {docref RecordGrid} and {docref RecordSetdisplay} subclasses.
+        and are used by {docref RecordGrid} and {docref RecordSetDisplay} subclasses.
         SQL queries offer powerful facilities for sorting and filtering.
 
-        || RV shadows SQL
+        Note that any ordering specified by SQL will be "shadowed"
+        by sort criteria specified using DATA-ACCESS classes.
     }
     {item {bold commit/revert}
         These methods allow for provisional RecordSet changes,
-        and are useful to manage operations from a GUI form.
+        managed using {docref RecordSet.commit} and {docref RecordSet.revert}.
+        Consumers of the RecordSet can see and react to data changes
+        before anything is submitted to the underlying database.        
+        This is useful, for example, to manage operations from a GUI for.        
+
+        Processing specified in the database
+        (like constraints, default values, and triggers)
+        is not performed until changes are submitted.
                 
         SQL transactions (bounded by {monospace BEGIN}
         and {monospace COMMIT} or {monospace ROLLBACK}) allow
