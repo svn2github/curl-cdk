@@ -24,14 +24,40 @@
     {node
         |"SQLIte Overview"|,
         {url "sqlite-overview.curl"}
-    }||,
-||--    {node
-||--        |"CDK Worked Examples"|,
-||--        {url "cdk-examples.curl"},
-||--        {node
-||--            |"CDK Database"|,
-||--            {url "generic-example.curl?examples/ex-db.curl"}
-||--        }
-||--    }
+    },
+    {node
+        |"CDK Worked Examples"|,
+        null, ||{url "cdk-examples.curl"},
+        
+        {node
+            |"Create Database"|,
+            {url "generic-example.curl?examples/create-database.curl"}
+        },
+        {node
+            |"Statement with iterator"|,
+            {url "generic-example.curl?examples/statement-iterator.curl"}
+        },
+        {node
+            |"Statement with step"|,
+            {url "generic-example.curl?examples/statement-step.curl"}
+        },
+        {node
+            |"Statements with step"|,
+            {url "generic-example.curl?examples/statements.curl"}
+        },
+        {node
+            |"Statement for insert"|,
+            {url "generic-example.curl?examples/statement-insert.curl"}
+        },
+        {node
+            |"Bulk Insertion"|,
+            {url "generic-example.curl?examples/import-csv.curl"}
+        }
+    }
+||--function-regexp.curl
+||--import-csv-rs.curl
+||--statement-insert-save.curl
+||--transaction-statement.curl
+||--transaction.curl
 }
 
