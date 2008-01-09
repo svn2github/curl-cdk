@@ -72,7 +72,7 @@
                 platform = "linux"}
          else
             || TODO: for MAC also
-            {error {lmessage SharedLibrary {value name} not available for this platform platform.}}
+            {error {lmessage SharedLibrary {value name} not available for this platform.}}
         }
     || if HTTP, copy library to LocalFile
     def loc = 
