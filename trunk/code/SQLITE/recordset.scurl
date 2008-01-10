@@ -166,13 +166,15 @@
                           sql:String,
                           modifiable?:bool = false,
                           parameters:#Array = null,
+                          strict-types?:bool = false,
                           ...:EventHandler}
     set self.statement = {SQLiteStatement database, sql}
     {if-non-null parameters then
         {self.reset {splice parameters}}}
     || fields
     let fields:RecordFields =
-        {SQLiteStatementRecordFields self.statement}
+        {SQLiteStatementRecordFields self.statement,
+            strict-types? = strict-types?}
     {construct-super fields, {splice ...}}
     || so it does not start empty
     {self.load-initial}
@@ -274,7 +276,9 @@
   }
 }
 {define-class public SQLiteStatementRecordFields {inherits DefaultRecordFields}
-  {constructor public {default statement:SQLiteStatement}
+  {constructor public {default
+                          statement:SQLiteStatement,
+                          strict-types?:bool = false}
     let fs:{Array-of RecordField} = {{Array-of RecordField}}
     let nval:int = statement.column-count
     {for i = 0 below nval do
@@ -283,7 +287,9 @@
         let type:String = {if-non-null decltype then decltype else ""}
         let affinity:SQLiteDatatypeAffinity = 
             {SQLiteDatatypeAffinity-from-declared-type type}                
-        let domain:Domain = {SQLiteVariantDomain.from-affinity affinity}
+        let domain:Domain =
+            {SQLiteVariantDomain.from-affinity affinity,
+                strict? = strict-types?}
         let f:RecordField = 
             {RecordField name, 
                 domain = domain,

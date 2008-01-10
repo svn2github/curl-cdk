@@ -14,22 +14,44 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public SQLiteVariantDomain {inherits StandardAnyDomain}
-  field public-get affinity:SQLiteDatatypeAffinity
+{define-class public SQLiteVariantDomain {inherits Domain}
+  field public-get constant affinity:SQLiteDatatypeAffinity
+  field public-get constant strict?:bool
+  field constant _type:Type
+  field constant _default-value:any
   {constructor public {default 
                           affinity:SQLiteDatatypeAffinity = 
                               SQLiteDatatypeAffinity.NONE,
-                          ...}
+                          strict?:bool = false}
     set self.affinity = affinity
-    {construct-super {splice ...}}
+    set self.strict? = strict?
+    set self._type =
+        {if strict? then
+            || domain enforces declared type affinity
+            {self.curl-type-for affinity}
+         else
+            || allow any type, as does SQLite
+            any}
+    set self._default-value = {uninitialized-value-for-type self.type}
   }
-  {factory public {from-affinity affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
-    {return SQLiteVariantDomain.cache[affinity]}
+  {factory public {from-affinity
+                      affinity:SQLiteDatatypeAffinity,
+                      strict?:bool = false
+                  }:SQLiteVariantDomain
+    def spec =
+        {{Tuple2-of SQLiteDatatypeAffinity, bool} affinity, strict?}
+    {return SQLiteVariantDomain.cache[spec]}
   }
-  let constant cache:{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain} =
-      {{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain}
-        {proc {affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
-            {return {SQLiteVariantDomain affinity = affinity}}
+  def cache =
+      {{Memoizer-of
+           {Tuple2-of SQLiteDatatypeAffinity, bool},
+           SQLiteVariantDomain}
+        {proc {spec:{Tuple2-of SQLiteDatatypeAffinity, bool}
+              }:SQLiteVariantDomain
+            {return
+                {SQLiteVariantDomain
+                    affinity = spec.t0,
+                    strict? = spec.t1}}
         }}
   
   {method public {validate x:any}:#ValidationException
@@ -37,7 +59,22 @@
     {return 
         {if not valid? then
             {ValidationException {lmessage Illegal type: {type-of x}}}
-         else {super.validate x}}}
+         else
+            {try
+                || castable to type
+                x asa self.type
+                null
+             catch e:CastException do
+                || wrong type
+                {self.type-mismatch-exception x}
+            }
+        }}
+  }
+  {getter public {type}:Type
+    {return self._type}
+  }
+  {getter public {default-value}:any
+    {return self._default-value}
   }
   {method public {compare x:any, y:any}:int
     let tx:SQLiteDatatype = {self.storage-class-for {type-of x}}
@@ -95,8 +132,22 @@
     {return x}
   }
   {method public {convert x:any}:any
-    || TODO: anything needed?
-    {return {super.convert x}}
+    {return
+        {if self.strict? then
+            def t = self.type
+            {try
+                {type-switch x
+                 case x:String do
+                    {self.parse x} asa t
+                 case x:Null do
+                    null
+                 else
+                    x asa t}
+             catch e:CastException do
+                {throw {self.type-mismatch-exception x}}}
+         else
+            || let SQLite do any conversion
+            x}}
   }
   {method public {format x:any}:String
     {return 
@@ -114,10 +165,23 @@
          case String do ("TEXT", true)
          case double do ("FLOAT", true)
          case int, int8, int16, int64, uint8, uint16 do ("INTEGER", true)
-||--         case uint32, uint64 do ("INTEGER", true)
+         case uint32, uint64 do ("INTEGER", true)
          case Null do ("NULL", true)
          case ByteArray do ("BLOB", true)
          else ("NULL", false)}}
+  }
+  {method {curl-type-for a:SQLiteDatatypeAffinity}:Type
+    {return
+        {switch a
+         case SQLiteDatatypeAffinity.TEXT do String
+         case SQLiteDatatypeAffinity.INTEGER do int || TODO: int64 ?
+         case SQLiteDatatypeAffinity.NUMERIC do double
+         else any}}
+  }
+  {method {type-mismatch-exception x:any}:ValidationException
+    {return
+        {ValidationException 
+            {lmessage Wrong type '{type-of x}' for '{type-of self}'}}}
   }
 }
 || 1,2,3,4,5 => INTEGER, FLOAT, TEXT, BLOB, NULL
