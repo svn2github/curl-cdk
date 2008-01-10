@@ -1,0 +1,542 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| Maintained by: Curl Solutions
+
+|| TODO
+|| - improve progress treatment
+|| -- update elapsed time
+|| -- popup progress bar after a while
+|| - modifiable recordgrid where appropriate
+|| - stronger "designer" support
+|| -- differentiate DML (select) from DDL (create, etc)
+|| -- refresh schema info when it changes
+|| -- show views in schema, too 
+|| - persistent settings
+|| -- recent databases
+|| -- SQL history
+|| - statement with parameters => form
+|| - MVC
+|| - TabPane-of
+|| - improve coordination (mediator pattern?)
+|| -- nonlocal-option ?
+|| -- RecordData DBC for state model ?
+
+|| --------------------
+{define-class public DBExplorer {inherits BaseFrame}
+  field _database:SQLiteDatabase
+  field commands:CommandContext
+  field panes:TabContainer
+  field index:Frame
+  {constructor public {default
+                          database:SQLiteDatabase,
+                          ...}
+    {construct-super {splice ...}}
+    set self.index =
+        {Frame style-class = "sql-schema"}
+    set self.panes =
+        {TabContainer style-class = "sql",
+            width = {add-stretch},
+            height = {add-stretch},
+            close-button-proc =
+                {proc {tc:TabContainer}:void
+                    {if-non-null pane = tc.current-pane  then
+                        {tc.remove-pane pane}}}}
+    || commands
+    set self.commands = {self.make-commands}    
+    || controls
+    def menu-bar =
+        {MenuBar
+            use-look-and-feel? = false,
+            {SubMenu label = {lmessage File},
+                {MenuAction label = {lmessage Open...},
+                    bound-command = {self.commands.get-command "open"}},
+                {MenuAction label = {lmessage Close},
+                    bound-command = {self.commands.get-command "close"}},
+                {MenuAction label = {lmessage Add Query Pane},
+                    bound-command = {self.commands.get-command "add-pane"}},
+                {MenuAction label = {lmessage Copy Query Pane},
+                    bound-command = {self.commands.get-command "copy-pane"}}},
+            {MenuAction label = {bold {lmessage Execute}},
+                bound-command = {self.commands.get-command "execute"}},
+            {MenuAction label = {lmessage Cancel},
+                bound-command = {self.commands.get-command "cancel"}}
+        }
+    {add-context-popup self.panes,
+        menu-pane =
+            {MenuPane
+                || TODO: why doesn't this get styled ?
+                use-look-and-feel? = false,
+                {MenuAction label = {lmessage Add Query Pane},
+                    bound-command = {self.commands.get-command "add-pane"}},
+                {MenuAction label = {lmessage Copy Query Pane},
+                    bound-command = {self.commands.get-command "copy-pane"}}}}
+    || display
+    def title-file =
+        {Frame style-class = "title-file"}
+    def title-panel =
+        {SkinnableFrame style-class = "title-bar",
+            {HBox margin = 2px,
+                {Frame style-class = "title",
+                    {lmessage Curl Database Explorer}},
+                {Fill},
+                title-file}}
+    def status =
+        {Frame style-class = "status"}
+    def status-panel =
+        {SkinnableFrame style-class = "status-bar",
+            status}
+    def main = {PanedWindow orientation = "horizontal"}
+    {main.add-pane self.panes}
+    {main.add-pane self.index}
+    {main.set-pane-sizes {{Array-of double} 80%, 20%}}
+    {self.add-internal
+        {VBox hstretch? = true,
+            title-panel,
+            menu-bar,
+            main,
+            status-panel}}
+    || coordination
+    {self.add-event-handler
+        {on DBXDatabaseChanged do
+            {title-file.add replace? = true,
+                {if-non-null loc = self.database.url then
+                    {text
+                        tooltip =
+                            {Tooltip style = "immediate",
+                                loc.name},
+                        {value loc.filename}}
+                 else
+                    {lmessage in-memory database}}}
+        }}
+    {self.add-event-handler
+        {on e:DBXInfo do
+            {status.add replace? = true,
+                e.info}
+            set status.style-class =
+                {if e.info isa Exception
+                 then "status sql-error"
+                 else "status"}
+            {dispatch-events false}
+        }}
+    {self.add-event-handler
+        {on e:DBXProgress do
+            {dispatch-events false}
+            {if self._cancel? then
+                set self._cancel? = false
+                set e.cancel? = true}
+        }}
+    || init
+    set self._database = database
+    {self.database-changed}
+  }
+  || state
+  {getter {current-query-display}:#QueryDisplay
+    {if-non-null pane = self.panes.current-pane then
+        {type-switch pane.content
+         case qd:QueryDisplay do
+            {return qd}}}
+    {return null}
+  }
+  || commands
+  {method {make-commands}:CommandContext
+    def cc = {CommandContext}
+    {cc.add-command
+        {self.make-command "open",
+            {proc {}:void
+                {self.choose-database}},
+            {proc {}:bool
+                {return true}}
+        }}
+    {cc.add-command
+        {self.make-command "close",
+            {proc {}:void
+                {self.open-database null}},
+            {proc {}:bool
+                {return true}}
+        }}
+    {cc.add-command
+        {self.make-command "execute",
+            {proc {}:void
+                {with-busy-cursor
+                    {with self.running? = true do
+                        {self.current-query-display.execute}}}},
+            {proc {}:bool
+                {return
+                    {if-non-null qd = self.current-query-display then
+                        qd.query-model.enabled?
+                     else false}}}
+        }}
+    {cc.add-command
+        {self.make-command "cancel",
+            {proc {}:void
+                set self._cancel? = true},
+            {proc {}:bool
+                {return self.running?}}
+        }}
+    {cc.add-command
+        {self.make-command "add-pane",
+            {proc {}:void
+                {self.add-query-pane}},
+            {proc {}:bool
+                {return true}}
+        }}
+    {cc.add-command
+        {self.make-command "copy-pane",
+            {proc {}:void
+                {self.add-query-pane copy? = true}},
+            {proc {}:bool
+                {return self.current-query-display != null}}
+        }}
+    {return cc}        
+  }
+  field _cancel?:bool
+  field _running?:bool
+  {getter {running?}:bool
+    {return self._running?}
+  }
+  {setter {running? val:bool}
+    {if val != self._running? then
+        set self._cancel? = false
+        set self._running? = val
+        {self.refresh-commands}}
+  }
+  {method {make-command 
+              name:String,
+              execute-proc:{proc-type {}:void},
+              enabled-proc:{proc-type {}:bool}
+          }:Command
+    {return
+        {SimpleCommand name, 
+            execute-proc = execute-proc,
+            enabled-proc = enabled-proc}}
+  }
+  || properties
+  {getter public {database}:SQLiteDatabase
+    {return self._database}
+  }
+  {setter public {database val:SQLiteDatabase}
+    {if val != self._database then
+        {self._database.close}
+        set self._database = val
+        {self.database-changed}}
+  }
+  {setter {query sql:String}:void
+    {if-non-null qd = self.current-query-display then
+        set qd.query = sql}
+  }
+  {getter {query}:String
+      {return
+          {if-non-null qd = self.current-query-display then
+              qd.query
+          else ""}}
+  }
+  || operations
+  {method {open-database loc:#Url}:void    
+    set self.database =
+        {SQLiteDatabase loc}
+  }
+  {method {choose-database}:void
+    {if-non-null loc =
+        {choose-file style = FileDialogStyle.read,
+            title = {lmessage Choose SQLite Database},
+            filters =
+                {FileDialogFilterArray
+                    {FileDialogFilter "SQLite databases",
+                        {FileDialogTypeFilterArray
+                            {FileDialogTypeFilter "db"}}}}}
+     then
+        {self.open-database loc}}
+  }
+  {method {add-query-pane copy?:bool = false, ...}:void        
+    def qd = {QueryDisplay self}
+    def query = self.query
+    {self.panes.add-pane show? = true, {splice ...},
+        {TabPane style-class = "sql", qd}}
+    {if copy? then
+        set qd.query = query}
+  }
+  {method {handle-index-action node:TreeNode}:void
+    {type-switch node
+     case node:SchemaTreeNode do
+        def query =
+            {switch node.kind
+             case "table", "view" do
+                {format "SELECT * FROM %s;",
+                    node.name}
+             case "column" do
+                {format "SELECT %s FROM %s;",
+                    node.name, node.parent.node-data}
+             else null}
+        {if-non-null query then
+            set self.query = query}
+    }
+  }
+  || coordination
+  {method {refresh-commands}:void
+    {self.commands.request-update-commands}
+  }
+  {method {database-changed}:void
+    def instructions-interval = 100 || TODO: suitable value
+    {self.database.set-progress-handler instructions-interval,
+        {proc {}:bool
+            def e = {DBXProgress}
+            {self.handle-event e}
+            {return e.cancel?}}}
+    {self.update-display}
+    {self.handle-event {DBXDatabaseChanged}}
+  }
+  {method {update-display}:void
+    || index
+    {self.index.add replace? = true,
+        {self.make-schema-index}}
+    || panes
+    {self.panes.remove-all-panes}
+    {self.add-query-pane}
+||--    || NOTE: experimental pane adder
+||--    {self.panes.add-pane
+||--        {TabPane label = {lmessage New},
+||--            {on TabPaneShown at p:TabPane do
+||--                {self.add-query-pane before = p}}}}
+||--    || HACK ATTACK
+||--    {remove-last-tab-close-button self.panes}
+  }
+  || adapters
+  {method {make-schema-index}:Graphic
+    def tm = {schema-tree-model self.database}
+    {return
+        {ScrollBox hscroll? = false,
+            {TreeControl style-class = "sql",
+                display-root? = false,
+                data-model = tm,                      
+                {on Action at tc:TreeControl do
+                    {self.handle-index-action {non-null tc.current-node}}}
+            }}}
+  }
+}
+|| --------------------
+{define-class public QueryDisplay {inherits BaseFrame}
+  field public-get constant dbx:DBExplorer
+  field public-get constant query-model:QueryModel
+  {getter {database}:SQLiteDatabase
+    {return self.dbx.database}
+  }
+  field grid:RecordGrid
+  field query-panel:TextArea
+  {constructor public {default dbx:DBExplorer}
+    set self.dbx = dbx
+    set self.query-model = {QueryModel self.database}
+    || controls
+    set self.query-panel =
+        {TextArea style-class = "sql",
+            width = {add-stretch},
+            height = {add-stretch},
+            {on ValueChanged at c:TextArea do
+                set self.query-model.sql = c.value
+                {self.dbx.refresh-commands}}}
+    set self.grid =
+        {RecordGrid style-class = "sql",
+            width = {add-stretch},
+            height = {add-stretch}}
+    || layout
+    def main = {PanedWindow orientation = "vertical"}
+    {main.add-pane self.query-panel}
+    {main.add-pane
+        self.grid}
+    {main.set-pane-sizes {{Array-of double} 10%, 90%}}
+    def display =
+        {VBox style-class = "sql",
+            hstretch? = true,
+            main}
+    {self.add-internal display}
+  }
+  {method {execute}:void
+    || TODO: modifiable?
+    def w = {StopWatch}
+    {try
+        {self.report-status "running query ..."}
+        {w.start}
+        {self.query-model.execute}
+        || report success
+        {w.stop}
+        def rs = {non-null self.query-model.result}
+        {self.report-status
+            {lmessage selected {value rs.size} rows in {w.elapsed}}}
+        {self.reset-grid}
+        set self.grid.record-source = rs
+        {dwim-grid self.grid}
+     catch e:Exception do
+        || report failure
+        {w.stop}
+        {self.report-status e}
+    }
+  }
+  {getter {query}:String
+    {return self.query-model.sql}
+  }
+  {setter {query sql:String}:void
+    set self.query-model.sql = sql
+    {self.query-panel.set-value-with-events sql}
+  }
+  {method {report-status info:any}:void
+    {self.dbx.handle-event
+        {DBXInfo info}}
+  }
+  {method {reset-grid}:void
+    || NOTE: clears vestigial column specs
+    set self.grid.record-source = null
+    set self.grid.sort = null
+    set self.grid.filter = null
+  }
+}
+|| --------------------
+{define-class public QueryModel
+  field public-get constant database:SQLiteDatabase
+  field public-get sql:String
+  field public-get result:#RecordSet
+  field public-get last-sql:#String
+  {constructor public {default
+                          database:SQLiteDatabase,
+                          sql:String = ""}
+    set self.database = database
+    set self.sql = sql
+    set self.last-sql = null
+  }
+  {getter public {empty?}:bool
+    {return self.sql.empty?}
+  }
+  {getter public {current?}:bool
+    {return self.sql == self.last-sql}
+  }
+  {getter public {enabled?}:bool
+    {return
+        not self.current? and
+        not self.sql.empty?}
+  }
+  {method public {execute}:void
+    set self.result = {SQLiteBasicRecordSet self.database, self.sql}
+    set self.last-sql = self.sql
+  }
+}
+|| --------------------
+{define-class public abstract DBXEvent {inherits Event}
+}
+{define-class public DBXDatabaseChanged {inherits DBXEvent}
+}
+{define-class public DBXInfo {inherits DBXEvent}
+  field public-get constant info:any
+  {constructor public {default info:any}
+    set self.info = info
+  }
+}
+{define-class public DBXProgress {inherits DBXEvent}
+  field public cancel?:bool = false
+}
+|| --------------------
+{define-class SchemaTreeNode {inherits DefaultTreeNode}
+  field public-get constant name:String
+  field public-get constant kind:String
+  field public-get constant caption:String
+  {constructor {default name:String, kind:String, caption:String = name}
+    set self.name = name
+    set self.kind = kind
+    set self.caption = caption
+    {construct-super node-data = name}
+  }
+  {getter public {nose-label}:any
+    {return self.caption}
+  }
+}
+{define-proc {schema-tree-model db:SQLiteDatabase}:TreeModel
+    def tables =
+        {db.sql-column
+            "select name from sqlite_master where type='table' order by name"}
+    def root = {TreeNode node-data = {bold Tables}}
+    {for t in tables do
+        def nt = {SchemaTreeNode t asa String, "table"}
+        def fs = {db.sql-rows {format "PRAGMA table_info (%s)", t}}
+        {for f in fs do
+            def name = f[1] asa String
+            def pk? = f[5] != 0
+            def nf = {SchemaTreeNode name, "column"}
+            {nt.append nf}}
+        {root.append nt}}
+    def views =
+        {db.sql-column
+            "select name from sqlite_master where type='view' order by name"}
+    def rootv = {TreeNode node-data = {bold Views}}
+    {for t in views do
+        def nt = {SchemaTreeNode t asa String, "view"}
+||--        def fs = {db.sql-rows {format "PRAGMA table_info (%s)", t}}
+||--        {for f in fs do
+||--            def name = f[1]
+||--            def pk? = f[5] != 0
+||--            def nf = {SchemaTreeNode name, "column"}
+||--            {nt.append nf}}
+        {rootv.append nt}}
+    {return
+        {TreeModel root =
+            {TreeNode root, rootv}}}
+}
+{define-proc {dwim-grid rg:RecordGrid}:void
+    def n = rg.columns.size
+    def w =
+        {if n < 6 then 1in
+         elseif n < 12 then .75in
+         else .375in}
+    {for col in rg.columns do
+        def numeric? =
+            {if-non-null f = col.field then
+                def d = f.domain
+                {type-switch d
+                 case d:SQLiteVariantDomain do
+                    {switch d.affinity
+                     case SQLiteDatatypeAffinity.NUMERIC,
+                        SQLiteDatatypeAffinity.INTEGER
+                     do true
+                     else false}
+                 else d.type isa NumericType}
+             else false}
+        {if numeric? then
+            set col.halign = "right"}
+        set col.width = w}
+}
+|| --------------------
+|| TEST: support for pane added
+||--{define-proc {walk-elements-if g:Graphic, action:{proc-type {Graphic}:void}}:void
+||--    def f =
+||--        {proc {g:Graphic}:void
+||--            {action g}
+||--            {type-switch g
+||--             case b:Box do
+||--                {for g in b.graphical-children do
+||--                    {f g}}}}
+||--    {f g}
+||--}
+||--{define-proc {remove-last-tab-close-button tc:TabContainer}:void
+||--    let b:#Graphic = null
+||--    {walk-elements-if tc,
+||--        {proc {g:Graphic}:void
+||--            {if g.style-element == "TabContainer/close-button"
+||--             then set b = g}}}
+||--    {if-non-null b then
+||--        {b.detach}}
+||--}
+|| --------------------
+|#
+    || TEST: detect schema changes
+    let ops:{Set-of SQLiteOperation} = {{Set-of SQLiteOperation}}
+    def authorizer =
+        {proc {operation:SQLiteOperation,
+               data1:#String, data2:#String,
+               data3:#String, data4:#String
+              }:SQLiteAuthorizerReturnCode
+            {if data1 != "sqlite_master"
+                or operation != SQLiteOperation.READ
+             then
+                {ops.insert operation}}
+            {return SQLiteAuthorizerReturnCode.OK}
+        }
+    {with self.database.authorizer = authorizer do
+        {ops.clear}
+ #|
+

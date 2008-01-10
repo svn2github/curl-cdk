@@ -15,7 +15,8 @@
 ||| limitations under the License.
 
 {curl 6.0 manifest}
-{manifest COM.CURL.CDK.SUPPORT}
+{manifest COM.CURL.CDK.SUPPORT,
+    version = "0.1"}
 
 {delegate-to COM.CURL.CDK,
     location = "../code/manifest.mcurl"}
@@ -23,9 +24,23 @@
 {delegate-to COM.CURL.CDU,
     location = "../lib/CDU/manifest.mcurl"}
 
+{delegate-to COM.CURL.GUI.STYLED,
+    location = "../../../_LIB/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"}
+
+|| utility packages
+|| --------------------
+{component package COM.CURL.CDK.DB-DISPLAY,
+    location = "util/DBExplorer/load.scurl"}
+{component file DB-STYLE-SHEET,
+    location = "util/DBExplorer/stylesheet.scurl"}
+
+|| test infrastructure
+|| --------------------
 {component package COM.CURL.CDK.SQLITE-TEST-SUPPORT,
     location = "test-extensions/sqlite-test-support.scurl"}
 
+|| test cases
+|| --------------------
 {component file start-tests.curl,
     location = "start-tests.curl"
 }

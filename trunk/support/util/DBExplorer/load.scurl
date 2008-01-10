@@ -1,0 +1,15 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| Maintained by: Curl Solutions
+{curl 6.0 package}
+{package COM.CURL.CDK.DB-DISPLAY,
+    version = "0.1",
+    {compiler-directives careful? = true}
+}
+{import * from CURL.GUI.STANDARD}
+{import * from COM.CURL.GUI.STYLED-CONTROLS}
+{import * from COM.CURL.CDK.SQLITE}
+
+{include
+    "display.scurl"
+}

@@ -1,0 +1,14 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| Maintained by: Curl Solutions
+
+{curl 6.0 manifest}
+{manifest COM.CURL.WORK}
+{include "../manifest.mcurl"}
+
+{component package COM.CURL.CDK.DB-DISPLAY,
+    location = "load.scurl"
+}
+
+{component file DB-STYLE-SHEET,
+    location = "stylesheet.scurl"}
