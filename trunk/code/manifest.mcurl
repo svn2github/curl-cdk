@@ -15,8 +15,11 @@
 ||| limitations under the License.
 
 {curl 6.0 manifest}
-{manifest COM.CURL.CDK}
+{manifest COM.CURL.CDK,
+    version = "0.1"}
 
+|| core modules
+|| --------------------
 {component package COM.CURL.CDK.SQLITE,
     location = "SQLITE/load.scurl"
 }
@@ -29,6 +32,8 @@
     location = "SQLITE/syntax.scurl"
 }
 
+|| foreign libraries
+|| --------------------
 {component file libsqlite,
     platform = "win32",
     location = "SQLITE/sqlite_3-4-2.dll"
@@ -39,8 +44,15 @@
     location = "SQLITE/sqlite_3-4-2.so"
 }
 
+|| documentation
+|| --------------------
 {component directory docs,
     location = "docs"
 }
 
+|| localization
+|| --------------------
+{component directory resources,
+    location = "resources"
+}
 

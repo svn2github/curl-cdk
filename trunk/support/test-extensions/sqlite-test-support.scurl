@@ -23,7 +23,6 @@
 }
 {import * from COM.CURL.CDU.CURL-UNIT}
 {import * from COM.CURL.CDK.SQLITE}
-||--{import * from CURL.DATA-ACCESS.BASE}
 
 || ====================
 {define-proc public {any-equal? x:any, y:any}:bool
