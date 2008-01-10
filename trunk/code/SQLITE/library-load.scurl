@@ -16,6 +16,9 @@
 
 {curl 6.0 package}
 {package COM.CURL.CDK.SQLITE-LIBRARY,
+    version = "0.1",
+    resource-directory = "../resources/",
+    translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
