@@ -41,9 +41,9 @@
     "connection.scurl",
     "database.scurl",
     "statement.scurl",
+    "SqlWriter.scurl",
     "recordset.scurl",
-    "domain.scurl",
-    "SqlWriter.scurl"
+    "domain.scurl"
 }
 
 

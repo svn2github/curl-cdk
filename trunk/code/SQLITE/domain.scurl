@@ -220,7 +220,7 @@
           SQLiteDatatypeAffinity.NUMERIC}
     }
 }
-{define-proc {ByteArray-compare xs:ByteArray, ys:ByteArray}:int
+{define-proc package {ByteArray-compare xs:ByteArray, ys:ByteArray}:int
     let n:int = {min xs.size, ys.size}
     {for i = 0 below n do
         let d:int = xs[i] - ys[i]
@@ -228,14 +228,14 @@
             {return {signum d}}}}
     {return {signum xs.size - ys.size}}
 }
-{define-proc {hex-encode bs:ByteArray}:String    
+{define-proc package {hex-encode bs:ByteArray}:String    
     let buf:StringBuf = {StringBuf "x'"}
     {for b in bs do
         {format out = buf, "%02x", b}}
     {buf.append '\''}
     {return {buf.to-String}}
 }
-{define-proc {hex-decode x:StringInterface}:ByteArray
+{define-proc package {hex-decode x:StringInterface}:ByteArray
     let n:int = x.size
     || enforce "x'dddd' pattern
     {if not {x.prefix? "x'"} || prefix: x'

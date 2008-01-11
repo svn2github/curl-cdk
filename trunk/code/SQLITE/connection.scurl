@@ -16,15 +16,11 @@
 
 || TODO
 || 
-|| - review ROWID conventions
-||
 || - better view detection, modifiability
 ||
 || - check SQLite dynamic type conventions
 || -- has well defined sort order: first datatype, then per-type ordering
 || -- null first, unlike what Record.compare-field does
-||
-|| - standard technique for using curl://local-data
 ||
 || - extend API beyond Connection / ConnectedRecordSet
 || -- something like Statement with cursor
@@ -36,31 +32,41 @@
 || --- uniqueness, modifiability, nullability, default-value
 || - but maybe useful for Curl UI
 
-{define-class public SQLiteConnection 
-  {inherits Connection, EventTarget}
-  || state
-  || -----------
-  field public-get private-set main-database:SQLiteDatabase
-  
-  || construction
-  || -----------
+
+{import * from COM.CURL.CDK.SQL-BASE}
+
+{define-class public SQLiteConnection {inherits SQLConnection, EventTarget}
+
+  field public constant database:SQLiteDatabase
+
   {constructor public {default 
-                          loc:#Url,
+                          database-url:#Url = null,
+                          database:#SQLiteDatabase = null,
                           error-if-missing?:bool = false,
                           note-commit?:bool = false,
                           note-rollback?:bool = false,
                           note-update?:bool = false,
                           ...:EventHandler
                       }
+    || Only supply the url or the database or neither (for in memory database)
+    {assert database-url == null or database == null}
+
     || open database
-    {if-non-null loc then
-        {if error-if-missing? and not {local-file-exists? loc} then
+    {if-non-null database-url then
+        {if error-if-missing? and not {local-file-exists? database-url} then
             {throw 
-                {MissingFileException {lmessage No such file: {value loc}}}
+                {MissingFileException
+                    {lmessage No such file: {value database-url}}
+                }
             }
         }
     }
-    set self.main-database = {SQLiteDatabase loc}
+    set self.database =
+        {if-non-null database then
+            database 
+         else
+            {SQLiteDatabase database-url}
+        }
 
     || Notification
     set (self.update-callback, self.rollback-callback, self.commit-callback) =
@@ -70,9 +76,14 @@
     set self.note-update? = note-update?
     
     || superclasses
-    {construct-super.Connection 
-        {if-non-null loc then loc
-         else {url "curl://temp/"}}}
+    {construct-super.SQLConnection 
+        {if-non-null database-url then
+            database-url
+         else
+            || FIXME: is there a better url for in memory databases?
+            {url "curl://temp/"}
+        }
+    }
     
     {for eh in ... do
         {self.add-event-handler eh}
@@ -81,103 +92,97 @@
 
   || Connection protocol
   || -----------
+  {doc-next
+    {purpose Obtain a list of the databases available through this
+        connection.
+    }
+    {notes
+        The SQLite classes use a database name as part of what
+        table is being accessed, not as what database to connect
+        to.  The default main database is general signified by the
+        empty string.
+    }
+  }
   {method public {get-database-names}:StringArray
     || NOTE: not cached, as can change on 'attach/detach'
     let database-names:StringArray = {StringArray}
-    {for row in {self.select "PRAGMA database_list"} do
-        {database-names.append row[1] asa String}
+    {self.execute-sqlite
+        "PRAGMA database_list", ||""
+        callback =
+            {proc {row:Array}:bool
+                {database-names.append row[1] asa String}
+                {return true}
+            }
     }
     {return database-names}
   }
 
   {method public {get-tables database:String}:StringArray
     let tables:StringArray = {StringArray}
-    {for row in {self.select "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"} do
-        {tables.append row[0] asa String}
+    || Note: the database is ignored, but if you have attached other databases,
+    || This info is available via <database name>.sqlite_master.
+    {self.execute-sqlite
+        "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')", ||""
+        callback =
+            {proc {row:Array}:bool
+                {tables.append row[0] asa String}
+                {return true}
+            }
     }
     {tables.sort}
     {return tables}
   }
 
-  {method public {get-fields database:String, table:String}:RecordFields
-    let k:String = {self.dwim-query table}
-    {return {self.select-metadata k}}
-  }
+  {method public {get-sql-fields
+                      database-name:String,
+                      query:String,
+                      table-name:#String = null,
+                      hidden-primary-key-field:int = -1,
+                      query-is-full-row?:bool = false,
+                      primary-keys:#{Array-of int} = null,
+                      strict-types?:bool = false
+                 }:(RecordFields, #String)
 
-  {method public {table-exists? database:String, table:String}:bool
-    || TODO: more efficient to just use SQL
-    let tables:StringArray = {self.get-tables database}
-    {return {tables.find table} >= 0}
-  }
-
-  {method public {create-record-set
-                     database:String,
-                     query:String,
-                     request-modifiable?:bool = false,
-                     size-limit:int = -1,
-                     ...:EventHandler
-                 }:ConnectedRecordSet
-    set query = {self.dwim-query query}
-    let rs:ConnectedRecordSet = 
-        {SQLiteRecordSet self, database, query,
-            request-modifiable? = request-modifiable?,
-            size-limit = size-limit,
-            ...
+    let fs:{Array-of RecordField} = {new {Array-of RecordField}}
+    let hidden-primary-key-field-name:#String
+    let primary-key-is-auto-increment?:bool = false
+    || FIXME: should we skip this if not request-modifiable?
+    {if-non-null table-name then
+        || FIXME: There is no way to get if a column is auto-increment, so
+        || we check for a row about this table in sqlite_sequence, but
+        || that row may not be created until at least one row has been
+        || added to the table.
+        {try
+            {self.execute-sqlite
+                "SELECT seq from sqlite_sequence WHERE name='" & ||""
+                {self.combined-table-name database-name, table-name} & "'", ||""
+|#
+                args-callback =
+                    {proc {statement:SQLiteStatement}:void
+                        {statement.bind-text 1,
+                            {self.combined-table-name database-name, table-name}
+                        }
+                    },
+#|
+                callback =
+                    {proc {row:Array}:bool
+                        set primary-key-is-auto-increment? = true
+                        {return false}
+                    }
+                }
+         catch ex:SQLiteException do
+            || Ignore failures like the table not existing.
         }
-    {return rs}
-  }
-
-  {method public {reset}:void
-  }
-
-  || TODO: should this be public?
-  {method private {dwim-query query:String}:String
-    || use ROWID with tables, for later update operataions
-    || NOTE: the "AS ROWID" is necessary
-    || -- SQLite uses alias to PK if possible
-    || -- and its field name is a duplicate
-    {return
-        {if {query.find ' '} < 0 then
-            "SELECT ROWID AS ROWID, * FROM " & query
-         else query}}
-  }
-
-  || queries
-  || -----------
-  {method public {select sql:String}:{Array-of Array}
-    {with-statement in self.main-database
-        statement = sql
-     do
-        {return {statement.data-rows}}
     }
-  }
-
-  || metadata
-  || -----------
-  {method public {select-metadata sql:String}:RecordFields
-    let fs:{Array-of RecordField} = {{Array-of RecordField}}
-    
-    || info from schema, if a table
-    let table-name:#String = 
-        {if {sql.find-string "ROWID"} > 0 then 
-            {SQLWriter.table-name-from-query sql} 
-         else 
-            null
-        }
-    let schema-info:{Array-of Array} =
-        {if-non-null table-name then 
-            {self.select 
-                {format "PRAGMA table_info (%s);", table-name}}
-         else 
-            {{Array-of Array}}
-        }
-    {with-statement in self.main-database
-        statement = sql
+    {with-statement in self.database
+        statement = query
      do
-        || info from prepared statement
         let nval:int = statement.column-count
         || HACK: avoid duplicate names
-        def names = {{HashTable-of String, Array}}
+        || FIXME: This allocates a bunch of objects, maybe it could just
+        || save the number of copies of a given name, it never uses the
+        || contents of the value Arrays.
+        let names:{HashTable-of String, Array} = {{HashTable-of String, Array}}
         {for i = 0 below nval do
             let name:String = {statement.get-column-name i}
             {if-non-null xs = {names.get-if-exists name} asa #Array then
@@ -186,64 +191,284 @@
              else
                 set names[name] = {Array i}
             }
+            {if i == hidden-primary-key-field then
+                set hidden-primary-key-field-name = name
+                {continue}
+            }
             let decltype:#String = {statement.get-column-decltype i}
             let type:String = {if-non-null decltype then decltype else ""}
             let affinity:SQLiteDatatypeAffinity = 
-                {SQLiteDatatypeAffinity-from-declared-type type}                
-            let domain:Domain = {SQLiteVariantDomain.from-affinity affinity}
-            || use schema info, if a table
-            let (nullable?:bool,
-                 primary-key?:bool) =
-                {if-non-null table-name then
-                    || FIXME: that is only rowid if selecting on *
-                    {if i == 0 then
-                        || special case: ROWID
-                        || NOTE: needs to be nullable to defeat Curl check
-                        || -- so autoincrement can happen
-                        (true, true)
-                     else
-                        || FIXME: that is only valid if selecting on * from one table
-                        || info from schema
-                        let info:Array = schema-info[i - 1]
-                        (|| notnull
-                         info[3] == 0,
-                         || pk
-                         info[5] != 0)}
+                {SQLiteDatatypeAffinity-from-declared-type type}
+            let domain:Domain =
+                {SQLiteVariantDomain.from-affinity
+                    affinity, strict? = strict-types?
+                }
+            let primary-key?:bool =
+                {if-non-null primary-keys then
+                    {primary-keys.find i} >= 0
                  else
-                    || fallback if no schema
-                    (true, false)}
-            let f:ExtendedRecordField = 
-                {ExtendedRecordField name, 
+                    false
+                }
+            let f:SQLRecordField = 
+                {SQLRecordField
+                    name, 
                     domain = domain,
                     || NOTE: needs to be nullable to defeat Curl check
                     nullable? = true, ||nullable?,
-                    primary-key? = primary-key?,
                     || NOTE: SQLite allows this
-                    modifiable? = true ||not primary-key?
+                    modifiable? = true, ||not primary-key?
+                    primary-key? = primary-key?,
+                    auto-increment? = 
+                        primary-key? and primary-key-is-auto-increment? and
+                        (affinity == SQLiteDatatypeAffinity.INTEGER or
+                         affinity == SQLiteDatatypeAffinity.NUMERIC or
+                         affinity == SQLiteDatatypeAffinity.NONE),
+                    type
                 }
             {fs.append f}
         }
     }
-    {return {RecordFields {splice fs}}}
+    {return {RecordFields {splice fs}}, hidden-primary-key-field-name}
   }
 
-  || transactions
-  || -----------
-  {method public {execute sql:String}:int || n-rows-changed
-    {self.main-database.execute sql}
-    {return self.main-database.changes}
+  {method protected {combined-table-name database-name:String, table-name:String
+                    }:String
+    {return
+        {if database-name != "" and database-name != "main" then
+            database-name & "." & table-name
+         else
+            table-name
+        }
+    }
   }
 
-  || ==================== \\
+  || Note: we could do also something similar when the query
+  || isn't full rows, to get all of the primary keys and just
+  || map them based on column name, but that could fail oddly.
+  {method public {get-primary-keys-for-table
+                     database-name:String,
+                     table-name:String
+                 }:{Array-of int}
+    let primary-keys:{Array-of int} = {new {Array-of int}}
+    let row-index:int = 0
+    || Couldn't get bind-text to work with this query...
+    {self.execute-sqlite
+        "PRAGMA table_info ('" &  ||""
+        {self.combined-table-name database-name, table-name} &
+        "')", ||""
+|#
+         args-callback =
+            {proc {statement:SQLiteStatement}:void
+                {statement.bind-text 1,
+                    {self.combined-table-name database-name, table-name}
+                }
+            },
+#|
+         callback =
+            {proc {row:Array}:bool
+                {if row[5] != 0 then
+                    {primary-keys.append row-index}
+                }
+                {inc row-index}
+                {return true}
+            }
+    }
+    {return primary-keys}
+  }
+
+  {method public {get-fields database:String, query:String}:RecordFields
+    || Note: this could also accept table names and turn them into queries,
+    || but that dumb.
+    {return
+        {self.get-sql-fields
+            database,
+            query
+        }
+    }
+  }
+
+  {method public {table-exists? database:String, table:String}:bool
+    || TODO: more efficient to just use SQL
+    let tables:StringArray = {self.get-tables database}
+    {return {tables.find table} >= 0}
+  }
+
+  || SQLConnection API
+
+  || inherited from Connection
+  {method public {create-record-set
+                     database-name:String,
+                     query:String,
+                     request-modifiable?:bool=false,
+                     size-limit:int=-1,
+                     ...:EventHandler
+                 }:SQLConnectedRecordSet
+    {return
+        {if {query.find ' '} < 0 then
+            {self.create-sql-record-set-from-table-name
+                database-name,
+                query, || table-name
+                request-modifiable? = request-modifiable?,
+                size-limit = size-limit,
+                ...
+            }
+         else
+            {self.create-sql-record-set
+                database-name,
+                query,
+                request-modifiable? = request-modifiable?,
+                size-limit = size-limit,
+                ...
+            }
+        }
+    }
+  }
+
+  {method public {create-sql-record-set-from-table-name
+                     database-name:String,
+                     table-name:String,
+                     request-modifiable?:bool=false,
+                     size-limit:int=-1,
+                     base-where-clause:#String = null,
+                     strict-types?:bool = false,
+                     ...:EventHandler
+                 }:SQLConnectedRecordSet
+    {return
+        {SQLiteRecordSet.create-from-table-name
+            self,
+            database-name,
+            table-name,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            strict-types? = strict-types?,
+            ...
+        }
+    }
+  }
+
+  {method public {create-sql-record-set
+                     database-name:String,
+                     query:String,
+                     request-modifiable?:bool=false,
+                     size-limit:int=-1,
+                     table-name:#String = null,
+                     base-where-clause:#String = null,
+                     hidden-primary-key-field:int = -1,
+                     || I.E. does the query look like *, or
+                     || ROWID, *, with hidden-primary-key-field = 0
+                     || This allows optimized INSERT statements to be
+                     || used.
+                     query-is-full-row?:bool = false,
+                     || We can sometimes figure out the keys
+                     || but often we can't.
+                     primary-keys:#{Array-of int} = null,
+                     strict-types?:bool = false,
+                     ...:EventHandler
+                 }:SQLConnectedRecordSet
+    {return
+        {SQLiteRecordSet.create
+            self,
+            database-name,
+            query,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            table-name = table-name,
+            base-where-clause = base-where-clause,
+            hidden-primary-key-field = hidden-primary-key-field,
+            query-is-full-row? = query-is-full-row?,
+            strict-types? = strict-types?,
+            ...
+        }
+    }
+  }
+
+  {method public {execute-sqlite
+                     query:String,
+                     args-callback:#{proc-type {SQLiteStatement}:void} = null,
+                     callback:#{proc-type {row:Array}:bool} = null,
+                     restart-callback:#{proc-type {SQLiteStatement}:bool} = null,
+                     throw-on-error?:bool = true,
+                     start-record:int = 0,
+                     size-limit:int = -1
+                 }:void
+    || If this is a SELECT statement we can handle start-record/size-limit
+    || in the database, if it is PRAGMA or whatever then we do it manually.
+    || Note: there had better not be a ; at the end of the statement.
+    let limit-already-handled?:bool =
+        {if start-record != 0 or size-limit >= 0 and
+            {query.prefix? "SELECT", ignore-case? = true}
+         then
+            set query = query & "LIMIT " & start-record & ", " & size-limit
+            true
+         else
+            false
+        }
+    let restart?:bool = true
+    {with-statement in self.database
+        statement = query
+     do
+        {while restart? do
+            {if-non-null args-callback then
+                {args-callback statement}
+            }
+            let row-index:int = -1
+            {while {statement.step throw-on-error? = throw-on-error?} !=
+                SQLiteStatus.DONE
+             do
+                {inc row-index}
+                {if not limit-already-handled? then
+                    {if start-record > row-index then
+                        {continue}
+                     elseif size-limit >= 0 and
+                        row-index > (start-record + size-limit)
+                     then
+                        {break}
+                    }
+                }
+                {if-non-null callback then
+                    {if not {callback statement.current-row} then
+                        {return}
+                    }
+                }
+            }
+            {statement.reset}
+            set restart? =
+                {if-non-null restart-callback then
+                    {restart-callback statement}
+                 else
+                    false
+                }
+        }
+    }
+  }
+
+  {method public {execute-sql
+                     database-name:String,
+                     query:String,
+                     callback:#{proc-type {row:Array}:bool} = null,
+                     throw-on-error?:bool = true,
+                     start-record:int = 0,
+                     size-limit:int = -1
+                 }:void
+    {self.execute-sqlite
+        query,
+        callback = callback,
+        throw-on-error? = throw-on-error?,
+        start-record = start-record,
+        size-limit = size-limit
+    }
+  }
+
+  || Internal implementation stuff, copied from old SQLiteConnection
   || Notification
-  {method {define-callbacks
-          }:({proc-type {operation:SQLiteOperation,
-                         database-name:String,
-                         table-name:String,
-                         rowid:int64
-                        }:void},
-             {proc-type {}:void},
-             {proc-type {}:int})
+  {method private {define-callbacks
+                  }:({proc-type {operation:SQLiteOperation,
+                                 database-name:String,
+                                 table-name:String,
+                                 rowid:int64
+                                 }:void},
+                     {proc-type {}:void},
+                     {proc-type {}:int})
     || FIXME: This will result in event handling in the middle of other code,
     || at possibly illegal points in time, or unusual times anyway.
     {return
@@ -267,7 +492,8 @@
         }
     }
   }
-  field _note-commit?:bool
+
+  field private _note-commit?:bool
   {getter public {note-commit?}:bool
     {return self._note-commit?}
   }
@@ -284,14 +510,14 @@
     }
   }
 
-  field constant commit-callback:SQLiteCommitHookProcType
+  field constant private commit-callback:SQLiteCommitHookProcType
   {method protected {register-commit-hook
                         callback:#SQLiteCommitHookProcType
                     }:void
-    set self.main-database.commit-hook = callback
+    set self.database.commit-hook = callback
   }
 
-  field _note-rollback?:bool
+  field private _note-rollback?:bool
   {getter public {note-rollback?}:bool
     {return self._note-rollback?}
   }
@@ -308,14 +534,14 @@
     }
   }
 
-  field constant rollback-callback:SQLiteRollbackHookProcType
+  field constant private rollback-callback:SQLiteRollbackHookProcType
   {method protected {register-rollback-hook
                         callback:#SQLiteRollbackHookProcType
                  }:void
-    set self.main-database.rollback-hook = callback
+    set self.database.rollback-hook = callback
   }
 
-  field _note-update?:bool
+  field private _note-update?:bool
   {getter public {note-update?}:bool
     {return self._note-update?}
   }
@@ -332,12 +558,11 @@
     }
   }
 
-  field constant update-callback:SQLiteUpdateHookProcType
+  field constant private update-callback:SQLiteUpdateHookProcType
   {method protected {register-update-hook
                         callback:#SQLiteUpdateHookProcType
                  }:void
-    set self.main-database.update-hook = callback
+    set self.database.update-hook = callback
   }
-  || ==================== //
 }
 
