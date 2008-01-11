@@ -1,0 +1,650 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{doc-next
+    {purpose
+        Base class for a {docref Connection} that is backed by a SQL
+        query for a SQL database.
+    }
+    {notes
+        Known subclasses include {docref NewSQLiteConnection}.
+    }
+}
+{define-class public abstract SQLConnection {inherits Connection}
+
+  {constructor public {default 
+                          url:Url
+                      }
+    {construct-super url}
+  }
+
+  {doc-next
+    {purpose
+        Execute a SQL query, and provide results, if any.
+    }
+    {parameter database-name, The name of a database known to the
+        {docref Connection}. (Use {docref Connection.get-database-names}
+        to get a list of these names.)
+    }
+  }
+  || Note: Could return an iterator over row instead of callback
+  {method public abstract {execute-sql
+                              database-name:String,
+                              query:String,
+                              callback:#{proc-type {row:Array}:bool} = null,
+                              throw-on-error?:bool = true,
+                              start-record:int = 0,
+                              size-limit:int = -1
+                          }:void
+  }
+
+  || inherited from Connection
+  || query can be a table-name or a query
+  {method public abstract {create-record-set
+                              database-name:String,
+                              query:String,
+                              request-modifiable?:bool = false,
+                              size-limit:int = -1,
+                              ...:EventHandler
+                          }:SQLConnectedRecordSet
+  }
+
+  {method public abstract {create-sql-record-set-from-table-name
+                              database-name:String,
+                              table-name:String,
+                              request-modifiable?:bool = false,
+                              size-limit:int=-1,
+                              base-where-clause:#String = null,
+                              strict-types?:bool = false,
+                              ...:EventHandler
+                          }:SQLConnectedRecordSet
+  }
+
+  {method public abstract {create-sql-record-set
+                              database-name:String,
+                              query:String,
+                              request-modifiable?:bool = false,
+                              size-limit:int = -1,
+                              table-name:#String = null,
+                              base-where-clause:#String = null,
+                              hidden-primary-key-field:int = -1,
+                              || I.E. does the query look like *, or
+                              || ROWID, *, with hidden-primary-key-field = 0
+                              || This allows optimized INSERT statements to be
+                              || used.
+                              query-is-full-row?:bool = false,
+                              || We can sometimes figure out the keys
+                              || but often we can't.
+                              primary-keys:#{Array-of int} = null,
+                              strict-types?:bool = false,
+                              ...:EventHandler
+                          }:SQLConnectedRecordSet
+  }
+
+  {method public abstract {get-sql-fields
+                              database-name:String,
+                              query:String,
+                              table-name:#String = null,
+                              hidden-primary-key-field:int = -1,
+                              query-is-full-row?:bool = false,
+                              primary-keys:#{Array-of int} = null,
+                              strict-types?:bool = false
+                          }:(RecordFields, #String)
+  }
+
+
+  {method public {reset}:void
+  }
+}
+
+
+{define-class public abstract SQLConnectedRecordSet
+  {inherits ConnectedRecordSet, BasicRecordSet}
+
+  field protected table-name:#String
+  field protected base-where-clause:#String
+  field protected hidden-primary-key-field:int
+  field protected query-is-full-row?:bool
+  field protected primary-keys:#{Array-of int}
+  field protected hidden-primary-key-field-name:#String
+  field protected strict-types?:bool
+
+  || What is where-clause for?  For missing key information when doing
+  || updates, or just reducing data?
+||--  {factory public {create-from-table-name
+||--                      connection:SQLConnection,
+||--                      database-name:String,
+||--                      table-name:String,
+||--                      request-modifiable?:bool=false,
+||--                      size-limit:int=-1,
+||--                      base-where-clause:#String = null,
+||--                      ...:EventHandler
+||--                  }:SQLConnectedRecordSet
+||--    {return
+||--        {SQLConnectedRecordSet.create
+||--            connection,
+||--            database-name,
+||--            "SELECT * FROM " & table-name & ||""
+||--            {if-non-null base-where-clause then
+||--                " WHERE " & base-where-clause
+||--             else
+||--                ""
+||--            },
+||--            request-modifiable? = request-modifiable?,
+||--            size-limit = size-limit,
+||--            base-where-clause = base-where-clause,
+||--            query-is-full-row? = true,
+||--            ...
+||--        }
+||--    }
+||--  }
+
+  || What is where-clause for?  For missing key columns when doing
+  || updates?  Fields should be marked not modifiable? if they aren't
+  || part of updates or inserts.
+  || Note that this is the main one...just ignore the weird stuff if
+  || making a read-only version.
+  {constructor public {create
+                          connection:SQLConnection,
+                          database-name:String,
+                          query:String,
+                          request-modifiable?:bool = false,
+                          size-limit:int = -1,
+                          table-name:#String = null,
+                          base-where-clause:#String = null,
+                          hidden-primary-key-field:int = -1,
+                          || We should be able to figure out what the keys
+                          || are, and what type things are without this.
+                          || I.E. does the query look like *, or
+                          || ROWID, *, with hidden-primary-key-field = 0
+                          || This allows optimized INSERT statements to be
+                          || used.
+                          query-is-full-row?:bool = false,
+                          primary-keys:#{Array-of int} = null,
+                          strict-types?:bool = false,
+                          ...:EventHandler
+                      }
+    set self.table-name = table-name
+    set self.base-where-clause = base-where-clause
+    set self.hidden-primary-key-field = hidden-primary-key-field
+    set self.query-is-full-row? = query-is-full-row?
+    set self.primary-keys = primary-keys
+    set self.strict-types? = strict-types?
+    {construct-super.ConnectedRecordSet
+        connection,
+        database-name,
+        query,
+        request-modifiable?,
+        size-limit,
+        ...
+    }
+    {self.query-initialized}
+    let (fields:RecordFields, hidden-primary-key-field-name:#String) =
+        {connection.get-sql-fields
+            self.database-name,
+            query,
+            table-name = self.table-name,
+            hidden-primary-key-field = self.hidden-primary-key-field,
+            query-is-full-row? = self.query-is-full-row?,
+            primary-keys = self.primary-keys,
+            strict-types? = strict-types?
+        }
+    set self.hidden-primary-key-field-name = hidden-primary-key-field-name
+    {construct-super.BasicRecordSet
+        fields, modifiable? = request-modifiable?
+    }
+  }
+
+  {method public abstract {fill-from-table-name
+                              database-name:String = self.database-name,
+                              table-name:String = self.table-name,
+                              request-modifiable?:bool =
+                                  self.request-modifiable?,
+                              size-limit:int = self.size-limit,
+                              base-where-clause:#String =
+                                  self.base-where-clause
+                          }:void
+  }
+
+  {method protected abstract {query-initialized
+                                 query-changed?:bool = true
+                             }:void
+  }
+
+  {method public {fill-sql
+                     database-name:String = self.database-name,
+                     query:String = self.query,
+                     request-modifiable?:bool = false,
+                     size-limit:int = -1,
+                     table-name:#String = self.table-name,
+                     base-where-clause:#String = self.base-where-clause,
+                     hidden-primary-key-field:int =
+                         self.hidden-primary-key-field,
+                     query-is-full-row?:bool = self.query-is-full-row?,
+                     primary-keys:#{Array-of int} = self.primary-keys,
+                     strict-types?:bool = self.strict-types?
+                 }:void
+    let query-changed?:bool =
+        (self.database-name != database-name or self.query != query)
+    set self.database-name = database-name
+    set self.query = query
+    set self.request-modifiable? = request-modifiable?
+    set self.size-limit = size-limit
+    set self.table-name = table-name
+    set self.base-where-clause = base-where-clause
+    set self.hidden-primary-key-field = hidden-primary-key-field
+    set self.query-is-full-row? = query-is-full-row?
+    set self.primary-keys = primary-keys
+    set self.strict-types? = strict-types?
+    {self.query-initialized query-changed? = query-changed?}
+    {if query-changed? then
+        let connection:SQLConnection = (self.connection asa SQLConnection)
+        let (fields:RecordFields, hidden-primary-key-field-name:#String) =
+            {connection.get-sql-fields
+                self.database-name,
+                query,
+                table-name = self.table-name,
+                hidden-primary-key-field = self.hidden-primary-key-field,
+                query-is-full-row? = self.query-is-full-row?,
+                primary-keys = self.primary-keys,
+                strict-types? = self.strict-types?
+            }
+        set self.hidden-primary-key-field-name = hidden-primary-key-field-name
+        {self.init fields = fields}
+    }
+    || load will call init and refresh the fields, but should we call init
+    || before changing the state?
+    set self.load-state = RecordSetLoadState.unloaded
+    {self.load}
+  }
+
+  {method public {fill
+                     database-name:String = self.database-name,
+                     query:String = self.query,
+                     request-modifiable?:bool = self.request-modifiable?,
+                     size-limit:int = self.size-limit
+                 }:void
+    || What can we do about the other info that could change with a new query?
+    {if {query.find ' '} < 0 then
+        let same-query?:bool =
+            (query == self.table-name and database-name == self.database-name)
+        {self.fill-from-table-name
+            database-name = database-name,
+            table-name = query,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            base-where-clause =
+                {if same-query? then self.base-where-clause else null}
+        }
+     else
+        let same-query?:bool =
+            (query == self.query and database-name == self.database-name)
+        {self.fill-sql
+            database-name = database-name,
+            query = query,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            base-where-clause =
+                {if same-query? then self.base-where-clause else null},
+            hidden-primary-key-field =
+                {if same-query? then self.hidden-primary-key-field else -1},
+            query-is-full-row? =
+                {if same-query? then self.query-is-full-row? else false},
+            primary-keys = {if same-query? then self.primary-keys else null}
+        }
+    }
+  }
+
+  || SQL generation code
+  {method protected {generate-field-names-list-sql buf:StringBuf}:void
+    {buf.concat "("}
+    {for fi = 0 below self.fields.size do
+        let constant f:SQLRecordField =
+            {self.fields.get-by-index fi} asa SQLRecordField
+        {if fi != 0 then
+            {buf.concat ", "}
+        }
+        {buf.concat f.name}
+    }
+    {buf.concat ") "}
+  }
+
+  {method protected abstract {generate-values-list-sql
+                                 buf:StringBuf,
+                                 records:BasicRecord
+                             }:void
+    || for CDBC this will generate a string with everything in it.
+    || for SQLite this will generate a string with ?s in it.
+    || And the caller will need to call bind for each parameter;
+    || the problem is that it has to do that for values and for
+    || where-clause key stuff.
+  }
+  || Some protected SQL generation code support methods used
+  || to implement insert/delete/update logic based on keys.
+  || But we might also have a separate class to help compose
+  || SQL from Records or RecordFields.
+  {method protected {generate-insert-statement-sql
+                        buf:StringBuf,
+                        records:BasicRecord
+                    }:void
+    {self.generate-prefix-values-sql buf, records}
+    {buf.concat "INSERT INTO "}
+    {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
+    {buf.concat " "}
+    {if not self.query-is-full-row? then
+        {self.generate-field-names-list-sql buf}
+    }
+    {buf.concat " VALUES("}
+    {self.generate-values-list-sql buf, records}
+    {buf.concat ")"}
+  }
+
+  {method protected abstract {generate-field-value-sql
+                                 buf:StringBuf,
+                                 f:#RecordField,
+                                 record-value:any
+                             }:void
+  }
+
+  {method protected {field-modified? f:SQLRecordField, record:BasicRecord}:bool
+    let constant f-name:String = f.name
+    {return
+        f.modifiable? and
+        || If value changed
+        {f.domain.compare record[f-name], record[f-name, pending? = false]} != 0
+    }
+  }
+
+  {method protected {generate-assignments-sql
+                        buf:StringBuf,
+                        record:BasicRecord
+                    }:void
+    let first?:bool = true
+    {for fi = 0 below self.fields.size do
+        let constant f:SQLRecordField =
+            {self.fields.get-by-index fi} asa SQLRecordField
+        let constant f-name:String = f.name
+        let constant record-value:any = record[f-name]
+        {if not {self.field-modified? f, record} then
+            || skip this column.
+            {continue}
+        }
+        {if not first? then
+            {buf.concat ",\n"}
+        }
+        set first? = false
+        {buf.concat " "}
+        {buf.concat f-name}
+        {buf.concat "="}
+        {self.generate-field-value-sql buf, f, record-value}
+    }
+  }
+
+  {method public {primary-key? f:RecordField}:bool
+    {return
+        {type-switch f
+         case f:SQLRecordField do
+            f.primary-key?
+         else
+            false
+        }
+    }
+  }
+
+  {method public abstract {generate-prefix-values-sql
+                              buf:StringBuf,
+                              record:BasicRecord,
+                              check-if-modified?:bool = false,
+                              primary-keys?:bool = false
+                          }:void
+  }
+
+  {method public {generate-where-sql buf:StringBuf, record:BasicRecord}:void
+    {buf.concat " WHERE "} ||""
+    {if-non-null base-where-clause = self.base-where-clause then
+        {buf.concat base-where-clause}
+        {buf.concat " AND "} ||""
+    }
+    {type-switch record
+     case r:SQLHiddenIndexRecord do
+        {buf.concat {non-null self.hidden-primary-key-field-name}}
+        {buf.concat "="}
+        || Should this go through some indirection, or should there be a
+        || row-id RecordField somewhere?
+        {self.generate-field-value-sql buf, null, r.row-id}
+        {return}
+    }
+    let key-count:int = 0
+    {for fi:int = 0 below self.fields.size do
+        let constant f:RecordField = {self.fields.get-by-index fi}
+        {if {self.primary-key? f} then
+            let constant f-name:String = f.name
+            let constant old-record-value:any =
+                {record.get f-name, pending? = false}
+            {if key-count > 0 then
+                {buf.concat " AND "} ||""
+            }
+            {buf.concat f-name}
+            {if old-record-value == null then
+                {buf.concat " IS NULL"} ||""
+             else
+                {buf.concat "="}
+                {self.generate-field-value-sql buf, f, old-record-value}
+            }
+            {inc key-count}
+        }
+    }
+    {if key-count == 0 then
+        {error "Can not generate valid WHERE clause with no known primary keys."}
+    }
+  }
+
+  {method public {generate-update-statement-sql
+                     buf:StringBuf,
+                     record:BasicRecord
+                 }:void
+    {self.generate-prefix-values-sql buf, record, check-if-modified? = true}
+    || 
+    {self.generate-prefix-values-sql buf, record, primary-keys? = true}
+    {buf.concat "UPDATE "}
+    {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
+    {buf.concat " SET "}
+    {self.generate-assignments-sql buf, record}
+    {self.generate-where-sql buf, record}
+  }
+
+  {method public {generate-delete-statement-sql
+                     buf:StringBuf,
+                     record:BasicRecord
+                 }:void
+    || But suppress stuff that didn't change
+    {self.generate-prefix-values-sql buf, record, primary-keys? = true}
+    {buf.concat "DELETE FROM "}
+    {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
+    {buf.concat " "}
+    {self.generate-where-sql buf, record}
+  }
+
+  {method protected {load-range-internal
+                        start-record:int = 0,
+                        size-limit:int = -1
+                    }:void
+    let connection:SQLConnection = self.connection asa SQLConnection
+    {self.init}
+    {connection.execute-sql
+        self.database-name,
+        self.query,
+        start-record = start-record,
+        size-limit = size-limit,
+        callback =
+            {proc {row:Array}:bool
+                || use (faster) internal-store-record
+                || NOTE: no need for domain conversion here
+                let r:BasicRecord = {self.allocate-record}
+                let record-index:int = 0
+                {for col key i in row do
+                    {if i == self.hidden-primary-key-field then
+                        {if col == null then
+                            set col = -1
+                            set self.request-modifiable? = false
+                        }
+                        set (r asa SQLHiddenIndexRecord).row-id = col asa int64
+                     else
+                        {r.internal-set-value record-index, col, for-init? = true}
+                        {inc record-index}
+                    }
+                }
+                {self.internal-store-record r, RecordState.original}
+                {return true}
+            }
+    }
+    {super.commit}
+  }
+
+  {method public {allocate-record}:BasicRecord
+    {return
+        {if self.hidden-primary-key-field >= 0 then
+            {SQLHiddenIndexRecord self}
+         else
+            {BasicRecord self}
+        }
+    }
+  }
+
+  || Note: This api matches the BasicConnectedRecordSet one, but
+  || keyword values seems much more natural.
+  {method public {load-range start-record:int, size-limit:int}:void
+    || This is odd, why would this be a saved value?  (But that is what
+    || BasicConnectedRecordSet does.)
+    set self.size-limit = size-limit
+    {with
+        self.batch-events? = true,
+        self.modifiable? = true
+     do
+        set self.load-state = RecordSetLoadState.synchronizing
+        {self.load-range-internal
+            start-record = start-record, size-limit = size-limit
+        }
+        set self.load-state = RecordSetLoadState.complete
+    }
+  }
+
+  {method public {load}:void
+    {self.load-range 0, self.size-limit}
+  }
+
+  field _load-state:RecordSetLoadState
+  {setter public open {load-state value:RecordSetLoadState}:void
+    {if self._load-state != value then
+        set self._load-state = value
+        {self.trigger-record-set-event {RecordSetLoadStateChanged}}}
+  }
+  {getter public open {load-state}:RecordSetLoadState
+    {return self._load-state}
+  }
+
+  {method protected {table-name-for-sql table-name:String}:String
+    {return table-name}
+  }
+}
+
+
+{define-class public SQLHiddenIndexRecord {inherits BasicRecord}
+  || Holds an index that isn't a field as well as normal Record stuff.
+  || Mostly needed by SQLite for its ROWID concept.
+  || Should this instead hold a normal record value to support non-int64
+  || hidden index fields?
+  field public row-id:int64
+  {constructor public {default record-set:BasicRecordSet}
+    {construct-super record-set}
+  }
+}
+
+
+|| Should this be shared?
+{define-class public SQLRecordField {inherits ConnectedField}
+  field public constant primary-key?:bool
+  field public constant auto-increment?:bool
+  field public constant type-name:String
+  {getter public {marshal-as-prefix?}:bool
+    {return false}
+  }
+
+  {getter public {default-value}:any
+    {if self.auto-increment? then
+        {return null}
+    }
+    {return super.default-value}
+  }
+
+  {constructor public {default 
+                          field-name:String,
+                          caption:String = field-name,
+                          domain:Domain = {StandardAnyDomain},
+                          modifiable?:bool = true,
+                          nullable?:bool=false,
+                          default-value:any = {if nullable? then
+                                                  null
+                                               else 
+                                                  domain.default-value
+                                              },
+                          index-type:RecordFieldIndexType = 
+                              RecordFieldIndexType.none,
+                          type-name:String,
+                          primary-key?:bool = false,
+                          auto-increment?:bool = false
+                      }
+    set self.primary-key? = primary-key?
+    set self.auto-increment? = auto-increment?
+    set self.type-name = type-name
+    {construct-super 
+        field-name, 
+        caption = caption, 
+        domain = domain,
+        modifiable? = modifiable?,
+        nullable? = nullable?,
+        default-value = default-value,
+        index-type = index-type
+    }
+  }
+
+  {method public open {marshal v:any}:String
+    {return
+        {if v == null then
+            "NULL" ||""
+         || Hacky way of deciding that this should turn into a SQL
+         || format string.
+         elseif self.domain.type == String then
+            || For SQL, double \ or '
+            def s = v asa String
+            let qr:StringBuf = {StringBuf efficient-size = s.size + 2}
+            {qr.append '\''}
+            {for ch in s do
+                {if ch == '\'' or ch == '\\' then
+                    {qr.append ch}
+                }
+                {qr.append ch}
+            }
+            {qr.append '\''}
+            {qr.to-String}
+         else
+            {super.marshal v}
+        }
+    }
+  }
+
+}
+

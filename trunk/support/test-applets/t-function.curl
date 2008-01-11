@@ -29,7 +29,7 @@
 
 {value
     let con:SQLiteConnection = {SQLiteConnection {url "census.db"}}
-    let db:SQLiteDatabase = con.main-database
+    let db:SQLiteDatabase = con.database
     let interface:SQLiteInterface = {SQLiteInterface}
     let callback:{proc-type {arg1:String, arg2:String}:int} =
         {proc {arg1:String, arg2:String}:int

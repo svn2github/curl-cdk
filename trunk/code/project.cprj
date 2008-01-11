@@ -19,6 +19,7 @@
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library.scurl", copy? = true},
         {package-transform "COM.CURL.CDK.SQLITE.SYNTAX\u0000package\u0000SQLITE/syntax.scurl", copy? = true},
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", copy? = true},
         {resource-transform "resources\u0000directory\u0000resources", copy? = true},
         {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-4-2.dll", copy? = true}
     },
@@ -31,6 +32,7 @@
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library.scurl", pcurl? = true},
         {package-transform "COM.CURL.CDK.SQLITE.SYNTAX\u0000package\u0000SQLITE/syntax.scurl", copy? = true},
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", copy? = true},
         {resource-transform "resources\u0000directory\u0000resources", copy? = true},
         {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-4-2.dll", copy? = true}
     },
@@ -43,6 +45,7 @@
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library.scurl", copy? = true, generate-doc? = true},
         {package-transform "COM.CURL.CDK.SQLITE.SYNTAX\u0000package\u0000SQLITE/syntax.scurl", pcurl? = true, generate-doc? = true},
         {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl", pcurl? = true, generate-doc? = true},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", pcurl? = true, generate-doc? = true},
         {resource-transform "resources\u0000directory\u0000resources", copy? = true},
         {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-4-2.dll", copy? = true}
     }

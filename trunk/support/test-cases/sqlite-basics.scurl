@@ -124,7 +124,7 @@ CREATE TABLE work.test (
     {test-case "callbacks",
         || TODO: use Database instead
         let con:SQLiteConnection = {SQLiteConnection null}
-        let db:SQLiteDatabase = {non-null con.main-database}
+        let db:SQLiteDatabase = {non-null con.database}
 
         || schema
         {db.execute {read-from {url "../test-data/oe-data/define.sql"}}}

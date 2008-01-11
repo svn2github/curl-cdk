@@ -32,6 +32,10 @@
     location = "SQLITE/syntax.scurl"
 }
 
+{component package COM.CURL.CDK.SQL-BASE,
+    location = "SQL/load.scurl"
+}
+
 || foreign libraries
 || --------------------
 {component file libsqlite,

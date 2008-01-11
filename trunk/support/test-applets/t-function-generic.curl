@@ -221,7 +221,7 @@
 
 {value
     let con:SQLiteConnection = {SQLiteConnection {url "census.db"}}
-    let db:SQLiteDatabase = con.main-database
+    let db:SQLiteDatabase = con.database
     
     let fs:SQLiteFunctionLibrary = 
         {SQLiteFunctionLibrary

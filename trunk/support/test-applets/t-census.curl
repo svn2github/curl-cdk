@@ -26,7 +26,7 @@
 
 {value
     let con:SQLiteConnection = {SQLiteConnection {url "census.db"}}
-    let db:SQLiteDatabase = con.main-database
+    let db:SQLiteDatabase = con.database
     
     || testing parameters
     || TODO: from query args

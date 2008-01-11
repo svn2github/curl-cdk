@@ -26,7 +26,7 @@
 
 {value
     let con:SQLiteConnection = {SQLiteConnection null}
-    let db:SQLiteDatabase = con.main-database
+    let db:SQLiteDatabase = con.database
     
     || testing parameters
     || TODO: from query args
