@@ -20,8 +20,8 @@
 {import * from COM.CURL.CDK.SQLITE}
 
 {value
-    def con = {SQLiteConnection null}
-    def db = con.main-database
+    def con = {SQLiteConnection database-url = null}
+    def db = con.database
     {db.execute "
 CREATE TABLE log (
  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

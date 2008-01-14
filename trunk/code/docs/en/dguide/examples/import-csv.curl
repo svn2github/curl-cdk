@@ -20,8 +20,7 @@
 {import * from COM.CURL.CDK.SQLITE}
 
 {value
-    def con = {SQLiteConnection null}
-    def db = con.main-database
+    def db = {SQLiteDatabase null}
     || schema
     {db.execute "
 CREATE TABLE temp (
