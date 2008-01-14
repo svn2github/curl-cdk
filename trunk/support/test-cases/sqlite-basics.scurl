@@ -123,7 +123,7 @@ CREATE TABLE work.test (
     || --------------------
     {test-case "callbacks",
         || TODO: use Database instead
-        let con:SQLiteConnection = {SQLiteConnection null}
+        let con:SQLiteConnection = {SQLiteConnection database-url = null}
         let db:SQLiteDatabase = {non-null con.database}
 
         || schema

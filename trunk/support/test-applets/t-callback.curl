@@ -37,7 +37,7 @@
 
 {value
     let dbloc:Url = {get-temp-filename extension = ".db"}
-    let con:SQLiteConnection = {SQLiteConnection dbloc}
+    let con:SQLiteConnection = {SQLiteConnection database-url = dbloc}
     let db:SQLiteDatabase = con.database
     
     || schema

@@ -25,7 +25,7 @@
 {import * from CURL.IDE.PERFORMANCE}
 
 {value
-    let con:SQLiteConnection = {SQLiteConnection null}
+    let con:SQLiteConnection = {SQLiteConnection database-url = null}
     let db:SQLiteDatabase = con.database
     
     || testing parameters

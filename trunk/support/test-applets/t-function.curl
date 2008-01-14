@@ -28,7 +28,7 @@
 {import * from CURL.LANGUAGE.REGEXP}
 
 {value
-    let con:SQLiteConnection = {SQLiteConnection {url "census.db"}}
+    let con:SQLiteConnection = {SQLiteConnection database-url = {url "census.db"}}
     let db:SQLiteDatabase = con.database
     let interface:SQLiteInterface = {SQLiteInterface}
     let callback:{proc-type {arg1:String, arg2:String}:int} =

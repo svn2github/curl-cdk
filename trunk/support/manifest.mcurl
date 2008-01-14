@@ -56,3 +56,8 @@
 {component directory test-applets,
     location = "test-applets"
 }
+
+{component file project.cprj,
+    location = "project.cprj"
+}
+

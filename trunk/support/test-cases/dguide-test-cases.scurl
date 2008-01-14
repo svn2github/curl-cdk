@@ -67,7 +67,7 @@
         {parse-locs contents}}
     || generate suite
     let suite:TestSuite = 
-        {TestSuite {lmessage WSDK dguide pages},
+        {TestSuite {lmessage CDK dguide pages},
             || "guard" test first
             {test-case "IDE precondition",
                 {if not {package-available? "CURL.IDE.DOCUMENTATION"} then
