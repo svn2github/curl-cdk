@@ -497,157 +497,28 @@
 }
 
 
-|| only used by SQLiteBasicRecordSet 
-{define-class public ExtendedRecordField {inherits DefaultRecordField}
-  field public-get constant primary-key?:bool 
-  {constructor {default
-                   primary-key?:bool = false,
-                   ...}
-    set self.primary-key? = primary-key?
-    {construct-super {splice ...}}
-  }
-}
 || TEMP: connectionless RecordSet
 || --------------------
-{define-class public SQLiteBasicRecordSet {inherits BasicRecordSet}
-  field public-get constant statement:SQLiteStatement
-  || construction
+{define-class public SQLiteBasicRecordSet {inherits SQLiteRecordSet}
   {constructor public {default
                           database:SQLiteDatabase,
                           sql:String,
-                          modifiable?:bool = false,
+                          request-modifiable?:bool = false,
                           parameters:#Array = null,
                           strict-types?:bool = false,
                           ...:EventHandler}
-    set self.statement = {SQLiteStatement database, sql}
-    {if-non-null parameters then
-        {self.reset {splice parameters}}}
-    || fields
-    let fields:RecordFields =
-        {SQLiteStatementRecordFields self.statement,
-            strict-types? = strict-types?}
-    {construct-super fields, {splice ...}}
-    || so it does not start empty
-    {self.load-initial}
-    set self.modifiable? = modifiable?
-  }
-  || ConnectedRecordSet protocol
-  {method public {load}:void
-    {with 
-        self.batch-events? = true,
-        self.modifiable? = true
-     do
-        set self.load-state = RecordSetLoadState.synchronizing
-        {if self.size > 0 then || TODO: delete-internal !
-            {self.delete-all}
-            {super.commit}}
-        {self.load-internal}
-        set self.load-state = RecordSetLoadState.complete}
-  }
-  field _load-state:RecordSetLoadState
-  {setter public open {load-state value:RecordSetLoadState}:void
-    {if self._load-state != value then
-        set self._load-state = value
-        {self.trigger-record-set-event {RecordSetLoadStateChanged}}}
-  }
-  {getter public open {load-state}:RecordSetLoadState
-    {return self._load-state}
-  }
-  || parameters support
-  {method public {reload ...:any}:void
-    {self.reset {splice ...}}
-    {self.load}
-  }
-  {method public {reset ...:any}:void
-    {self.statement.reset}
-    {self.statement.bind {splice ...}}
-  }
-  || implementation
-  {method {load-internal}:void
-    || TODO: update fields if schema change detected
-    || -  how check SQLite? - fallback to compare RF
-    let data:{Array-of Array} = {self.statement.data-rows}
-    || use (faster) internal-store-record
-    || NOTE: no need for domain conversion here
-    {for d in data do
-        let r:BasicRecord = {self.allocate-record}
-        {for i = 0 below d.size do
-            {r.internal-set-value i, d[i], for-init? = true}}
-        {self.internal-store-record r, RecordState.original}
-        {self.trigger-record-set-event {RecordAdded r}}}
-    {super.commit}
-  }
-  {method {load-initial}:void
-    {with self.suppress-events? = true do
-        {self.load}
+    def connection = connection-cache[database]
+    {construct-super.create connection, "main", sql,
+        request-modifiable? = request-modifiable?,
+        strict-types? = strict-types?,
+        {splice ...}
     }
+    set self.bind-parameters = parameters
   }
-  || transactions
-  {method public {commit}:void
-    def database = self.statement.database
-    
-    || confirm records changed
-    {unless self.pending-update? do
-        {return}}
-  
-    || first phase -- external commit
-    let sql:StringBuf = {StringBuf}
-    let writer:SQLWriter = 
-        {SQLWriter
-            self.table-name,
-            self.fields,
-            use-rowid = "ROWID"}
-    {for r in self do
-        {if r.pending-update? then
-            {writer.gen-sql-update sql, r}
-        }}
-    || TODO: with-transaction
-    {database.execute "BEGIN IMMEDIATE;"}
-    {try
-        {database.execute sql}
-        {database.execute "COMMIT;"}
-     catch e:Exception do
-        {database.execute "ROLLBACK;"}
-        {throw {CommitFailed e.message}}
-    }
-   
-    || second phase -- internal commit
-    {with self.batch-events? = true do
-        {for r in {self.select filter = RecordFilter.pending-update} do
-            {self.commit-record (r asa BasicRecord)}}}
-  }
-  || derive table name (for update) from SQL query
-  {getter {table-name}:String
-    let query:String = self.statement.sql
-    {return
-        {if-non-null 
-            name = {SQLWriter.table-name-from-query query}
-         then name
-         else query}}
-  }
+}
+{def connection-cache =
+    {{Memoizer-of SQLiteDatabase, SQLiteConnection}
+        {proc {db:SQLiteDatabase}:SQLiteConnection
+            {return {SQLiteConnection database = db}}}}
 }
 
-|| only used by SQLiteBasicRecordSet 
-{define-class public SQLiteStatementRecordFields {inherits DefaultRecordFields}
-  {constructor public {default
-                          statement:SQLiteStatement,
-                          strict-types?:bool = false}
-    let fs:{Array-of RecordField} = {{Array-of RecordField}}
-    let nval:int = statement.column-count
-    {for i = 0 below nval do
-        let name:String = {statement.get-column-name i}
-        let decltype:#String = {statement.get-column-decltype i}
-        let type:String = {if-non-null decltype then decltype else ""}
-        let affinity:SQLiteDatatypeAffinity = 
-            {SQLiteDatatypeAffinity-from-declared-type type}                
-        let domain:Domain =
-            {SQLiteVariantDomain.from-affinity affinity,
-                strict? = strict-types?}
-        let f:RecordField = 
-            {RecordField name, 
-                domain = domain,
-                nullable? = true}
-        {fs.append f}}
-    {construct-super {splice fs}}
-  }
-}

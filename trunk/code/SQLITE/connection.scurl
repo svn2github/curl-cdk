@@ -459,6 +459,10 @@
     }
   }
 
+  {method public {execute ...}:void || ### TRANSITION
+    {self.execute-sqlite {splice ...}}
+  }
+  
   || Internal implementation stuff, copied from old SQLiteConnection
   || Notification
   {method private {define-callbacks

@@ -175,7 +175,7 @@
   {method {primary-key? f:RecordField}:bool
     {return 
         {type-switch f
-         case f:ExtendedRecordField do
+         case f:SQLRecordField do
             f.primary-key?
          else
             false}}
