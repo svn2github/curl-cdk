@@ -23,13 +23,39 @@
     {DeploySpec
         "code/project.cprj",
         "deploy-source",
-        "cdk-source/code"
+        "src/code"
     },
     || -- support (copy)
     {DeploySpec
         "support/project.cprj",
         "deploy",
-        "cdk-source/support"
+        "src/support"
+    },
+    || incorporate STYLED library 
+    || --------------------
+    {DeployCopy
+        "lib/COM.CURL.GUI.STYLED-6.0-pcurl-en",
+        "src/lib/COM.CURL.GUI.STYLED-6.0-pcurl-en"
+    },
+    || -- build scripts (copy)
+    {DeployAction
+        caption = {lmessage copy 'build' scripts},
+        {proc {self:DeployAction,
+               source-root:Url,
+               target-root:Url}:void
+            def target = {target-root.concat "src/build"}
+            {create-Directory target,
+                error-if-exists? = false}
+            def files =
+                {StringArray
+                    "deploy.curl",
+                    "deploy-batch.curl",
+                    "deploy-specs.scurl"}
+            {for file in files do
+                {copy 
+                    {source-root.concat "build/" & file},
+                    {target.concat file},
+                    error-if-exists? = false}}}
     },
     || build library (pcurl)
     || -------------------- 
@@ -43,14 +69,14 @@
     {DeploySpec
         "code/project.cprj",
         "deploy-docs",
-        "docs-install/CDK"
+        "docs-install/COM.CURL.CDK"
     },
     || incorporate test framework 
     || --------------------
     {DeploySpec
         "lib/CDU/project.cprj",
-        "deploy", 
-        "cdk-source/lib/CDU"
+        "deploy",
+        "src/lib/CDU"
     },
     || clean source control directories
     || --------------------
@@ -76,9 +102,5 @@
                 {source-root.concat "NOTICE"},
                 {target-root.concat "NOTICE"},
                 error-if-exists? = false} 
-||--            {copy 
-||--                {source-root.concat "README.txt"},
-||--                {target-root.concat "README.txt"},
-||--                error-if-exists? = false} 
         }}
 }
