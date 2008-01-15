@@ -219,13 +219,13 @@
             {proc {statement:SQLiteStatement}:void
                 let start:int = 0
                 {if-non-null query-parameters = self._query-parameters then
-                    {statement.bind {splice query-parameters}
+                    {statement.bind {splice query-parameters}}
                     {inc start, query-parameters.size}
                 }
                 {if-non-null base-where-clause-parameters =
                     self._base-where-clause-parameters
                  then
-                    {for bwcp key i in base-where-clause-parameters.size do
+                    {for bwcp key i in base-where-clause-parameters do
                         {statement.bind-any start + i + 1, bwcp}
                     }
                 }
