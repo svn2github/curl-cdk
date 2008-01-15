@@ -40,8 +40,7 @@
                 {TestSuite.import
                     {url "test-cases/dguide-test-cases.scurl"}}},
             {TestSuite "applets",
-                || TODO: needs STYLED library -- how deploy
-||--                {AppletTestCase {url "../support/test-applets/start.curl"}},
+                {AppletTestCase {url "../support/test-applets/start.curl"}},
                 || TODO: these are obsolete
                 {AppletTestCase {url "../support/test-applets/t-census.curl"}},
                 {AppletTestCase {url "../support/test-applets/t-census-memory.curl"}},

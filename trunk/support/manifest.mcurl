@@ -25,7 +25,7 @@
     location = "../lib/CDU/manifest.mcurl"}
 
 {delegate-to COM.CURL.GUI.STYLED,
-    location = "../../../_LIB/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"}
+    location = "../lib/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"}
 
 || utility packages
 || --------------------

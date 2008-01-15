@@ -22,7 +22,7 @@
         {resource-transform "DB-STYLE-SHEET\u0000file\u0000util/DBExplorer/stylesheet.scurl", copy? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {assembly-transform "COM.CURL.CDU", use-path? = true},
-        {assembly-transform "COM.CURL.GUI.STYLED"},
+        {assembly-transform "COM.CURL.GUI.STYLED", use-path? = true},
         {package-transform "COM.CURL.CDK.SQLITE-TEST-SUPPORT\u0000package\u0000test-extensions/sqlite-test-support.scurl", copy? = true}
     },
     {file-setting "start-tests.curl", start-file? = true}
