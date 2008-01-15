@@ -149,7 +149,7 @@
     }
     {details
         The parameters match the parameters of the same name on
-        {docref SQLConnection.{create-sql-record-set}.
+        {docref SQLConnection.create-sql-record-set}.
     }
     {notes
         This method produces more data than {docref Connection.get-fields},

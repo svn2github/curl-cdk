@@ -258,7 +258,7 @@
                      table-name:#String = self.table-name,
                      request-modifiable?:bool = self.request-modifiable?,
                      size-limit:int = self.size-limit,
-                     base-where-clause:#String = self.base-where-clause
+                     base-where-clause:#String = self.base-where-clause,
                      strict-types?:bool = self.strict-types?
                  }:void
 
