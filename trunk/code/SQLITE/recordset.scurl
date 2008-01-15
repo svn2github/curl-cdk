@@ -77,6 +77,7 @@
                       size-limit:int=-1,
                       base-where-clause:#String = null,
                       strict-types?:bool = false,
+                      base-where-clause-parameters:#Array = null,
                       ...:EventHandler
                   }:SQLiteRecordSet
 
@@ -98,6 +99,7 @@
             base-where-clause = base-where-clause,
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = true,
+            base-where-clause-parameters = base-where-clause-parameters,
             ...
         }
     }
@@ -108,7 +110,7 @@
     || supplied, and we have enough info to figure it out, get the
     || primary-keys another way.
     {if query-changed? then
-        set self._bind-parameters = null
+        set self._query-parameters = null
     }
     {if self.request-modifiable? and
         self.primary-keys == null and self.table-name != null and
@@ -130,11 +132,33 @@
   }
 
 
-  || What is where-clause for?  For missing key columns when doing
-  || updates?  Fields should be marked not modifiable? if they aren't
-  || part of updates or inserts.
-  || Note that this is the main one...just ignore the weird stuff if
-  || making a read-only version.
+  {doc-next
+    {purpose
+        Create a {docref SQLiteRecordSet}.
+    }
+    {parameter query-parameters,
+        An array of values to be bound to the {param query} when it is
+        executed.  {docref SQLiteStatement.bind-any} will be used,
+        so the {param query} must use the positional marker '?'.
+    }
+    {parameter base-where-clause-parameters,
+        An array of values to be bound to the {param base-where-clause}
+        when it is executed.  {docref SQLiteStatement.bind-any} will be used,
+        so the query must use the positional marker '?'.  This will happen
+        for the {param query}, and for some SQL queries used to update the
+        table.
+    }
+    {details
+        Parameters match {docref SQLConnection.create-sql-record-set}
+        plus {param query-parameters} and {param base-where-clause-parameters}.
+    }
+    {notes
+        In order for {ctext request-modifiable? = true} to be honored,
+        {param table-name}, and either {param hidden-primary-key-field}
+        or {param primary-keys} or {param query-is-full-row?} {ctext = true}
+        must be supplied.
+    }
+  }
   {constructor public {create
                           connection:SQLConnection,
                           database-name:String,
@@ -153,11 +177,12 @@
                           query-is-full-row?:bool = false,
                           primary-keys:#{Array-of int} = null,
                           strict-types?:bool = false,
+                          query-parameters:#Array = null,
+                          base-where-clause-parameters:#Array = null,
                           ...:EventHandler
                       }
-    set self.table-name = table-name
-    set self.query-is-full-row? = query-is-full-row?
-    set self.base-where-clause = base-where-clause
+    set self._query-parameters = query-parameters
+    set self._base-where-clause-parameters = base-where-clause-parameters
     {construct-super.create
         connection,
         database-name,
@@ -178,7 +203,7 @@
 
 
   || Basically the same as SQLConnectedRecordSet except for the
-  || bind-parameters support.
+  || query-parameters support.
   {method protected {load-range-internal
                         start-record:int = 0,
                         size-limit:int = -1
@@ -192,8 +217,17 @@
         size-limit = size-limit,
         args-callback =
             {proc {statement:SQLiteStatement}:void
-                {if-non-null self._bind-parameters then
-                    {statement.bind {splice self._bind-parameters}}
+                let start:int = 0
+                {if-non-null query-parameters = self._query-parameters then
+                    {statement.bind {splice query-parameters}
+                    {inc start, query-parameters.size}
+                }
+                {if-non-null base-where-clause-parameters =
+                    self._base-where-clause-parameters
+                 then
+                    {for bwcp key i in base-where-clause-parameters.size do
+                        {statement.bind-any start + i + 1, bwcp}
+                    }
                 }
             },
         callback =
@@ -206,7 +240,11 @@
                     {if i == self.hidden-primary-key-field then
                         {if col == null then
                             set col = -1
-                            set self.request-modifiable? = false
+                            {if self.primary-keys == null or 
+                                self.primary-keys.size == 0
+                             then
+                                set self.request-modifiable? = false
+                            }
                         }
                         set (r asa SQLHiddenIndexRecord).row-id = col asa int64
                      else
@@ -307,6 +345,14 @@
                       record:BasicRecord,
                       start:int = 0
                   }:void
+    {if-non-null base-where-clause-parameters =
+        self._base-where-clause-parameters 
+     then
+        {for p in base-where-clause-parameters do
+            {statement.bind-any start + 1, p}
+            {inc start}
+        }
+    }
     {type-switch record
      case r:SQLHiddenIndexRecord do
         {statement.bind-int64 start + 1, r.row-id}
@@ -315,7 +361,7 @@
     let arg-index:int = 0
     {for fi:int = 0 below self.fields.size do
         let constant f:RecordField = {self.fields.get-by-index fi}
-        {if {self.primary-key? f} then
+        {if {self.field-primary-key? f} then
             let constant f-name:String = f.name
             let constant old-record-value:any =
                 {record.get f-name, pending? = false}
@@ -480,14 +526,20 @@
     }
   }
 
-  || FIXME: should there be another set of bind-parameters for the
-  || base-where-clause?
-  field _bind-parameters:#Array
-  {setter public {bind-parameters parameters:#Array}:void
-    set self._bind-parameters = parameters
+  field _query-parameters:#Array
+  {setter public {query-parameters parameters:#Array}:void
+    set self._query-parameters = parameters
   }
-  {getter public {bind-parameters}:#Array
-    {return self._bind-parameters}
+  {getter public {query-parameters}:#Array
+    {return self._query-parameters}
+  }
+
+  field _base-where-clause-parameters:#Array
+  {setter public {base-where-clause-parameters parameters:#Array}:void
+    set self._base-where-clause-parameters = parameters
+  }
+  {getter public {base-where-clause-parameters}:#Array
+    {return self._base-where-clause-parameters}
   }
 
   {method protected {table-name-for-sql table-name:String}:String
@@ -516,7 +568,7 @@
         strict-types? = strict-types?,
         {splice ...}
     }
-    set self.bind-parameters = parameters
+    set self.query-parameters = parameters
   }
 }
 {def connection-cache =

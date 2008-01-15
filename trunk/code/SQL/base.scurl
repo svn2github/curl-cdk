@@ -58,7 +58,7 @@
         The index of the first row to be provided to {param callback}.
     }
     {parameter size-limit,
-        The maximun number of rows to be provided to {param callback}.
+        The maximum number of rows to be provided to {param callback}.
         The default value of -1 means no limit.
     }
   }
@@ -93,7 +93,7 @@
     }
     {notes
         {docref SQLConnection.create} calls this or
-        {docref SQLConnection.create-from-table-name} depending on if it
+        {docref SQLConnection.create-sql-record-set} depending on if it
         thinks that it got a table name or a query.
     }
   }
@@ -117,7 +117,7 @@
     }
     {notes
         {docref SQLConnection.create} calls this or
-        {docref SQLConnection.create-from-table-name} depending on if it
+        {docref SQLConnection.create-sql-record-set-from-table-name} depending on if it
         thinks that it got a table name or a query.
     }
   }
@@ -342,7 +342,7 @@
     }
     {details
         The parameters are the same as
-        {docref SQLConnection.create-from-table}.
+        {docref SQLConnection.create-sql-record-set-from-table-name}.
     }
     {notes
         This creates a query for the supplied {param table-name}.
@@ -360,11 +360,34 @@
                           }:void
   }
 
+  {doc-next
+    {purpose
+        Called after the fields on the {docref SQLConnectedRecordSet}
+        have been set, or changed.
+    }
+    {parameter query-changed?,
+        Indicates of the query for this {docref SQLConnectedRecordSet}
+        has changed.
+    }
+    {details
+        Called by the various {ctext constructors}, and {ctext create} and
+        {ctext fill} methods.
+    }
+  }
   {method protected abstract {query-initialized
                                  query-changed?:bool = true
                              }:void
   }
 
+  {doc-next
+    {purpose Repopulate this {docref ConnectedRecordSet} according
+        to a new query. Both fields and data may change as a result.
+    }
+    {details
+        The parameters are the same as
+        {docref SQLConnection.create-sql-record-set}.
+    }
+  }
   {method public {fill-sql
                      database-name:String = self.database-name,
                      query:String = self.query,
@@ -412,6 +435,7 @@
     {self.load}
   }
 
+  || inherited from ConnectedRecordSet
   {method public {fill
                      database-name:String = self.database-name,
                      query:String = self.query,
@@ -450,6 +474,11 @@
   }
 
   || SQL generation code
+  {doc-next
+    {purpose
+        Generate the list of field names for use in a SQL INSERT query.
+    }
+  }
   {method protected {generate-field-names-list-sql buf:StringBuf}:void
     {buf.concat "("}
     {for fi = 0 below self.fields.size do
@@ -463,6 +492,12 @@
     {buf.concat ") "}
   }
 
+  {doc-next
+    {purpose
+        Generate the list of all values for the columns in a record,
+        for use in a SQL INSERT query.
+    }
+  }
   {method protected abstract {generate-values-list-sql
                                  buf:StringBuf,
                                  records:BasicRecord
@@ -473,10 +508,12 @@
     || the problem is that it has to do that for values and for
     || where-clause key stuff.
   }
-  || Some protected SQL generation code support methods used
-  || to implement insert/delete/update logic based on keys.
-  || But we might also have a separate class to help compose
-  || SQL from Records or RecordFields.
+
+  {doc-next
+    {purpose
+        Generate the SQL INSERT query for a record.
+    }
+  }
   {method protected {generate-insert-statement-sql
                         buf:StringBuf,
                         records:BasicRecord
@@ -493,6 +530,11 @@
     {buf.concat ")"}
   }
 
+  {doc-next
+    {purpose
+        Generate a value for a field for a SQL statement.
+    }
+  }
   {method protected abstract {generate-field-value-sql
                                  buf:StringBuf,
                                  f:#RecordField,
@@ -500,6 +542,11 @@
                              }:void
   }
 
+  {doc-next
+    {purpose
+        Indicates if a field has an uncommitted change for a supplied record.
+    }
+  }
   {method protected {field-modified? f:SQLRecordField, record:BasicRecord}:bool
     let constant f-name:String = f.name
     {return
@@ -509,6 +556,12 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Generate a list of assignments for changed fields in a record for
+        a SQL UPDATE statement.
+    }
+  }
   {method protected {generate-assignments-sql
                         buf:StringBuf,
                         record:BasicRecord
@@ -534,7 +587,13 @@
     }
   }
 
-  {method public {primary-key? f:RecordField}:bool
+  {doc-next
+    {purpose
+        Indicates if a supplied field's column is a primary key in the SQL
+        database.
+    }
+  }
+  {method public {field-primary-key? f:RecordField}:bool
     {return
         {type-switch f
          case f:SQLRecordField do
@@ -545,6 +604,21 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Generate any values that need to be send as a prefix to a SQL
+        statement.
+    }
+    {parameter check-if-modified?,
+        If {ctext true} then only include values for which
+        {docref SQLConnectedRecordSet.field-modified?} is {ctext true}.
+    }
+    {parameter primary-keys?,
+        If {ctext true} then only include values that are for columns
+        for which {docref SQLConnectedRecordSet.field-primary-key?} is
+        {ctext true}.
+    }
+  }
   {method public abstract {generate-prefix-values-sql
                               buf:StringBuf,
                               record:BasicRecord,
@@ -553,6 +627,13 @@
                           }:void
   }
 
+  {doc-next
+    {purpose
+        Generate a SQL WHERE clause based on {ctext self.base-where-clause}
+        and the {ctext self.hidden-primary-key-field} if any, or the
+        primary key fields in the supplied record.
+    }
+  }
   {method public {generate-where-sql buf:StringBuf, record:BasicRecord}:void
     {buf.concat " WHERE "} ||""
     {if-non-null base-where-clause = self.base-where-clause then
@@ -571,7 +652,7 @@
     let key-count:int = 0
     {for fi:int = 0 below self.fields.size do
         let constant f:RecordField = {self.fields.get-by-index fi}
-        {if {self.primary-key? f} then
+        {if {self.field-primary-key? f} then
             let constant f-name:String = f.name
             let constant old-record-value:any =
                 {record.get f-name, pending? = false}
@@ -593,6 +674,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Generate a SQL UPDATE statement for the supplied record.
+    }
+  }
   {method public {generate-update-statement-sql
                      buf:StringBuf,
                      record:BasicRecord
@@ -607,6 +693,11 @@
     {self.generate-where-sql buf, record}
   }
 
+  {doc-next
+    {purpose
+        Generate a SQL DELETE statement for the supplied record.
+    }
+  }
   {method public {generate-delete-statement-sql
                      buf:StringBuf,
                      record:BasicRecord
@@ -619,6 +710,15 @@
     {self.generate-where-sql buf, record}
   }
 
+  {doc-next
+    {purpose Load or reload this {ctext SQLConnectedRecordSet} 
+        between {ctext start-record} and {ctext size-limit}
+    }
+    {notes
+        Called by {docref SQLConnectedRecordSet.load-range} after clearing
+        existing record data and setting event batching.
+    }
+  }
   {method protected {load-range-internal
                         start-record:int = 0,
                         size-limit:int = -1
@@ -667,7 +767,12 @@
   }
 
   || Note: This api matches the BasicConnectedRecordSet one, but
-  || keyword values seems much more natural.
+  || keyword values seem much more natural.
+  {doc-next
+    {purpose Load or reload this {ctext SQLConnectedRecordSet} 
+        between {ctext start-record} and {ctext size-limit}
+    }
+  }
   {method public {load-range start-record:int, size-limit:int}:void
     || This is odd, why would this be a saved value?  (But that is what
     || BasicConnectedRecordSet does.)
@@ -701,18 +806,35 @@
     {return self._load-state}
   }
 
+  {doc-next
+    {purpose
+        Used to get the table-name by methods that compose SQL statements.
+    }
+  }
   {method protected {table-name-for-sql table-name:String}:String
     {return table-name}
   }
 }
 
 
+{doc-next
+    {purpose
+        Class used to hold records by {docref SQLConnectedRecordSet} when
+        there is a {ctext hidden-primary-key-field}.
+    }
+}
 {define-class public SQLHiddenIndexRecord {inherits BasicRecord}
   || Holds an index that isn't a field as well as normal Record stuff.
   || Mostly needed by SQLite for its ROWID concept.
   || FIXME: Should this instead hold a normal record value to support
   || non-int64 hidden index fields?
+  {doc-next
+    {purpose
+        Value of {ctext hidden-primary-key-field} for this record.
+    }
+  }
   field public row-id:int64
+
   {constructor public {default record-set:BasicRecordSet}
     {construct-super record-set}
   }
@@ -720,13 +842,29 @@
 
 
 || Should this be shared?
+{doc-next
+    {purpose
+        A {docref RecordField} with some extra fields to keep information
+        about SQL columns, and handle marshaling data.
+    }
+}
 {define-class public SQLRecordField {inherits ConnectedField}
-  field public constant primary-key?:bool
-  field public constant auto-increment?:bool
-  field public constant type-name:String
-  {getter public {marshal-as-prefix?}:bool
-    {return false}
+  {doc-next
+    {purpose
+        Is this field a primary key.
+    }
   }
+  field public constant primary-key?:bool
+
+  {doc-next
+    {purpose
+        Is this field auto increment, and so get special treatment on
+        append and insert.
+    }
+  }
+  field public constant auto-increment?:bool
+
+  field public constant type-name:String
 
   {getter public {default-value}:any
     {if self.auto-increment? then

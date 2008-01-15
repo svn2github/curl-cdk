@@ -240,7 +240,7 @@
     }
   }
 
-  || Note: we could do also something similar when the query
+  || FIXME: we could do also something similar when the query
   || isn't full rows, to get all of the primary keys and just
   || map them based on column name, but that could fail oddly.
   {method public {get-primary-keys-for-table
