@@ -78,6 +78,7 @@
                       base-where-clause:#String = null,
                       strict-types?:bool = false,
                       base-where-clause-parameters:#Array = null,
+                      load-on-construction?:bool = false,
                       ...:EventHandler
                   }:SQLiteRecordSet
 
@@ -100,6 +101,7 @@
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = true,
             base-where-clause-parameters = base-where-clause-parameters,
+            load-on-construction? = load-on-construction?,
             ...
         }
     }
@@ -154,9 +156,10 @@
     }
     {notes
         In order for {ctext request-modifiable? = true} to be honored,
-        {param table-name}, and either {param hidden-primary-key-field}
-        or {param primary-keys} or {param query-is-full-row?} {ctext = true}
-        must be supplied.
+        {param table-name} must be supplied.  Also some primary key
+        information must be available, either by the column names in the
+        table matching the names of columns in the {param query} or
+        by providing {param hidden-primary-key-field} or {param primary-keys}.
     }
   }
   {constructor public {create
@@ -175,7 +178,8 @@
                           || This allows optimized INSERT statements to be
                           || used.
                           query-is-full-row?:bool = false,
-                          primary-keys:#{Array-of int} = null,
+                          primary-keys:#{Array-of String} = null,
+                          load-on-construction?:bool = false,
                           strict-types?:bool = false,
                           query-parameters:#Array = null,
                           base-where-clause-parameters:#Array = null,
@@ -196,6 +200,10 @@
         primary-keys = primary-keys,
         strict-types? = strict-types?,
         ...
+    }
+    {if load-on-construction? then
+        set self.load-state = RecordSetLoadState.unloaded
+        {self.load}
     }
   }
 
@@ -239,7 +247,7 @@
                 {for col key i in row do
                     {if i == self.hidden-primary-key-field then
                         {if col == null then
-                            set col = -1
+                            set col = min-int64
                             {if self.primary-keys == null or 
                                 self.primary-keys.size == 0
                              then

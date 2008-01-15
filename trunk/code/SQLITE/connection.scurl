@@ -137,7 +137,7 @@
                       table-name:#String = null,
                       hidden-primary-key-field:int = -1,
                       query-is-full-row?:bool = false,
-                      primary-keys:#{Array-of int} = null,
+                      primary-keys:#{Array-of String} = null,
                       strict-types?:bool = false
                  }:(RecordFields, #String)
 
@@ -182,7 +182,8 @@
         || contents of the value Arrays.
         let names:{HashTable-of String, Array} = {{HashTable-of String, Array}}
         {for i = 0 below nval do
-            let name:String = {statement.get-column-name i}
+            let real-name:String = {statement.get-column-name i}
+            let name:String = initial-name
             {if-non-null xs = {names.get-if-exists name} asa #Array then
                 {xs.append i}
                 set name = {format "%s_%02d", name, xs.size}
@@ -203,7 +204,7 @@
                 }
             let primary-key?:bool =
                 {if-non-null primary-keys then
-                    {primary-keys.find i} >= 0
+                    {primary-keys.find real-name} >= 0
                  else
                     false
                 }
@@ -240,15 +241,11 @@
     }
   }
 
-  || FIXME: we could do also something similar when the query
-  || isn't full rows, to get all of the primary keys and just
-  || map them based on column name, but that could fail oddly.
   {method public {get-primary-keys-for-table
                      database-name:String,
                      table-name:String
-                 }:{Array-of int}
-    let primary-keys:{Array-of int} = {new {Array-of int}}
-    let row-index:int = 0
+                 }:(field-names:{Array-of String})
+    let primary-keys:{Array-of String} = {new {Array-of String}}
     || Couldn't get bind-text to work with this query...
     {self.execute-sqlite
         "PRAGMA table_info ('" &  ||""
@@ -264,10 +261,11 @@
 #|
          callback =
             {proc {row:Array}:bool
+                || Check the primary key column
                 {if row[5] != 0 then
-                    {primary-keys.append row-index}
+                    || Save the column names
+                    {primary-keys.append row[1] asa String}
                 }
-                {inc row-index}
                 {return true}
             }
     }
@@ -328,6 +326,7 @@
                      request-modifiable?:bool=false,
                      size-limit:int=-1,
                      base-where-clause:#String = null,
+                     load-on-construction?:bool = false,
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -338,6 +337,7 @@
             table-name,
             request-modifiable? = request-modifiable?,
             size-limit = size-limit,
+            load-on-construction? = load-on-construction?,
             strict-types? = strict-types?,
             ...
         }
@@ -357,9 +357,8 @@
                      || This allows optimized INSERT statements to be
                      || used.
                      query-is-full-row?:bool = false,
-                     || We can sometimes figure out the keys
-                     || but often we can't.
-                     primary-keys:#{Array-of int} = null,
+                     primary-keys:#{Array-of String} = null,
+                     load-on-construction?:bool = false,
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -374,6 +373,7 @@
             base-where-clause = base-where-clause,
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = query-is-full-row?,
+            load-on-construction? = load-on-construction?,
             strict-types? = strict-types?,
             ...
         }

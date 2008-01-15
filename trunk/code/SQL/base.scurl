@@ -103,6 +103,7 @@
                               request-modifiable?:bool = false,
                               size-limit:int = -1,
                               base-where-clause:#String = null,
+                              load-on-construction?:bool = false,
                               strict-types?:bool = false,
                               ...:EventHandler
                           }:SQLConnectedRecordSet
@@ -136,7 +137,8 @@
                               query-is-full-row?:bool = false,
                               || We can sometimes figure out the keys
                               || but often we can't.
-                              primary-keys:#{Array-of int} = null,
+                              primary-keys:#{Array-of String} = null,
+                              load-on-construction?:bool = false,
                               strict-types?:bool = false,
                               ...:EventHandler
                           }:SQLConnectedRecordSet
@@ -163,7 +165,7 @@
                               table-name:#String = null,
                               hidden-primary-key-field:int = -1,
                               query-is-full-row?:bool = false,
-                              primary-keys:#{Array-of int} = null,
+                              primary-keys:#{Array-of String} = null,
                               strict-types?:bool = false
                           }:(RecordFields,
                              hidden-primary-key-field-name:#String)
@@ -187,39 +189,9 @@
   field protected base-where-clause:#String
   field protected hidden-primary-key-field:int
   field protected query-is-full-row?:bool
-  field protected primary-keys:#{Array-of int}
+  field protected primary-keys:#{Array-of String}
   field protected hidden-primary-key-field-name:#String
   field protected strict-types?:bool
-
-  || What is where-clause for?  For missing key information when doing
-  || updates, or just reducing data?
-||--  {factory public {create-from-table-name
-||--                      connection:SQLConnection,
-||--                      database-name:String,
-||--                      table-name:String,
-||--                      request-modifiable?:bool=false,
-||--                      size-limit:int=-1,
-||--                      base-where-clause:#String = null,
-||--                      ...:EventHandler
-||--                  }:SQLConnectedRecordSet
-||--    {return
-||--        {SQLConnectedRecordSet.create
-||--            connection,
-||--            database-name,
-||--            "SELECT * FROM " & table-name & ||""
-||--            {if-non-null base-where-clause then
-||--                " WHERE " & base-where-clause
-||--             else
-||--                ""
-||--            },
-||--            request-modifiable? = request-modifiable?,
-||--            size-limit = size-limit,
-||--            base-where-clause = base-where-clause,
-||--            query-is-full-row? = true,
-||--            ...
-||--        }
-||--    }
-||--  }
 
   {doc-next
     {purpose
@@ -272,7 +244,8 @@
         if any.
     }
     {parameter primary-keys,
-        Indicates which columns in {param query} are primary keys.
+        Indicates the names of the columns in {param query} that
+        are primary keys.
         Sometimes an implementation may be able to calculate this
         automatically.
     }
@@ -301,7 +274,7 @@
                           || This allows optimized INSERT statements to be
                           || used.
                           query-is-full-row?:bool = false,
-                          primary-keys:#{Array-of int} = null,
+                          primary-keys:#{Array-of String} = null,
                           strict-types?:bool = false,
                           ...:EventHandler
                       }
@@ -398,7 +371,7 @@
                      hidden-primary-key-field:int =
                          self.hidden-primary-key-field,
                      query-is-full-row?:bool = self.query-is-full-row?,
-                     primary-keys:#{Array-of int} = self.primary-keys,
+                     primary-keys:#{Array-of String} = self.primary-keys,
                      strict-types?:bool = self.strict-types?
                  }:void
     let query-changed?:bool =
