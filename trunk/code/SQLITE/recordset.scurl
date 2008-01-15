@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -215,6 +215,7 @@
                     }
                 }
                 {self.internal-store-record r, RecordState.original}
+                {self.trigger-record-set-event {RecordAdded r}}
                 {return true}
             }
     }
@@ -258,6 +259,7 @@
                      request-modifiable?:bool = self.request-modifiable?,
                      size-limit:int = self.size-limit,
                      base-where-clause:#String = self.base-where-clause
+                     strict-types?:bool = self.strict-types?
                  }:void
 
     let (query:String, hidden-primary-key-field:int) =
@@ -275,7 +277,8 @@
         table-name = table-name,
         base-where-clause = base-where-clause,
         hidden-primary-key-field = hidden-primary-key-field,
-        query-is-full-row? = true
+        query-is-full-row? = true,
+        strict-types? = strict-types?
     }
   }
 

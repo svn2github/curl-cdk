@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -16,8 +16,6 @@
 
 || TODO
 || 
-|| - better view detection, modifiability
-||
 || - check SQLite dynamic type conventions
 || -- has well defined sort order: first datatype, then per-type ordering
 || -- null first, unlike what Record.compare-field does
@@ -567,6 +565,10 @@
                         callback:#SQLiteUpdateHookProcType
                  }:void
     set self.database.update-hook = callback
+  }
+
+  || inherited from Connection
+  {method public {reset}:void
   }
 }
 
