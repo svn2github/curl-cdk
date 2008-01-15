@@ -61,7 +61,7 @@
 }
 
 {component file project.cprj,
-    location = "../support/project.cprj"
+    location = "project.cprj"
 }
 
 
