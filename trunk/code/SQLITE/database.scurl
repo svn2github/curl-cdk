@@ -693,6 +693,10 @@
     set self.update-callback = callback
   }
 
+  {getter public open {update-hook}:#SQLiteUpdateHookProcType
+    {return self.update-callback}
+  }
+
   {doc-next
     {purpose
         Registers a callback function with a database connection, that
@@ -721,6 +725,10 @@
         {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
     set self.commit-callback = callback
 
+  }
+
+  {getter public open {commit-hook}:#SQLiteCommitHookProcType
+    {return self.commit-callback}
   }
 
   {doc-next
@@ -760,6 +768,10 @@
             callback
         }
     set self.rollback-callback = callback
+  }
+
+  {getter public open {rollback-hook}:#SQLiteRollbackHookProcType
+    {return self.rollback-callback}
   }
 
   {method public {set-progress-handler
