@@ -156,7 +156,8 @@ CREATE TABLE products (
     {itemize
         {item {docref SQLiteStatus}.ROW indicates that a data row is available.}
         {item {docref SQLiteStatus}.DONE indicates that  no further data is available.}
-        {item Other {docref SQLiteStatus} codes indicate error conditions.}
+        {item Other {docref SQLiteStatus} codes indicate error conditions
+            (when {ctext throw-on-error?} is false.)}
     }
 
     Use high level {ctext data-} methods for consolidated results.
@@ -225,9 +226,42 @@ CREATE TABLE products (
     {x-example-ref title = {message Bulk insertion},
         {url "examples/import-csv.curl"}
     }
-}
 
-|| TODO: datatypes
+    The datatypes supported by the SQLite engine are:
+    
+    {Table
+        cell-margin = 2px, font-size = 0.9em,
+        margin = 6px,
+        vertical-line-width = 1px,
+        vertical-line-color = "silver",
+        background = "beige",
+        {row font-weight = "bold",
+            {cell {docref SQLiteDatatype}}
+            {cell Curl {docref Type}}},
+        {row
+            {cell TEXT}
+            {cell {docref String}}},
+        {row
+            {cell INTEGER}
+            {cell {docref int} or {docref int64}}},
+        {row
+            {cell NUMERIC}
+            {cell {docref double}}},
+        {row
+            {cell BLOB}
+            {cell {docref ByteArray}}},
+        {row
+            {cell NULL}
+            {cell {docref null}}}}
+
+    The SQLite engine is more flexible about datatypes than the typical database:
+    columns can contain values off different types. This is convenient for cases
+    where dynamic data is used.  The engine will convert between datatypes when
+    necessary, according to definite rules.  Input values are converted
+    according to the "type affinity" of the column, which is based on
+    the declared type from the {ctext CREATE TABLE} statement,
+    using rules which match the conventional SQL datatype declarations.
+}
 
 || ====================
 {heading level=3,
@@ -237,44 +271,67 @@ CREATE TABLE products (
     You can combine the power of SQL for data manipulation
     with that of Curl for application logic and GUI.
 
-    The standard Curl{registered-trademark}
+    The standard Curl
     {link href = {dguide.merge "data-access.curl"}, Data Access}
     packages provide for representation and display of
     data organized in records and fields,
     using {docref RecordSet}, {docref RecordView} and related classes.
+    Any SQLite query can be used to create an {docref SQLiteRecordSet}.
 
-    Any SQLite query can be used to create an {docref SQLiteBasicRecordSet}.
+    The {ctext RecordSet} API includes modification operations,
+    which are enabled by the {docref-abbr RecordSet.modifiable?} property.
+    For SQL modifications to be performed, there must be a well defined
+    relationship between a {italic table}, its {italic column}s, and its
+    {italic unique rows}.  This relationship is established automaticly
+    for recordsets created using {docref SQLiteRecordSet.create-from-table-name}.
+    For recordsets created from arbitrary SQL using {docref SQLiteRecordSet.create},
+    the relationship can be specified using keywords.
 
     The standard Curl {link href = {dguide.merge "data-connection.curl"}, Connected Data} package
     provides a generic mechanism to connect with an external data source.
-
     Use {docref SQLiteConnection} to apply that API to SQLite databases.
-}
 
-{Frame background = "pink", margin = 6px,
-    {paragraph {bold TODO:}
-        Describe modifiability variants,
-        after update behavior finalized.}
-}
-{itemize
-    {item table recordsets}
-    {item view recordsets}
-    {item query recordsets}
-}
+    {itemize
+        {item {docref SQLiteConnection.create-record-set} calls
+            {docref SQLiteRecordSet.create}}
+        {item {docref SQLiteConnection.create-record-set-from-table-name} calls
+            {docref SQLiteRecordSet.create-from-table-name}}
+    }
 
-{x-example-ref title = {message Create RecordSet},
-    {url "recordset-create.curl"}
-}
+    {Frame background = "pink", margin = 6px,
+        {paragraph {bold TODO:}
+            Examples illustrating modifiability variants.    
+            
+            {itemize
+                {item table recordsets}
+                {item view recordsets}
+                {item query recordsets}
+            }
+        }}
+    
+    {x-example-ref title = {message Create RecordSet},
+        {url "recordset-create.curl"}
+    }
 
-{x-example-ref title = {message RecordSet with Form},
-    {url "recordset-form.curl"}
-}
+    The {docref RecordField}s in a {docref SQLiteRecordSet} may
+    contain values of any datatype supported by the SQLite engine.
+    The data conversion behavior provided by {docref SQLiteVariantDomain}
+    matches that of the underlying engine.
+    Thus, the {docref Domain.type} is {docref any}.
 
-{x-example-ref title = {message RecordSet with Chart},
-    {url "recordset-chart.curl"}
-}
-
-{paragraph
+    In some cases, Curl GUI objects make decisions based on that type.
+    (For example, {docref RecordGrid} and {docref Chart} recognize numeric types.)
+    Use the {ctext strict-types?} keyword to control whether
+    the recordset domains enforce type affinity.    
+    
+    {x-example-ref title = {message RecordSet with Form},
+        {url "recordset-form.curl"}
+    }
+    
+    {x-example-ref title = {message RecordSet with Chart},
+        {url "recordset-chart.curl"}
+    }
+    
     Some kinds of processing can performed either
     at the level of the database engine (in SQL),
     or at the level of the application (in Curl).
@@ -282,58 +339,59 @@ CREATE TABLE products (
     
     In general, it is preferable to rely on the database layer
     for data-centric processing.
+
+
+    {itemize
+        {item {bold sort/filter criteria} 
+            These can be specified with {docref RecordView.sort} and {docref RecordView.filter},
+            and are used by {docref RecordGrid} and {docref RecordSetDisplay} subclasses.
+            SQL queries offer powerful facilities for sorting and filtering.
+            
+            Note that any ordering specified by SQL will be "shadowed"
+            by sort criteria specified using DATA-ACCESS classes.
+        }
+        {item {bold commit/revert}
+            These methods allow for provisional RecordSet changes,
+            managed using {docref RecordSet.commit} and {docref RecordSet.revert}.
+            Consumers of the RecordSet can see and react to data changes
+            before anything is submitted to the underlying database.        
+            This is useful, for example, to manage operations from a GUI for.        
+            
+            Processing specified in the database
+            (like constraints, default values, and triggers)
+            is not performed until changes are submitted.
+            
+            SQL transactions (bounded by {monospace BEGIN}
+            and {monospace COMMIT} or {monospace ROLLBACK}) allow
+            compound operations to be performed atomically.
+            
+            || RS
+            || good practice: "early commit" from Curl - every mod or every record
+        }
+        {item {bold constraints}
+            Certain constraints ({docref RecordField.nullable?} and
+            {docref RecordField.index-type}) are enforced by {ctext RecordSet}s.
+            
+            SQL offers powerful facilities for enforcing these (and other) constraints.
+            
+            With {ctext SQLiteRecordSet}s, constraints are enforced by SQLite, not by Curl.
+        }
+        {item {bold database selection}
+            The generic {docref Connection} API allows for more than one database
+            to be accessed through a connection, as is typical in a server side DBMS.
+            Therefore, {ctext database-name} is a significant parameter or return value.
+            
+            SQLite databases are single files, so the {ctext database-name} parameter is not meaningful.
+            However, using the SQL extensions {ctext ATTACH} and {ctext DETACH}, more than
+            one database can be active through a single SQLite database.
+        }
+    }
+    
+    {x-example-ref title = {message Attach Database},
+        {url "attach.curl"}
+    }
 }
-
-{itemize
-    {item {bold sort/filter criteria} 
-        These can be specified with {docref RecordView.sort} and {docref RecordView.filter},
-        and are used by {docref RecordGrid} and {docref RecordSetDisplay} subclasses.
-        SQL queries offer powerful facilities for sorting and filtering.
-
-        Note that any ordering specified by SQL will be "shadowed"
-        by sort criteria specified using DATA-ACCESS classes.
-    }
-    {item {bold commit/revert}
-        These methods allow for provisional RecordSet changes,
-        managed using {docref RecordSet.commit} and {docref RecordSet.revert}.
-        Consumers of the RecordSet can see and react to data changes
-        before anything is submitted to the underlying database.        
-        This is useful, for example, to manage operations from a GUI for.        
-
-        Processing specified in the database
-        (like constraints, default values, and triggers)
-        is not performed until changes are submitted.
-                
-        SQL transactions (bounded by {monospace BEGIN}
-        and {monospace COMMIT} or {monospace ROLLBACK}) allow
-        compound operations to be performed atomically.
-
-        || RS
-        || good practice: "early commit" from Curl - every mod or every record
-    }
-    {item {bold constraints}
-        Certain constraints ({docref RecordField.nullable?} and
-        {docref RecordField.index-type}) are enforced by {ctext RecordSet}s.
-
-        SQL offers powerful facilities for enforcing these (and other) constraints.
-
-        With {ctext SQLiteRecordSet}s, constraints are enforced by SQLite, not by Curl.
-    }
-    {item {bold database selection}
-        The generic {docref Connection} API allows for more than one database
-        to be accessed through a connection, as is typical in a server side DBMS.
-        Therefore, {ctext database-name} is a significant parameter or return value.
-
-        SQLite databases are single files, so the {ctext database-name} parameter is not meaningful.
-        However, using the SQL extensions {ctext ATTACH} and {ctext DETACH}, more than
-        one database can be active through a single SQLite database.
-    }
-}
-
-{x-example-ref title = {message Attach Database},
-    {url "attach.curl"}
-}
-
+    
 || ====================
 {heading level=3,
    Feedback
@@ -456,7 +514,10 @@ CREATE TABLE products (
 }
 
 {itemize
-    {item See website for primary docs}
+    {item See website for primary docs, especially}
+    {itemize
+        {item datatypes and affinities}
+    }
     {item Recommend book}
 }
 
