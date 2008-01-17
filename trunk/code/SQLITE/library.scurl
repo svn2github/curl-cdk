@@ -411,31 +411,33 @@
         appropriate error code is returned.
     }
   }
-  || TODO: Note the use of nbyte parameter and the tail.
-
   {method public {prepare
                      sqlite3:SQLiteDatabaseHandle,
                      sql:String,
-                     nbytes:int,
-                     stmt:{Pointer-to SQLiteStatementHandle},
-                     tail:{Pointer-to CStringUTF8}
-                 }:SQLiteStatus
+                     stmt:{Pointer-to SQLiteStatementHandle}
+                 }:(SQLiteStatus, tail:#String)
+    let sql-utf8:CStringUTF8 = {CStringUTF8 sql}
+    let tail-ptr:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
     {return
         {SQLiteStatus
             index =
                 {self.prepare-internal
                     sqlite3,
-                    sql,
-                    nbytes,
+                    sql-utf8,
+                    -1,
                     stmt,
-                    tail
+                    tail-ptr
                 }
-        }
+        },
+        {tail-ptr.value.to-String-or-null}
     }
   }
   {dll-method private {prepare-internal ("sqlite3_prepare_v2")
                          sqlite3:CPointer,
-                         sql:String,
+                         || Declare this as CStringUTF8 so that we can
+                         || control the lifetime of it in the caller, so
+                         || that tail will point to valid storage.
+                         sql:CStringUTF8,
                          nbytes:int,
                          stmt:{Pointer-to SQLiteStatementHandle},
                          tail:{Pointer-to CStringUTF8}

@@ -33,17 +33,18 @@
 
   {doc-next
     {purpose
-        Execute a SQL query, and provide results, if any.
+        Execute one or more SQL statements, and provide results, if any.
     }
     {parameter database-name, The name of a database known to the
         {docref Connection}. (Use {docref Connection.get-database-names}
         to get a list of these names.)
     }
     {parameter query,
-        The SQL query to execute.
+        The SQL query or queries to execute.
     }
     {parameter callback,
-        Procedure which is called for each row that results from the query.
+        Called with each row that results from executing a query.
+        May return {ctext false} to stop execution of the query.
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the statement fails,
@@ -70,7 +71,7 @@
                               throw-on-error?:bool = true,
                               start-record:int = 0,
                               size-limit:int = -1
-                          }:void
+                          }:bool
   }
 
   || inherited from Connection

@@ -112,7 +112,7 @@
     || supplied, and we have enough info to figure it out, get the
     || primary-keys another way.
     {if query-changed? then
-        set self._query-parameters = null
+        set self.query-parameters = null
     }
     {if self.request-modifiable? and
         self.primary-keys == null and self.table-name != null and
@@ -185,8 +185,8 @@
                           base-where-clause-parameters:#Array = null,
                           ...:EventHandler
                       }
-    set self._query-parameters = query-parameters
-    set self._base-where-clause-parameters = base-where-clause-parameters
+    set self.query-parameters = query-parameters
+    set self.base-where-clause-parameters = base-where-clause-parameters
     {construct-super.create
         connection,
         database-name,
@@ -226,12 +226,12 @@
         args-callback =
             {proc {statement:SQLiteStatement}:void
                 let start:int = 0
-                {if-non-null query-parameters = self._query-parameters then
+                {if-non-null query-parameters = self.query-parameters then
                     {statement.bind {splice query-parameters}}
                     {inc start, query-parameters.size}
                 }
                 {if-non-null base-where-clause-parameters =
-                    self._base-where-clause-parameters
+                    self.base-where-clause-parameters
                  then
                     {for bwcp key i in base-where-clause-parameters do
                         {statement.bind-any start + i + 1, bwcp}
@@ -354,7 +354,7 @@
                       start:int = 0
                   }:void
     {if-non-null base-where-clause-parameters =
-        self._base-where-clause-parameters 
+        self.base-where-clause-parameters 
      then
         {for p in base-where-clause-parameters do
             {statement.bind-any start + 1, p}

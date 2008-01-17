@@ -33,10 +33,59 @@
 
 {import * from COM.CURL.CDK.SQL-BASE}
 
+{doc-next
+    {purpose
+        Class implementing the {docref SQLConnection} API for SQLite.
+    }
+}
 {define-class public SQLiteConnection {inherits SQLConnection, EventTarget}
 
+  {doc-next
+    {purpose
+        The {docref SQLiteDatabase} that is used for all operations.
+    }
+  }
   field public constant database:SQLiteDatabase
 
+  {doc-next
+    {purpose
+        Create a {docref SQLiteConnection}.
+    }
+    {parameter database-url,
+        {docref Url} of the database file.  If this is supplied
+        the applet should call {docref SQLiteDatabase.close} on the
+        {docref SQLiteConnection.database} field when they are done
+        with the database.
+    }
+    {parameter database,
+        {docref SQLiteDatabase} that was already created.
+    }
+    {parameter error-if-missing?,
+        If {ctext true} and {param database-url} is supplied, but the
+        file does not exist, fail.  If {ctext false}, then
+        {param database-url} will be created if needed.
+    }
+    {parameter note-commit?,
+        Should {docref SQLiteCommit} events get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?
+    }
+    {parameter note-rollback?,
+        Should {docref SQLiteRollback} events get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?
+    }
+    {parameter note-update?,
+        Should {docref SQLiteUpdate} events get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?
+    }
+    {parameter ...,
+        Event handlers to receive various subclasses of {docref SQLiteEvent}
+        as indicated by the values supplied in {param note-commit?},
+        {param note-rollback?} and {param note-update?}.
+    }
+  }
   {constructor public {default 
                           database-url:#Url = null,
                           database:#SQLiteDatabase = null,
@@ -97,7 +146,7 @@
     {notes
         The SQLite classes use a database name as part of what
         table is being accessed, not as what database to connect
-        to.  The default main database is general signified by the
+        to.  The default main database is generally signified by the
         empty string.
     }
   }
@@ -115,6 +164,10 @@
     {return database-names}
   }
 
+  {doc-next
+    {purpose Obtain a list of the tables in the specified database.
+    }
+  }
   {method public {get-tables database:String}:StringArray
     let tables:StringArray = {StringArray}
     || Note: the database is ignored, but if you have attached other databases,
@@ -131,6 +184,20 @@
     {return tables}
   }
 
+  {doc-next
+    {purpose Return a {docref RecordFields} object representing the
+        columns of a table or query result in the specified database.
+    }
+    {details
+        The parameters match those of
+        {docref SQLConnectedRecordSet.create}.
+    }
+    {notes
+        This should be used instead of {docref Connection.get-fields},
+        because some of the key information for the {docref RecordFields}
+        needs to be supplied in the keyword parameters.
+    }
+  }
   {method public {get-sql-fields
                       database-name:String,
                       query:String,
@@ -183,7 +250,7 @@
         let names:{HashTable-of String, Array} = {{HashTable-of String, Array}}
         {for i = 0 below nval do
             let real-name:String = {statement.get-column-name i}
-            let name:String = initial-name
+            let name:String = real-name
             {if-non-null xs = {names.get-if-exists name} asa #Array then
                 {xs.append i}
                 set name = {format "%s_%02d", name, xs.size}
@@ -230,8 +297,8 @@
     {return {RecordFields {splice fs}}, hidden-primary-key-field-name}
   }
 
-  {method protected {combined-table-name database-name:String, table-name:String
-                    }:String
+  {method package {combined-table-name database-name:String, table-name:String
+                  }:String
     {return
         {if database-name != "" and database-name != "main" then
             database-name & "." & table-name
@@ -241,10 +308,17 @@
     }
   }
 
-  {method public {get-primary-keys-for-table
-                     database-name:String,
-                     table-name:String
-                 }:(field-names:{Array-of String})
+  {doc-next
+    {purpose
+        Get primary key information for a given table.
+    }
+  }
+  || FIXME: We could also get default values, which would be
+  || used when we make the Domain.
+  {method package {get-primary-keys-for-table
+                      database-name:String,
+                      table-name:String
+                  }:(field-names:{Array-of String})
     let primary-keys:{Array-of String} = {new {Array-of String}}
     || Couldn't get bind-text to work with this query...
     {self.execute-sqlite
@@ -380,6 +454,45 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Execute one or more SQL queries, and provide results, if any.
+    }
+    {parameter query,
+        The SQL query or queries to execute.
+    }
+    {parameter args-callback,
+        Called with the statement before each query is executed
+        to allow for binding of arguments.
+    }
+    {parameter callback,
+        Called with each row that results from executing a query.
+        May return {ctext false} to stop execution of the query.
+    }
+    {parameter restart-callback,
+        Called after completing execution of the query to ask if query
+        should be executed again.
+    }
+    {parameter throw-on-error?,
+        If {ctext true} and executing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
+    }
+    {parameter start-record,
+        Row to start calling {param callback} on.  This will use
+        LIMIT clauses if the query is a SELECT statement.  This may not
+        be used if {param query} contains multiple queries.
+    }
+    {parameter size-limit,
+        Row to stop executing query at.  This will use
+        LIMIT clauses if the query is a SELECT statement.  This may not
+        be used if {param query} contains multiple queries.
+    }
+  }
   {method public {execute-sqlite
                      query:String,
                      args-callback:#{proc-type {SQLiteStatement}:void} = null,
@@ -388,7 +501,7 @@
                      throw-on-error?:bool = true,
                      start-record:int = 0,
                      size-limit:int = -1
-                 }:void
+                 }:bool
     || If this is a SELECT statement we can handle start-record/size-limit
     || in the database, if it is PRAGMA or whatever then we do it manually.
     || Note: there had better not be a ; at the end of the statement.
@@ -405,39 +518,58 @@
     {with-statement in self.database
         statement = query
      do
-        {while restart? do
-            {if-non-null args-callback then
-                {args-callback statement}
-            }
-            let row-index:int = -1
-            {while {statement.step throw-on-error? = throw-on-error?} !=
-                SQLiteStatus.DONE
-             do
-                {inc row-index}
-                {if not limit-already-handled? then
-                    {if start-record > row-index then
-                        {continue}
-                     elseif size-limit >= 0 and
-                        row-index > (start-record + size-limit)
-                     then
+        {while true do
+            {while restart? do
+                {if-non-null args-callback then
+                    {args-callback statement}
+                }
+                let row-index:int = -1
+                {while true do
+                    let status:SQLiteStatus =
+                        {statement.step throw-on-error? = throw-on-error?}
+                    {switch status
+                     case SQLiteStatus.DONE do
                         {break}
+                     case SQLiteStatus.OK, SQLiteStatus.ROW do
+                     else
+                        {return false}
+                    }
+                    {inc row-index}
+                    {if not limit-already-handled? then
+                        {if start-record > row-index then
+                            {continue}
+                         elseif size-limit >= 0 and
+                            row-index > (start-record + size-limit)
+                         then
+                            {break}
+                        }
+                    }
+                    {if-non-null callback then
+                        {if not {callback statement.current-row} then
+                            {return}
+                        }
                     }
                 }
-                {if-non-null callback then
-                    {if not {callback statement.current-row} then
-                        {return}
+                {statement.reset}
+                set restart? =
+                    {if-non-null restart-callback then
+                        {restart-callback statement}
+                     else
+                        false
                     }
-                }
             }
-            {statement.reset}
-            set restart? =
-                {if-non-null restart-callback then
-                    {restart-callback statement}
-                 else
-                    false
+            {if {statement.prepare-next} then
+                {if size-limit >= 0 or start-record != 0 then
+                    {error
+                        "size-limit or start-record were supplied for a multistatement query."
+                    }
                 }
+             else
+                {break}
+            }
         }
     }
+    {return true}
   }
 
   {method public {execute-sql
@@ -447,13 +579,15 @@
                      throw-on-error?:bool = true,
                      start-record:int = 0,
                      size-limit:int = -1
-                 }:void
-    {self.execute-sqlite
-        query,
-        callback = callback,
-        throw-on-error? = throw-on-error?,
-        start-record = start-record,
-        size-limit = size-limit
+                 }:bool
+    {return
+        {self.execute-sqlite
+            query,
+            callback = callback,
+            throw-on-error? = throw-on-error?,
+            start-record = start-record,
+            size-limit = size-limit
+        }
     }
   }
 

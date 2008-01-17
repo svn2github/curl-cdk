@@ -37,10 +37,18 @@
 
   {doc-next
     {purpose
-        The SQL statment this object represents.
+        The SQL statement this object represents.
     }
   }
-  field constant public sql:String
+  field public-get private-set sql:String
+
+  {doc-next
+    {purpose
+        The left over SQL statement, after processing the first query
+        with {docref SQLiteStatement.prepare}.
+    }
+  }
+  field public-get private-set tail:#String
 
   {doc-next
     {purpose
@@ -148,13 +156,35 @@
   {method public {prepare}:void
     {if self.stmt != 0 then {return}}
 
-    {self.database.prepare-statement self}
+    set self.tail = {self.database.prepare-statement self}
 
     {if-non-null table = self._bind-table then
         {for val key i in table do
             {self.bind-any i, val}
         }
     }
+  }
+
+  {doc-next
+    {purpose
+        Compiles {docref SQLiteStatement.tail} into a byte-code program
+        readable by the SQLite virtual machine.
+    }
+    {notes
+        If {docref SQLiteStatement.tail} is {ctext null}, including
+        if {docref SQLiteStatement.prepare} has never been called,
+        then does nothing, but returns {ctext false}.
+    }
+  }
+  {method public {prepare-next}:bool
+    {if-non-null tail = self.tail then
+        set self.sql = tail
+        set self.tail = null
+        {self.finalize}
+        {self.prepare}
+        {return true}
+    }
+    {return false}
   }
   
   {doc-next

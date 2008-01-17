@@ -1320,27 +1320,27 @@
     }
   }
 
-  {method package {prepare-statement stmt:SQLiteStatement}:void
+  {method package {prepare-statement stmt:SQLiteStatement}:#String
     let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
         {{Pointer-to SQLiteStatementHandle} value = 0}
     || FIXME: Convert or hide tail-ptr in SQLiteInterface.
     || TODO: Should either return tail-ptr info, or make it an error
     || to pass in more than one SQL statement.
-    let tail-ptr:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
-    let constant status:SQLiteStatus =
+    let (status:SQLiteStatus, tail:#String) =
         {{SQLiteInterface}.prepare 
-            self.non-null-sqlite3, stmt.sql, -1, stmt-ptr, tail-ptr
+            self.non-null-sqlite3, stmt.sql, stmt-ptr
         }
     
     {if status != SQLiteStatus.OK then
         {self.check-status}
     }
+    {if tail == "" then set tail = null}
 
     || If we are here, the SQLiteInterface successfully compiled the
     || sql statement.
     set stmt.stmt = stmt-ptr.value
     {self.note-statement-prepared stmt}
-
+    {return tail}
   }
 
   {method package {finalize-statement
