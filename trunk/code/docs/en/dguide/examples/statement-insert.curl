@@ -42,8 +42,7 @@ ORDER BY hits DESC
         {proc {what:String, where:String}:void
             {s-log.reset}
             {s-log.bind what, where}
-            {s-log.step}
-            {db.check-status}}
+            {s-log.step}}
 
     def item =
         {proc {what:String}:Graphic

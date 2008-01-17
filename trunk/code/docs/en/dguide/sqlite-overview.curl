@@ -310,7 +310,7 @@ CREATE TABLE products (
         }}
     
     {x-example-ref title = {message Create RecordSet},
-        {url "recordset-create.curl"}
+        {url "examples/recordset-create.curl"}
     }
 
     The {docref RecordField}s in a {docref SQLiteRecordSet} may
@@ -325,11 +325,11 @@ CREATE TABLE products (
     the recordset domains enforce type affinity.    
     
     {x-example-ref title = {message RecordSet with Form},
-        {url "recordset-form.curl"}
+        {url "examples/recordset-form.curl"}
     }
     
     {x-example-ref title = {message RecordSet with Chart},
-        {url "recordset-chart.curl"}
+        {url "examples/recordset-chart.curl"}
     }
     
     Some kinds of processing can performed either
@@ -388,7 +388,7 @@ CREATE TABLE products (
     }
     
     {x-example-ref title = {message Attach Database},
-        {url "attach.curl"}
+        {url "examples/attach-save.curl"}
     }
 }
     
@@ -436,11 +436,11 @@ CREATE TABLE products (
 }
 
 {x-example-ref title = {message progress Notification},
-    {url "progress.curl"}
+    {url "examples/progress.curl"}
 }
 
 {x-example-ref title = {message Busy Handler},
-    {url "busy-handler.curl"}
+    {url "examples/busy-handler.curl"}
 }
 
 || ====================
@@ -474,15 +474,15 @@ CREATE TABLE products (
 }
 
 {x-example-ref title = {message Install Function},
-    {url "install-function.curl"}
+    {url "examples/install-function.curl"}
 }
 
 {x-example-ref title = {message Install Aggregate Function},
-    {url "install-aggregate.curl"}
+    {url "examples/install-aggregate.curl"}
 }
 
 {x-example-ref title = {message Authorization},
-    {url "authorization.curl"}
+    {url "examples/__authorization.curl"}
 }
 
 || ====================
