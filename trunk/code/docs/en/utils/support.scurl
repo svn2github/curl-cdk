@@ -65,7 +65,7 @@
                          else {text color = "red", not privileged}}.
                     }}
                 
-                To grant privilege to the examples, you need to use the Surge Control Panel
+                To grant privilege to the examples, you need to use the Curl Control Panel
                 to grant privilege to the directory containing this page, 
 
                 {monospace {value {{get-the-applet}.url.parent-dir.url.canonicalize}.local-filename}}
@@ -74,7 +74,7 @@
             }}
     }}
 
-|| Surge Lab Documentation links 
+|| Curl Lab Documentation links 
 || --------------------
 {let docsdir:String = "curl://install/docs/" & {get-host-locale}.language}
 {let dguide:Url = {url docsdir & "/dguide/"}}
@@ -102,6 +102,33 @@
                                     content}}}},
             {splice ...}}}
 }
+{define-proc {prelude-line? line:StringBuf}:bool
+    {return
+        || herald comment prefix
+        {line.prefix? |"|||"|} or
+        || whitespace
+        {line.trim-clone}.empty?
+    }
+}
+{define-proc {strip-prelude-lines
+                 buf:StringBuf,
+                 prelude-line?:{proc-type {StringBuf}:bool}
+             }:void
+    {with-open-streams in = {buf.to-InputStream} do
+        || read each line
+        {while true do
+            let pos:int64 = {in.tell}
+            || check if prelude
+            let skip?:bool =
+                {if-non-null line = {in.read-line} then
+                    {prelude-line? line}
+                 else false}
+            || until beyond prelude or done
+            {if not skip? then
+                {buf.remove 0, length = pos asa int}
+                {break}}}}
+    
+}
 || example references
 || --------------------
 {define-proc public {example-ref
@@ -118,12 +145,14 @@
                     }:Graphic
     let result:any = 
         {try
+            let buf:StringBuf = {read-from loc}
+            {strip-prelude-lines buf, prelude-line?}
             {evaluate 
                 base-url = loc,
                 package = package,
                 {format "\{example title = %w,\n %s\}",
                     title,
-                    {read-from loc}}}
+                    buf}}
          catch e:Exception do
             {paragraph
                 Error in {bold {value loc}}:{br}                
