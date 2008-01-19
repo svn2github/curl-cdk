@@ -43,6 +43,7 @@
     }
 }
 {let package constant SQLiteTransient:CPointer = -1 asa CPointer}
+
 {let package constant SQLITE_UTF8:int = 1}
 
 || TODO: It would be better if these were value classes in 6.0 to
@@ -51,6 +52,7 @@
 {let public constant SQLiteStatementHandle:Type = CPointer}
 {let public constant SQLiteContextHandle:Type = CPointer}
 {let public constant SQLiteValueHandle:Type = CPointer}
+
 {let package constant LowSQLiteExecCallbackProcType:ProcType =
     {proc-type 
         {userdata-ptr:CPointer,
@@ -103,7 +105,7 @@
 }
 {let public constant SQLiteBusyHandlerProcType:ProcType =
     {proc-type 
-        {ncalls:int}:int
+        {ncalls:int}:bool
     }
 }
 {let package constant LowSQLiteFunctionProcType:ProcType =
@@ -177,17 +179,33 @@
     {notes
         This is the signature of the callback procedure that is
         registered via {docref SQLiteDatabase.commit-hook}.
-
-        If the callback function returns non-zero, then the commit is
-        converted into a rollback.
     }
 }
 {let constant public SQLiteCommitHookProcType:ProcType =
-      {proc-type {}:int}
+      {proc-type {}:bool}
 }
 
+{doc-next
+    {purpose
+        The type of the rollback callback.
+    }
+    {notes
+        This is the signature of the callback procedure that is
+        registered via {docref SQLiteDatabase.rollback-hook}.
+    }
+}
 {let constant public SQLiteRollbackHookProcType:ProcType =
       {proc-type {}:void}
+}
+
+{doc-next
+    {purpose
+        The type of the progress handler callback.
+    }
+    {notes
+        This is the signature of the callback procedure that is
+        registered via {docref SQLiteDatabase.set-progress-handler}.
+    }
 }
 {let constant public SQLiteProgressHandlerProcType:ProcType =
       {proc-type {}:bool}
@@ -387,6 +405,11 @@
     DONE =       101  || sqlite3_step() has finished executing
 }
 
+{doc-next
+    {purpose
+        Indicate if a {docref SQLiteStatus} value is a success of some sort.
+    }
+}
 {define-proc public inline {SQLiteStatus-ok? status:SQLiteStatus}:bool
     {return
         {switch status
@@ -401,6 +424,15 @@
         }}
 }
 
+{doc-next
+    {purpose
+        Represents a SQLite operation.
+    }
+    {notes
+        Used by {docref SQLiteUpdateEvent} and
+        {docref SQLiteDatabase.authorizer}.
+    }
+}
 {define-enum public SQLiteOperation
     COPY =                  0,
     CREATE_INDEX =          1,
@@ -436,10 +468,16 @@
     FUNCTION =             31
 }
 
+{doc-next
+    {purpose
+        Return value for an authorizer callback.
+    }
+    {notes
+        Used by {docref SQLiteDatabase.authorizer}.
+    }
+}
 {define-enum public SQLiteAuthorizerReturnCode
     OK = 0,
     DENY = 1,
     IGNORE = 2
 }
-
-

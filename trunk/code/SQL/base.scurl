@@ -44,7 +44,7 @@
     }
     {parameter callback,
         Called with each row that results from executing a query.
-        May return {ctext false} to stop execution of the query.
+        May return {ctext false} to stop execution of that query.
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the statement fails,
@@ -61,6 +61,9 @@
     {parameter size-limit,
         The maximum number of rows to be provided to {param callback}.
         The default value of -1 means no limit.
+    }
+    {return-vals
+        Returns {ctext true} if execution succeeded.
     }
   }
   || Note: Could return an iterator over row instead of callback
@@ -90,7 +93,15 @@
         Create a {docref SQLConnectedRecordSet} from a table name.
     }
     {details
-        Parameters are the same as {docref SQLConnectedRecordSet.create}.
+        Parameters other than {param table-name} are the same as
+        {docref SQLConnectedRecordSet.create}.
+    }
+    {parameter table-name,
+        Name of the SQL table to load.  A SQL query against that table
+        will be created.
+    }
+    {parameter load-on-construction?,
+        Should the {docref RecordSet} be loaded when construction is complete.
     }
     {notes
         {docref SQLConnection.create} calls this or
@@ -116,6 +127,9 @@
     }
     {details
         Parameters are the same as {docref SQLConnectedRecordSet.create}.
+    }
+    {parameter load-on-construction?,
+        Should the {docref RecordSet} be loaded when construction is complete.
     }
     {notes
         {docref SQLConnection.create} calls this or
@@ -644,7 +658,7 @@
         }
     }
     {if key-count == 0 then
-        {error "Can not generate valid WHERE clause with no known primary keys."}
+        {error {lmessage Can not generate valid WHERE clause with no known primary keys.}}
     }
   }
 

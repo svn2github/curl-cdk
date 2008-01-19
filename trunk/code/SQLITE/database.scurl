@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -16,7 +16,7 @@
 
 {define-class package final FunctionSpec
   field constant public name:String
-  field constant public nargs:int
+  field constant public number-of-args:int
   field constant public xfunc:#SQLiteFunctionProcType
   field constant public xfunc-ptr:SQLiteFunctionPointerType
   field constant public final-xfunc:#SQLiteFinalFunctionProcType
@@ -34,7 +34,7 @@
         limit is in bytes, not characters. Any attempt to create a 
         function with a longer name will result in an error.
     }
-    {parameter nargs,
+    {parameter number-of-args,
         The number of arguments that the SQL function takes. If this
         parameter is negative, then the SQL function may take any
         number of arguments.
@@ -48,7 +48,7 @@
   }
   {constructor package {default
                            name:String,
-                           nargs:int,
+                           number-of-args:int,
                            xfunc:#SQLiteFunctionProcType,
                            xfunc-ptr:SQLiteFunctionPointerType,
                            final-xfunc:#SQLiteFinalFunctionProcType = null,
@@ -56,7 +56,7 @@
                                {uninitialized-value-for-type SQLiteFinalFunctionPointerType}
                        }
     set self.name = name
-    set self.nargs = nargs
+    set self.number-of-args = number-of-args
     set self.xfunc = xfunc
     set self.xfunc-ptr = xfunc-ptr
     set self.final-xfunc = final-xfunc
@@ -66,7 +66,12 @@
 
 {doc-next
     {purpose
-        Represents a SQLiteDatabase object.
+        An object representing a SQLite database connection.
+    }
+    {notes
+        The connection will be closed when an applet is suspended,
+        but all state will be re-installed when the applet is
+        resumed.
     }
 }
 {define-class public open SQLiteDatabase
@@ -74,7 +79,7 @@
 
   {doc-next
     {purpose
-        A list of {docref SQLiteStatement} created by this object that
+        A list of {docref SQLiteStatement}s created by this object that
         are not finalized.
     }
     {notes
@@ -87,42 +92,17 @@
 
   {doc-next
     {purpose
-        If non-{ctext null}, it is the {docref Url} of the database to
+        If non-{ctext null}, this is the {docref Url} of the database to
         connect to. If null then the database will be a memory
         database.
     }
   }
   field constant public url:#Url
 
-  {doc-next
-    {purpose
-        If positive it is the least time the busy handler should b
-        wait in milliseconds before attempting another read access to
-        the database.
-    }
-    {details
-        This is set by the {docref SQLiteDatabase.busy-timeout} method.
-        
-        This is used by the {docref SQLiteDatabase.open} method to set the
-        busy time out of the database handler when the database
-        connection is re-established.
-    }
-  }
   field private _busy-timeout:int
 
 
-  {doc-next
-    {purpose
-        If non-{ctext null}, it is the busy handler callback.
-    }
-    {details
-        This is set by the {docref SQLiteDatabase.busy-handler} method.
-        
-        This is used by the {docref SQLiteDatabase.open} method to set the
-        {ctext SQLiteDatabase.busy-handler} of the database when the database
-        connection is re-established. 
-    }
-  }
+  || Saved and re-installed when the database is re-opened.
   field private busy-handler-callback:#SQLiteBusyHandlerProcType
   || This holds on to the callback that will be created in response to 
   || setting the busy handler callback for this object. This pointer is 
@@ -133,19 +113,7 @@
     {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
 
   
-  {doc-next
-    {purpose
-        If non-{ctext null}, it is the update hook's callback.
-    }
-    {details
-        This is set by the {docref SQLiteDatabase.update-hook} method.
-        
-        This is used by the {docref SQLiteDatabase.open} method to set the
-        {ctext SQLiteDatabase.update-hook} of the database when the database
-        connection is re-established. 
-
-    }
-  }
+  || Saved and re-installed when the database is re-opened.
   field private update-callback:#SQLiteUpdateHookProcType
   || This holds on to the callback that will be created in response to 
   || setting the update callback for this object. This pointer is 
@@ -155,29 +123,19 @@
   field private update-callback-ptr:SQLiteUpdateCallbackPointerType =
     {uninitialized-value-for-type SQLiteUpdateCallbackPointerType}
 
+  || Saved and re-installed when the database is re-opened.
   field private progress-callback:#SQLiteProgressHandlerProcType
   field private progress-callback-arg:int
   field private progress-callback-ptr:SQLiteProgressHandlerPointerType =
     {uninitialized-value-for-type SQLiteProgressHandlerPointerType}
 
+  || Saved and re-installed when the database is re-opened.
   field private _authorizer:#SQLiteAuthorizerProcType
   field private authorizer-ptr:SQLiteAuthorizerPointerType =
     {uninitialized-value-for-type SQLiteAuthorizerPointerType}
 
 
-  {doc-next
-    {purpose
-        If non-{ctext null}, it is the commit hook's callback.
-    }
-    {details
-        This is set by the {docref SQLiteDatabase.commit-hook} method.
-        
-        This is used by the {docref SQLiteDatabase.open} method to set the
-        {ctext SQLiteDatabase.commit-hook} of the database when the database
-        connection is re-established. 
-
-    }
-  }
+  || Saved and re-installed when the database is re-opened.
   field private commit-callback:#SQLiteCommitHookProcType
   || This holds on to the callback that will be created in response to 
   || setting the commit callback for this object. This pointer is 
@@ -188,19 +146,7 @@
     {uninitialized-value-for-type SQLiteCommitCallbackPointerType}
 
 
-  {doc-next
-    {purpose
-        If non-{ctext null}, it is the rollback hook's callback.
-    }
-    {details
-        This is set by the {docref SQLiteDatabase.rollback-hook} method.
-        
-        This is used by the {docref SQLiteDatabase.open} method to set the
-        {ctext SQLiteDatabase.rollback-hook} of the database when the database
-        connection is re-established. 
-
-    }
-  }
+  || Saved and re-installed when the database is re-opened.
   field private rollback-callback:#SQLiteRollbackHookProcType
 
   || This holds on to the callback that will be created in response to 
@@ -216,6 +162,7 @@
   || Object alive, which is required.
   field private suspend-proc:#{proc-type {}:void}
 
+  || Saved and re-installed when the database is re-opened.
   field private constant installed-functions:{Array-of FunctionSpec} =
     {new {Array-of FunctionSpec}}
 
@@ -227,17 +174,12 @@
         The {docref Url} of the database to connect to.
 
         If {param u} is {ctext null} then a memory database connection
-        is opened. Otherwise it must be a local file url.
-    }
-    {parameter name,
-        The name of the database connection.
-        
-        || FIXME: Describe how this name could be used.
+        is opened. Otherwise if it is not a local file {docref Url}, the
+        file will be downloaded and copied to a local file.
     }
     {notes
-        The database connection will not be opened till am attempt is
+        The database connection will not be opened till an attempt is
         made to use it.
-
     }
   }
   || TODO: Should we make an implicit constructor from #Url?
@@ -252,8 +194,7 @@
     }
     {notes
         If the database is not open, calling this getter will attempt
-        to open the database. If the attempt fails, an appropriate
-        error message will be thrown.
+        to open the database. If the attempt fails, an error will be thrown.
     }
   }
   {getter private {non-null-sqlite3}:SQLiteDatabaseHandle
@@ -267,7 +208,7 @@
     }
     {notes
         If the database is not open the returned value will be 0 and
-        no attmpt will be made to open the database.
+        no attempt will be made to open the database.
     }
   }
   {getter protected {sqlite3}:SQLiteDatabaseHandle
@@ -279,12 +220,12 @@
         Open the database this object represents.
     }
     {notes
-        If the database is open then calling this method is a no-op.
+        If the database is open then calling this method does nothing.
         
-        This method is called lazily to open the database connection.
+        This method is called lazily by most operations to open the
+        database connection.
         
-        If the database fails to open, an appropriate error will be
-        thrown.
+        If the database fails to open, an error will be thrown.
     }
   }
   {method protected {open}:void
@@ -337,7 +278,7 @@
         let constant aggregate?:bool = (f.final-xfunc != null)
         let constant status:SQLiteStatus =
             {{SQLiteInterface}.create-function
-                self._sqlite3, f.name, f.nargs, 
+                self._sqlite3, f.name, f.number-of-args, 
                 {if not aggregate? then
                     f.xfunc
                  else
@@ -381,7 +322,7 @@
         API call failed.
     }
     {notes
-        Calling this method is a no-op if the database connection is
+        Calling this method does nothing if the database connection is
         closed.
     }
   }
@@ -440,9 +381,8 @@
     {return-vals
         If successful, it returns {ctext SQLiteStatus.OK}. If there
         are prepared statements that have not been finalized, it will
-        finalize them before attemting to close the
-        database. Otherwise an apprropriate error code will be
-        returned.
+        finalize them before attempting to close the
+        database. Otherwise the error code will be returned.
 
         If the database is already closed {ctext SQLiteStatus.OK} is
         returned.
@@ -469,26 +409,22 @@
 
   {doc-next
     {purpose
-        Executes an SQL statement.
+        Executes one or more SQL statements.
     }
     {parameter sql,
-        The SQL statement to be executed.
+        The SQL statement or statements to be executed.
     }
     {parameter callback,
         The callback function that will be called once for each row of
         the query result.
 
-        The {param callback} should normally return zero. If it
-        returns a non-zero value then the query is aborted and all
-        subsequent SQL statements are skipped and then {ctext
-        SQLiteInterface.exec} will then return {ctext
-        SQLiteStatus.ABORT}.
+        The {param callback} should normally return {ctext false}. If it
+        returns {ctext true} then the query is aborted and all
+        subsequent SQL statements are skipped and then this function
+        will then return {ctext SQLiteStatus.ABORT}.
 
-        The
-        first is the number of columns in the query result, the
-        second argument is a {docref StringArray} holding the values
-        of each column and the third argument a {ctext StringArray}
-        holding the names of each column.
+        The first argument is the values of the row and the second
+        argument is the names the columns.
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the {ctext sql} statement fails,
@@ -501,10 +437,10 @@
     }
     {return-vals
         If all the SQL commands, {param sql} succeed, the return value
-        is {ctext SQLiteStatus.OK}, otherwise it is the appropriate error
+        is {ctext SQLiteStatus.OK}, otherwise it is an error
         code. The particular return value depends on the type of
-        error. If the query could not be executed because a database
-        file is locked or busy, then this function returns {ctext
+        error. If the query could not be executed because a table
+        is locked, then this function returns {ctext
         SQLiteStatus.BUSY}.
     }
     {notes
@@ -517,7 +453,7 @@
                           callback:#{proc-type
                                         {data:StringArray,
                                          column-names:StringArray
-                                        }:int
+                                        }:bool
                                     } = null,
                           throw-on-error?:bool = true
                       }:SQLiteStatus
@@ -539,29 +475,29 @@
   {doc-next
     {purpose
         Registers a callback function that may be invoked whenever an
-        attempt is made to open a database table that another thread
+        attempt is made to open a table that another thread
         or process has locked.
     }
     {parameter callback,
         The callback procedure.
         
-        It has one arguments.  The argument is
+        It has one argument, which is
         the number of prior calls to the {param callback} for the same
         lock.
 
-        If the callback returns zero, then no additional attempts are
-        made to access the database, and the blocked API call will
-        return {ctext SQLiteStatus.BUSY}. It it returns non-zero then
-        another attempt is made by the API function to open the
-        database for reading, and the cycle repeats itself.
+        If the callback returns {ctext false}, then no additional attempts are
+        made to access the table, and the blocked API call will
+        return {ctext SQLiteStatus.BUSY}. If it returns {ctext true} then
+        another attempt is made by the API function to access the table,
+        and the cycle repeats itself.
 
         If the {param callback} argument is set to {ctext null}, then
-        this will effectively remove any callback function, if one was
+        this will effectively remove the callback function, if one was
         previously registered.
     }
     {return-vals
-        Returns {ctext SQLiteStatus.OK} on success otherwise it
-        returns an appropriate error message.
+        On success it returns {ctext SQLiteStatus.OK} otherwise it
+        will return an error {docref SQLiteStatus} code.
     }
     {details
         If a callback function is registered, SQLite may call it
@@ -581,12 +517,6 @@
     {notes
         Calling this method will open the database connection if it is
         not open.
-
-        On success, it sets {param callback} in
-        {docref SQLiteDatabase.busy-handler-callback}.
-        These are used by the {docref SQLiteDatabase.open}
-        method to set the busy handler when the database connection is
-        re-established.
 
         This replaces the implicit busy handler set with
         {docref SQLiteDatabase.busy-timeout}.
@@ -616,18 +546,18 @@
 
   {doc-next
     {purpose
-        Sets the time out of the busy handler.
+        Sets the busy time out.
     }
     {parameter ms,
-        The least time the busy handler should wait before attempting
-        another read access to the database.
+        The least time that will cause calls that can not complete due
+        to competing table locks to fail with {ctext SQLiteStatus.BUSY}.
 
         If {param ms} is non-positive it will turn off all the busy
         handlers.
     }
     {return-vals
         On success it returns {ctext SQLiteStatus.OK} otherwise it
-        will return an appropriate {docref SQLiteStatus} code.
+        will return an error {docref SQLiteStatus} code.
     }
     {notes
         Calling this method will open the database connection if it is
@@ -657,27 +587,30 @@
 
   {doc-next
     {purpose
-        Registers a callback function with a database connection, that
-        will be invoked whenever a row is updated, inserted or deleted.
+        Registers a callback function on the database connection that
+        will be invoked whenever a row is updated, inserted, or deleted.
     }
     {parameter callback,
         The callback procedure.
-        
-        See {docref update-callback-type} for details.
+
+        The first argument is {ctext SQLiteOperation.INSERT},
+        {ctext SQLiteOperation.DELETE} or {ctext
+        SQLiteOperation.UPDATE}, depending on the operation that
+        caused the callback to be invoked.
+
+        The second and third arguments identify the database and the
+        table name containing the effected row and the final callback
+        argument is the {ctext ROWID} of the row. In case of an
+        update, this is the {ctext ROWID} after the update takes
+        place.
     }
     {notes
         Calling this method will open the database connection if it is
         not open.
-
-        It sets {param callback} in
-        {docref SQLiteDatabase.update-callback}. These
-        are used by the {docref SQLiteDatabase.open} method to set the update
-        hook when the database connection is re-established.
     }
     {details
         The {param callback} is not invoked when internal system
-        tables are modified by calling {docref SQLiteInterface.master}
-        or {docref SQLiteInterface.sequence}.
+        tables are modified.
 
         See also {docref SQLiteDatabase.commit-hook} and {docref
         SQLiteDatabase.rollback-hook}.
@@ -699,22 +632,18 @@
 
   {doc-next
     {purpose
-        Registers a callback function with a database connection, that
+        Registers a callback function with the database connection that
         will be invoked whenever a new transaction is completed.
     }
     {parameter callback,
         The callback procedure.
-        
-        See {docref commit-callback-type} for details.
     }
     {notes
         Calling this method will open the database connection if it is
         not open.
 
-        It sets {param callback} in
-        {docref SQLiteDatabase.commit-callback}. These
-        are used by the {docref SQLiteDatabase.open} method to set the commit
-        hook when the database connection is re-established.
+        If {param callback} returns {ctext true} then the commit is
+        converted into a rollback.
     }
   }
   {setter public open {commit-hook
@@ -733,13 +662,11 @@
 
   {doc-next
     {purpose
-        Registers a callback function with a database connection, that
+        Registers a callback function with the database connection that
         will be invoked whenever a transaction is rolled back.
     }
     {parameter callback,
         The callback procedure.
-
-        See {docref rollback-callback-type} for details.
     }
     {notes
         The {param callback} will be invoked if an explicit {ctext
@@ -750,11 +677,6 @@
 
         Calling this method will open the database connection if it is
         not open.
-
-        It sets {param callback} in {docref SQLiteDatabase.rollback-callback}.
-        These
-        are used by the {docref SQLiteDatabase.open} method to set the rollback
-        hook when the database connection is re-established.
     }
   }
   {setter public open {rollback-hook
@@ -774,6 +696,29 @@
     {return self.rollback-callback}
   }
 
+  {doc-next
+    {purpose
+        Set the progress handler that will get called periodically
+        when executing a statement takes more than {param instruction-count}
+        instructions.
+    }
+    {parameter instruction-count,
+        Number of instructions that must be executed before calling
+        {param callback}.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        The {param callback} may not be invoked for all statements, if
+        the statement takes less than {param instruction-count} instructions
+        to complete.  If the {param callback} returns {ctext true}
+        then the executing statement will be terminated.
+
+        Providing a {ctext null} {param callback} will uninstall the
+        progress handler.
+    }
+  }
   {method public {set-progress-handler
                      instruction-count:int,
                      callback:#SQLiteProgressHandlerProcType
@@ -786,6 +731,34 @@
     set self.progress-callback = callback
   }
 
+  {doc-next
+    {purpose
+        Registers a callback function with the database connection that
+        will be invoked whenever a statement is prepared.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        The {param callback} can return {ctext SQLiteAuthorizerReturnCode.OK}
+        to allow an statement to proceed,
+        {ctext SQLiteAuthorizerReturnCode.DENY} to fail a statement,
+        or when the operation is {ctext SQLiteOperation.READ},
+        it can return {ctext SQLiteAuthorizerReturnCode.IGNORE} to
+        disallow access to a particular table column.
+
+        The first parameter to {param callback} is the {docref SQLiteOperation}         describing the operation being considered, and the next 4 arguments
+        provide various information depending on the operation.
+        The second argument is usually the name of the entity being operated
+        on, and the third argument is the name of the other entity being
+        operated on, if appropriate.  The fourth argument is usually the
+        database name, and the fifth argument is the name of the inner-most
+        trigger or view if there is one.
+
+        Setting {param callback} to {ctext null} will uninstall any
+        authorizer callback.
+    }
+  }
   {setter public {authorizer
                      callback:#SQLiteAuthorizerProcType
                  }:void
@@ -805,6 +778,14 @@
     {return self._authorizer}
   }
 
+  {doc-next
+    {purpose
+        Interrupt an executing operation.
+    }
+    {notes
+        Normally called from a callback of some sort.
+    }
+  }
   {method public {interrupt}:void
     {if self._sqlite3 != 0 then
         {{SQLiteInterface}.interrupt self._sqlite3}
@@ -855,10 +836,10 @@
     }
     {notes
         All changes are counted, including changes by triggers and
-        changes to temp and auxiliary databases. Changes on the
-        {docref SQLiteInterface.master} table, caused by statements
+        changes to temp and auxiliary databases. Changes on
+        internal tables, caused by statements
         such as {ctext CREATE TABLE} are not counted. Changes counted
-        when an entire table is deleted uing {ctext DROP TABLE} are
+        when an entire table is deleted using {ctext DROP TABLE} are
         not counted either.
 
         SQLite implements the command {ctext DELETE FROM table},
@@ -882,18 +863,18 @@
 
   {doc-next
     {purpose
-        Returns the autoincrement primary key value generated from the
+        Returns the auto-increment primary key value generated from the
         last successful {ctext INSERT} statement.
     }
     {return-vals
-        The primamry key value.
+        The primary key value.
     }
     {notes
         Each entry in a SQLite table has a unique integer key. The key
         is the value of the {ctext INTEGER PRIMARY KEY} column if
         there is such a column, otherwise the key is generated at
         random. The unique key is always available as the {ctext
-        ROWID}, {ctext 0ID}, OR {ctext ROWID_COLUMN}.
+        ROWID}, {ctext OID}, OR {ctext _ROWID_}.
 
         It is an error to call this method on a closed database
         connection.
@@ -929,7 +910,7 @@
   {doc-next
     {purpose
         Returns the error message as a {docref String} for the most
-        recently failed SQLite API call will respect to this database.
+        recently failed SQLite API call with respect to this database.
     }
     {return-vals
         Error message in {ctext English} for the most recently failed
@@ -949,10 +930,24 @@
   
   || info
   || -----------
+  {doc-next
+    {purpose
+        The version of the SQLite library as a number.
+    }
+    {details
+        If a version number looks like X.Y.Z then this number will be
+        X*1000000 + Y*1000 + Z.
+    }
+  }
   {getter public {version}:int
     {return {{SQLiteInterface}.libversion-number}}
   }
 
+  {doc-next
+    {purpose
+        The version of the SQLite library as a {docref String}.
+    }
+  }
   {getter public {version-string}:String
     {return {{SQLiteInterface}.libversion}}
   }
@@ -961,10 +956,10 @@
   || Extend SQL functionality.
   {method private {find-installed-function
                      name:String,
-                     nargs:int
+                     number-of-args:int
                   }:int
     {for f key i in self.installed-functions do
-        {if f.name == name and f.nargs == nargs then
+        {if f.name == name and f.number-of-args == number-of-args then
             {return i}
         }
     }
@@ -976,13 +971,39 @@
         Adds SQL function or redefines the behavior of an existing
         SQL function or an aggregate.
     }
-  }
+    {parameter name,
+        Name to use in SQL for the function.
+    }
+    {parameter number-of-args,
+        Number of arguments that the function will take.
+        If negative, then the the function can take any number of arguments.
+        You can have multiple functions registered with the same name if
+        they are installed with a different {param number-of-args}.
+    }
+    {parameter xfunc,
+        For a scalar function this will be called with the appropriate
+        number of arguments, of the types supplied by SQLite, and it
+        should return the value to be used as the result in SQLite.
 
+        For an aggregate function this will get a 'context' value as
+        the first argument, and the first time that the aggregate
+        function is called, it will be the {ctext initialized-value}
+        of the type of the first argument to this function.  And the
+        function should return a value for the 'context' that will be
+        saved and passed in for the next item.
+    }
+    {parameter xfunc-final,
+        If {param xfunc} is an aggregate function, then this parameter
+        must be supplied to produce the final value.  The only parameter
+        will be the 'context' value, and it should return the value to
+        be used as the result in SQLite.
+    }
+  }
   || TODO: should this take a default aggregate-context value instead
   || of us just using {uninitialized-value-for-type}?
   {method public {install-function
                      name:String,
-                     nargs:int,
+                     number-of-args:int,
                      xfunc:any,
                      final-xfunc:any = null
                  }:void
@@ -1014,11 +1035,11 @@
         }
     }
     let aggregate-arg:int = {if aggregate? then 1 else 0}
-    {if not ((nargs >= 0 and 
-              (type-of-xfunc.num-args == nargs + aggregate-arg) or
-              (type-of-xfunc.num-args < nargs + aggregate-arg and
+    {if not ((number-of-args >= 0 and 
+              (type-of-xfunc.num-args == number-of-args + aggregate-arg) or
+              (type-of-xfunc.num-args < number-of-args + aggregate-arg and
                type-of-xfunc.takes-rest-args?)) or
-             (nargs < 0 and type-of-xfunc.takes-rest-args?))
+             (number-of-args < 0 and type-of-xfunc.takes-rest-args?))
      then
         {error
             {lmessage You must provide a function that can take the right
@@ -1064,7 +1085,7 @@
          cdecl-s:SQLiteFunctionPointerType,
          cdecl-ff:SQLiteFinalFunctionPointerType) =
         {{SQLiteInterface}.create-function
-            self.non-null-sqlite3, name, nargs, 
+            self.non-null-sqlite3, name, number-of-args, 
             {if not aggregate? then
                 function
              else
@@ -1080,10 +1101,10 @@
     
     {if status == SQLiteStatus.OK then
         let index:int =
-            {self.find-installed-function name, nargs}
+            {self.find-installed-function name, number-of-args}
         let spec:FunctionSpec =
             {FunctionSpec
-                name, nargs, function,
+                name, number-of-args, function,
                 {if aggregate? then cdecl-s else cdecl-f},
                 final-xfunc = final-function,
                 final-xfunc-ptr = cdecl-ff
@@ -1100,22 +1121,29 @@
 
   {doc-next
     {purpose
-        Uninstalls a previously installed function, if any.
+        Uninstalls a previously installed function, installed with the
+        same {param name} and {param number-of-args}, if any.
+    }
+    {parameter name,
+        Name of the function to uninstall.
+    }
+    {parameter number-of-args,
+        Number of arguments that function took.
     }
   }
   {method public {uninstall-function
                      name:String,
-                     nargs:int
+                     number-of-args:int
                  }:void
     let constant index:int =
-        {self.find-installed-function name, nargs}
+        {self.find-installed-function name, number-of-args}
     {if index == -1 or self._sqlite3 == 0 then
         {return}
     }
 
     let constant status:SQLiteStatus =
         {{SQLiteInterface}.create-function
-            self.sqlite3, name, nargs,
+            self.sqlite3, name, number-of-args,
             null, null, null
         }
 
@@ -1294,6 +1322,7 @@
     }
     {return ret}
   }
+
   {method private {get-aggregate-context-value
                       context:SQLiteContextHandle,
                       default-value:any = null
@@ -1378,7 +1407,6 @@
         If any rows are selected by the query, returns {ctext true}.
     }
   }
-  
   {method public {sql-exists?
                      sql:StringInterface,
                      ...:any
@@ -1400,7 +1428,7 @@
     {parameter ..., rest args are used as parameters for the query
         (using {docref SQLiteStatement.bind}).}
     {return-vals
-        The value of the specifed column for the first row,
+        The value of the specified column for the first row,
         or null if no rows are selected by the query.
     }
   }

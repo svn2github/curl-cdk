@@ -57,35 +57,3 @@
   || above constructor. A msg of null would then mean that use the
   || default message for that error code.
 }
-
-{define-class public abstract SQLiteEvent {inherits Event}
-}
-
-{define-class public SQLiteRollback {inherits SQLiteEvent}
-}
-
-{define-class public SQLiteCommit {inherits SQLiteEvent}
-  field public consumed?:bool = false
-  {method public {consume}:void
-    set self.consumed? = true
-  }
-}
-
-{define-class public SQLiteUpdate {inherits SQLiteEvent}
-  field public-get constant database:String
-  field public-get constant table:String
-  field public-get constant operation:SQLiteOperation
-  field public-get constant rowid:int64
-  {constructor public {default
-                          database:String,
-                          table:String,
-                          operation:SQLiteOperation,
-                          rowid:int64}
-    set self.database = database
-    set self.table = table
-    set self.operation = operation
-    set self.rowid = rowid
-  }
-}
-
-

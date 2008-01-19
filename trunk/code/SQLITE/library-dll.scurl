@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -14,9 +14,16 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-proc public {http-url? loc:Url}:bool
+{define-proc package {http-url? loc:Url}:bool
     {return
         {loc.stem.name.prefix? "http"}}
+}
+{doc-next
+    {purpose
+        If {param loc} is not an http {docref Url} return it,
+        otherwise copy it to {ctext "curl://user-data/<path>"},
+        and return that location.
+    }
 }
 {define-proc public {user-data-copy-of
                         loc:Url,
@@ -27,6 +34,13 @@
     def uloc = "curl://user-data/" & path
     def cloc = {{url uloc}.canonicalize}
     {return {local-copy-of loc, cloc}}
+}
+{doc-next
+    {purpose
+        If {param loc} is not an http {docref Url} return it,
+        otherwise copy it to {ctext "curl://local-data/<path>"},
+        and return that location.
+    }
 }
 {define-proc public {local-data-copy-of
                         loc:Url,
@@ -41,7 +55,7 @@
     def cloc = {{url uloc}.canonicalize}
     {return {local-copy-of loc, cloc}}
 }
-{define-proc public {local-copy-of
+{define-proc package {local-copy-of
                         loc:Url,
                         dir:Url
                     }:Url
@@ -59,7 +73,7 @@
     }
     {return file}
 }
-{define-proc {local-SharedLibrary name:String}:SharedLibrary
+{define-proc package {local-SharedLibrary name:String}:SharedLibrary
     || manifest specifies library location
     || - qualified by platform
     def mloc =

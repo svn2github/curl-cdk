@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -48,7 +48,7 @@
         with {docref SQLiteStatement.prepare}.
     }
   }
-  field public-get private-set tail:#String
+  field public-get private-set tail-sql:#String
 
   {doc-next
     {purpose
@@ -60,7 +60,7 @@
   {doc-next
     {purpose
         Table that has the association of the column index to the
-        value it is bind to.
+        value it is bound to.
     }
     {notes
         If non-{ctext null}, it contains a list of column indexes with
@@ -81,10 +81,10 @@
         The {docref SQLiteDatabase} this statement is associated with.
     }
     {parameter sql,
-        The SQL statemet this object represents.
+        The SQL statement this object represents.
     }
     {notes
-        The {param sql} statement will not be compiled till it is
+        The {param sql} statement will not be prepared till it is
         needed.
     }
   }
@@ -107,7 +107,7 @@
         SQLiteStatement.sql} statement. If the statement was not
         compiled or finalized, it will re-compile it.
 
-        Call {docref SQLiteStatement.stmt} if you do not wnat to
+        Call {docref SQLiteStatement.stmt} if you do not want to
         recompile the statement.
     }
   }
@@ -118,6 +118,21 @@
     {return self.stmt}
   }
 
+  {doc-next
+    {purpose
+        Table that has the association of the column index to the
+        value it is bound to.
+    }
+    {notes
+        If non-{ctext null}, it contains a list of column indexes with
+        the corresponding values it is bound to.
+        
+        This is populated when the bind methods are called for this
+        statement. It is used when the statement is recompiled after
+        it has been finalized.
+    }
+  }
+  || TODO: Should this really be public?
   {getter public {bind-table}:{HashTable-of int, any}
     {return
         {if-non-null bind-table = self._bind-table then
@@ -149,14 +164,13 @@
         respective values as stored in the {docref
         SQLiteStatement.bind-table}.
 
-        If the compilation fails an appropriate {docref
-        SQLiteException} will be thrown.
+        If the compilation fails a {docref SQLiteException} will be thrown.
     }
   }
   {method public {prepare}:void
     {if self.stmt != 0 then {return}}
 
-    set self.tail = {self.database.prepare-statement self}
+    set self.tail-sql = {self.database.prepare-statement self}
 
     {if-non-null table = self._bind-table then
         {for val key i in table do
@@ -167,19 +181,20 @@
 
   {doc-next
     {purpose
-        Compiles {docref SQLiteStatement.tail} into a byte-code program
+        Compiles {docref SQLiteStatement.tail-sql} into a byte-code program
         readable by the SQLite virtual machine.
     }
     {notes
-        If {docref SQLiteStatement.tail} is {ctext null}, including
+        If {docref SQLiteStatement.tail-sql} is {ctext null}, including
         if {docref SQLiteStatement.prepare} has never been called,
         then does nothing, but returns {ctext false}.
     }
   }
   {method public {prepare-next}:bool
-    {if-non-null tail = self.tail then
-        set self.sql = tail
-        set self.tail = null
+    {if-non-null tail-sql = self.tail-sql then
+        set self.sql = tail-sql
+        set self.tail-sql = null
+        set self._bind-table = null
         {self.finalize}
         {self.prepare}
         {return true}
@@ -276,7 +291,7 @@
     {purpose
         The name of a column in this {docref SQLiteStatement}.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column name is to be
         retrieved. The column index is zero-based.
     }
@@ -288,10 +303,23 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-name icol:int}:String
-    {return {{SQLiteInterface}.column-name self.non-null-stmt, icol}}
+  {method public open {get-column-name column-index:int}:String
+    {return {{SQLiteInterface}.column-name self.non-null-stmt, column-index}}
   }
 
+  {doc-next
+    {purpose
+        Return the names of all of the columns in the result set for this
+        statement.
+    }
+    {return-vals
+        The column names.
+    }
+    {notes
+        If {docref SQLiteStatement.sql} is not compiled or was
+        finalized, it will be compiled to get the byte code.
+    }
+  }
   {getter public open {column-names}:StringArray
     let constant column-name-count:int = self.column-count
     let constant column-names:StringArray =
@@ -304,27 +332,26 @@
 
   {doc-next
     {purpose
-        The storage class of a column in this {docref
-        SQLiteStatement}.
+        The data type of a column in this {docref SQLiteStatement}.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column type is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        Returns the storage class of a given column with ordinal
-        {param icol} in the result set obtained for this object.
+        Returns the data type of a given column with ordinal
+        {param column-index} in the result set for this object.
 
-        See also {docref SQLiteInterface.column}.
+        See also {docref SQLiteStatement.get-column-decltype}.
     }
     {notes
         If {docref SQLiteStatement.sql} is not compiled or was
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-type icol:int}:SQLiteDatatype
+  {method public open {get-column-type column-index:int}:SQLiteDatatype
     {return 
-        {{SQLiteInterface}.column-type self.non-null-stmt, icol}
+        {{SQLiteInterface}.column-type self.non-null-stmt, column-index}
     }
   }
 
@@ -332,7 +359,7 @@
     {purpose
         The declared type of a column in this {docref SQLiteStatement}.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column declared type is to be
         retrieved. The column index is zero-based.
     }
@@ -348,22 +375,21 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-decltype icol:int}:#String
-    {return {{SQLiteInterface}.column-decltype self.non-null-stmt, icol}}
+  {method public open {get-column-decltype column-index:int}:#String
+    {return {{SQLiteInterface}.column-decltype self.non-null-stmt, column-index}}
   }
 
   {doc-next
     {purpose
-        Returns information about the value, as a int, in a single
-        column of the current row in a result set of this {docref
-        SQLiteStatement}.
+        Returns the value, as a {ctext int}, of a
+        column of the current row in a result set.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The value of the column as a int.
+        The value of the column as a {ctext int}.
     }
     {notes
         If this {ctext SQLiteStatement} is currently not pointing to a
@@ -378,22 +404,21 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-int icol:int}:int
-    {return {{SQLiteInterface}.column-int self.non-null-stmt, icol}}
+  {method public open {get-column-int column-index:int}:int
+    {return {{SQLiteInterface}.column-int self.non-null-stmt, column-index}}
   }
 
   {doc-next
     {purpose
-        Returns information about the value, as a int64, in a single
-        column of the current row in a result set of this {docref
-        SQLiteStatement}.
+        Returns the value, as a {ctext int64}, of a
+        column of the current row in a result set.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The value of the column as a int64.
+        The value of the column as a {ctext int64}.
     }
     {notes
         If this {docref SQLiteStatement} is currently not pointing to
@@ -401,29 +426,28 @@
         result is undefined.
 
         If the item is {ctext null} in the table, you will get a
-        0. Inorder to distinguish between a {ctext null} value or a
+        0. In order to distinguish between a {ctext null} value or a
         value with 0 one can use {docref SQLiteStatement.column-type}.
 
         If {docref SQLiteStatement.sql} is not compiled or was
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-int64 icol:int}:int64
-    {return {{SQLiteInterface}.column-int64 self.non-null-stmt, icol}}
+  {method public open {get-column-int64 column-index:int}:int64
+    {return {{SQLiteInterface}.column-int64 self.non-null-stmt, column-index}}
   }
 
   {doc-next
     {purpose
-        Returns information about the value, as a double, in a single
-        column of the current row in a result set of this {docref
-        SQLiteStatement}.
+        Returns the value, as a {ctext double}, of a
+        column of the current row in a result set.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The value of the column as a double.
+        The value of the column as a {ctext double}.
     }
     {notes
         If this {ctext SQLiteStatement} is currently not pointing to a
@@ -434,22 +458,21 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-double icol:int}:double
-    {return {{SQLiteInterface}.column-double self.non-null-stmt, icol}}
+  {method public open {get-column-double column-index:int}:double
+    {return {{SQLiteInterface}.column-double self.non-null-stmt, column-index}}
   }
 
   {doc-next
     {purpose
-        Returns information about the value, as a {docref String}, in
-        a single column of the current row in a result set of this
-        {docref SQLiteStatement}.
+        Returns the value, as a {docref String}, of a
+        column of the current row in a result set.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The value of the column as a {ctext String}.
+        The value of the column as a {docref String}.
     }
     {notes
         If this {docref SQLiteStatement} is currently not pointing to a valid
@@ -460,22 +483,21 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-text icol:int}:String
-    {return {{SQLiteInterface}.column-text self.non-null-stmt, icol}}
+  {method public open {get-column-text column-index:int}:#String
+    {return {{SQLiteInterface}.column-text self.non-null-stmt, column-index}}
   }
 
   {doc-next
     {purpose
-        Returns information about the value, as a chunck of memory
-        data, in a single column of the current row in a result set of
-        this {docref SQLiteStatement}.
+        Returns the value, as a {docref ByteArray}, of a
+        column of the current row in a result set.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The value of the column as a chunk of data in memory.
+        The value of the column as a {docref ByteArray}.
     }
     {notes
         If this {ctext SQLiteStatement} is currently not pointing to a
@@ -490,24 +512,24 @@
     }
   }
   {method public open {get-column-blob
-                          icol:int, out:ByteArray = {ByteArray}
-                      }:ByteArray
-    {return {{SQLiteInterface}.column-blob self.non-null-stmt, icol, out = out}}
+                          column-index:int,
+                          out:#ByteArray = null
+                      }:#ByteArray
+    {return {{SQLiteInterface}.column-blob self.non-null-stmt, column-index, out = out}}
   }
 
   {doc-next
     {purpose
-        Returns the number of bytes it will take the column value in
-        the memory, in a single column of the current row in a result
-        set of this {docref SQLiteStatement}.
+        Returns the number of bytes it will take to hold the
+        the value of the column of the current row.
     }
-    {parameter icol,
+    {parameter column-index,
         The column ordinal for which the column value is to be
         retrieved. The column index is zero-based.
     }
     {return-vals
-        The number of bytes that will be taken in the memory to store
-        the column value.
+        The number of bytes it will take to hold the
+        the value of the column of the current row.
     }
     {notes
         If this {ctext SQLiteStatement} is currently not pointing to a
@@ -518,10 +540,34 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-column-bytes icol:int}:int
-    {return {{SQLiteInterface}.column-bytes self.non-null-stmt, icol}}
+  {method public open {get-column-bytes column-index:int}:int
+    {return {{SQLiteInterface}.column-bytes self.non-null-stmt, column-index}}
   }
 
+  {doc-next
+    {purpose
+        Returns the value of a column of the current row in a result set.
+    }
+    {parameter column-index,
+        The column ordinal for which the column value is to be
+        retrieved. The column index is zero-based.
+    }
+    {return-vals
+        The value of the column as what ever type is appropriate for
+        the value in the column
+    }
+    {notes
+        If this {ctext SQLiteStatement} is currently not pointing to a
+        valid row, or if the column index is out of range, the result
+        is undefined.
+
+        One can use {docref SQLiteStatement.column-bytes} to get the
+        number of bytes in the {ctext blob}.
+
+        If {docref SQLiteStatement.sql} is not compiled or was
+        finalized, it will be compiled to get the byte code.
+    }
+  }
   {method public {get-column-value index:int}:any
     let t:SQLiteDatatype = {self.get-column-type index}
     {return
@@ -565,9 +611,13 @@
     {return row}
   }
 
-  || TODO: docstring
+  {doc-next
+    {purpose
+        Return an {docref Iterator-of} {docref Array} that will iterate
+        over all of the rows in the results for the statement.
+    }
+  }
   {method public {rows-to-Iterator}:{Iterator-of Array}
-    {self.reset}
     {return {SQLiteStatementRowsIterator self}}
   }
 
@@ -577,6 +627,9 @@
   {doc-next
     {purpose
         Return whether this statement contains any data.
+    }
+    {notes
+        This resets the statement at the start and end of the method.
     }
     {return-vals
         If any rows are selected by the statement, returns {ctext true}.
@@ -596,8 +649,11 @@
         Return one value from the first row of this statement.
         {parameter index, specifies which column.}
     }
+    {notes
+        This resets the statement at the start and end of the method.
+    }
     {return-vals
-        The value of the specifed column for the first row,
+        The value of the specified column for the first row,
         or null if no rows are selected by the statement.
     }
   }
@@ -613,6 +669,9 @@
   {doc-next
     {purpose
         Return the values in the first row of this statement.
+    }
+    {notes
+        This resets the statement at the start and end of the method.
     }
     {return-vals
         An array of values.
@@ -633,6 +692,9 @@
     {purpose
         Return the values in each row of this statement.
     }
+    {notes
+        This resets the statement at the start and end of the method.
+    }
     {return-vals
         An array of rows.
     }
@@ -645,12 +707,15 @@
         {rows.append self.current-row}
     }
     {self.reset}
-  {return rows}
+    {return rows}
   }
 
   {doc-next
     {purpose
         Return the values in a column of this statement.
+    }
+    {notes
+        This resets the statement at the start and end of the method.
     }
     {return-vals
         An array of values.
@@ -674,6 +739,10 @@
     {purpose
         Deletes this prepared SQL statement.
     }
+    {return-vals
+        Returns the status code of the most recent step or
+        prepare of the statement.
+    }
     {notes
         All prepared statements must be finalized before calling
         {docref SQLiteDatabase.close}, otherwise {ctext
@@ -683,9 +752,9 @@
         This function can be called at any point during the execution
         of the virtual machine. If the virtual machine has not
         completed execution when this routine is called, it is like
-        encountring an error or an interrupt. In this case, incomplete
-        updates may be rolled back and transactions cancelled,
-        depending on the circumtances, and {ctext
+        encountering an error or an interrupt. In this case, incomplete
+        updates may be rolled back and transactions canceled,
+        depending on the circumstances, and {ctext
         SQLiteStatement.finalize} will return {ctext
         SQLiteStatus.ABORT}.
 
@@ -693,7 +762,6 @@
         finalized and not re-compiled.
     }
   }
-|| TODO: will return same status code as most recent step call.
   {method public open {finalize}:SQLiteStatus
     {if self.stmt == 0 then {return SQLiteStatus.OK}}
 
@@ -706,11 +774,16 @@
     {purpose
         Resets the {docref SQLiteStatement}.
     }
+    {return-vals
+        Returns the status code of the most recent step or
+        prepare of the statement.
+    }
     {notes
         After this call this {ctext SQLiteStatement} is ready to be
         re-executed. Any SQL parameters that have values bound to them
         will retain their values on the subsequent execution.
-        Use {docref-abbr SQLiteStatement.clear-bindings} to unset parameter bindings.
+        Use {docref-abbr SQLiteStatement.clear-bindings} to unset parameter
+        bindings.
     }
     {notes
         If the {ctext SQLiteStatement} is not yet prepared or it is
@@ -718,7 +791,6 @@
         SQLiteStatement.OK}.
     }
   }
-|| TODO: will return same status code as most recent step call.
   {method public open {reset}:SQLiteStatus
     {if self.stmt == 0 then {return SQLiteStatus.OK}}
 
@@ -730,12 +802,10 @@
     {purpose
         Clears parameter bindings for the {docref SQLiteStatement}.
     }
-    {notes
-        Any SQL parameters that have values bound to {ctext null}.
-    }
   }
   {method public open {clear-bindings}:void
     {if self.stmt == 0 then {return}}
+    set self._bind-table = null
     
     {if {{SQLiteInterface}.clear-bindings self.stmt} != SQLiteStatus.OK then
         {self.database.check-status}
@@ -744,7 +814,7 @@
 
   {doc-next
     {purpose
-        Assigns (or binds) an int to a parameter in this prepared SQL
+        Assigns (or binds) an {ctext int} to a parameter in this prepared SQL
         statement.
     }
     {parameter index,
@@ -783,7 +853,7 @@
 
   {doc-next
     {purpose
-        Assigns (or binds) an int64 to a parameter in this prepared SQL
+        Assigns (or binds) an {ctext int64} to a parameter in this prepared SQL
         statement.
     }
     {parameter index,
@@ -822,7 +892,7 @@
 
   {doc-next
     {purpose
-        Assigns (or binds) a double to a parameter in this prepared
+        Assigns (or binds) a {ctext double} to a parameter in this prepared
         SQL statement.
     }
     {parameter index,
@@ -935,8 +1005,8 @@
 
   {doc-next
     {purpose
-        Assigns (or binds) a chunk of data in memory to a parameter in
-        this prepared SQL statement.
+        Assigns (or binds) a {docref ByteArray} to a parameter in
+        a prepared SQL statement.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1010,7 +1080,7 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {method public open {get-bind-parameter-name index:int}:String
+  {method public open {get-bind-parameter-name index:int}:#String
     {return {{SQLiteInterface}.bind-parameter-name self.non-null-stmt, index}}
   }
   
@@ -1127,15 +1197,15 @@
 
   {define-proc private {insert-statement-for
                            database:SQLiteDatabase,
-                           table:String
+                           table-name:String
                        }:SQLiteStatement
     let ncols:int = 
         {with-statement in database
-            stmt = {format "SELECT * from %s LIMIT 0", table}
+            stmt = {format "SELECT * from %s LIMIT 0", table-name}
          do
             stmt.column-count
         }
-    let sql:String = {SQLiteStatement.sql-insert-for table, ncols}
+    let sql:String = {SQLiteStatement.sql-insert-for table-name, ncols}
     {return {database.create-statement sql}}
   }
 
@@ -1147,8 +1217,8 @@
     {parameter database,
         The database.
     }
-    {parameter table,
-        The table.
+    {parameter table-name,
+        The table name.
     }
     {parameter throw-on-error?,
         If {ctext true} and executing the statement fails,
@@ -1166,11 +1236,11 @@
   }
   {define-proc public {insert-proc 
                           database:SQLiteDatabase,
-                          table:String,
+                          table-name:String,
                           throw-on-error?:bool = true
                       }:({proc-type {...:any}:SQLiteStatus}, SQLiteStatement)
     let statement:SQLiteStatement = 
-        {SQLiteStatement.insert-statement-for database, table}
+        {SQLiteStatement.insert-statement-for database, table-name}
     {return
         {proc {...:any}:SQLiteStatus
             {statement.bind ...}
@@ -1190,8 +1260,8 @@
     {parameter database,
         The database.
     }
-    {parameter table,
-        The table.
+    {parameter table-name,
+        The table name.
     }
     {parameter loc,
         The CSV file.
@@ -1206,17 +1276,17 @@
         It is {ctext true} by default.
     }
     {parameter ...,
-        The rest args are suppliced to {docref CsvDataReader}.
+        The rest args are supplied to {docref CsvDataReader}.
     }
   }
   {define-proc public {import-csv
                           database:SQLiteDatabase,
-                          table:String,
+                          table-name:String,
                           loc:Url,
                           throw-on-error?:bool = true,
                           ...}:void
     let (f:{proc-type {...:any}:SQLiteStatus}, statement:SQLiteStatement) =
-        {SQLiteStatement.insert-proc database, table,
+        {SQLiteStatement.insert-proc database, table-name,
             throw-on-error? = throw-on-error?}
     {try
         {with-open-streams

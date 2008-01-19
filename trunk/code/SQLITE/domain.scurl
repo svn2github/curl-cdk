@@ -14,6 +14,12 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+    {purpose
+        {docref Domain} used by {docref SQLiteRecordSet} for
+        {docref RecordField}s.
+    }
+}
 {define-class public SQLiteVariantDomain {inherits Domain}
   field public-get constant affinity:SQLiteDatatypeAffinity
   field public-get constant strict?:bool
@@ -194,9 +200,10 @@
     TEXT,
     NONE
 }
-{define-proc public {SQLiteDatatypeAffinity-from-declared-type 
-                        decltype:String
-                    }:SQLiteDatatypeAffinity
+
+{define-proc package {SQLiteDatatypeAffinity-from-declared-type 
+                         decltype:String
+                     }:SQLiteDatatypeAffinity
   {return
       {if decltype.empty?
        then

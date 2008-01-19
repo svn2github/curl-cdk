@@ -155,7 +155,7 @@ CREATE TABLE work.test (
         set con.note-commit? = true
         {con.add-event-handler
             {on e:SQLiteCommit do
-||--            {e.consume}
+||--            set e.consumed? = true
 ||--            {log.append {lmessage canceling Commit}}
                 {log.append {lmessage Commit}}}}
         {do

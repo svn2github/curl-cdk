@@ -41,7 +41,8 @@
     }
     {return need-rowid?}
   }
-  {define-proc private {table-name-to-select
+
+  {define-proc private {table-name-to-query
                            connection:Connection,
                            database-name:String,
                            table-name:String,
@@ -67,8 +68,25 @@
         {if need-rowid? then 0 else -1}
     }
   }
+
   || What is where-clause for?  For missing key information when doing
   || updates, or just reducing data?
+  {doc-next
+    {purpose
+        Create a {docref SQLiteRecordSet} from a SQL table name.
+    }
+    {details
+        Parameters other than {param table-name} are the same as
+        {docref SQLiteRecordSet.create}.
+    }
+    {parameter table-name,
+        Name of the SQL table to load.  A SQL query against that table
+        will be created.
+    }
+    {notes
+        This calls {docref SQLiteRecordSet.create}.
+    }
+  }
   {factory public {create-from-table-name
                       connection:SQLConnection,
                       database-name:String,
@@ -83,7 +101,7 @@
                   }:SQLiteRecordSet
 
     let (query:String, hidden-primary-key-field:int) =
-        {SQLiteRecordSet.table-name-to-select
+        {SQLiteRecordSet.table-name-to-query
             connection,
             database-name,
             table-name,
@@ -309,7 +327,7 @@
                  }:void
 
     let (query:String, hidden-primary-key-field:int) =
-        {SQLiteRecordSet.table-name-to-select
+        {SQLiteRecordSet.table-name-to-query
             self.connection,
             database-name,
             {non-null table-name},
@@ -405,7 +423,9 @@
         {return}
     }
     {if not self.request-modifiable? then
-        {throw {CommitFailed "Cannot commit non-modifiable RecordSet."}}
+        {throw
+            {CommitFailed {lmessage Cannot commit non-modifiable RecordSet.}}
+        }
     }
     let connection:SQLiteConnection =
         self.connection asa SQLiteConnection
@@ -429,6 +449,13 @@
                      case RecordState.modified do
                         {self.generate-update-statement-sql buf, r}
                      case RecordState.appended do
+                        || FIXME: this may not be quite right yet because
+                        || default values are getting overwritten with
+                        || bogus Domain supplied defaults.  We might need
+                        || to generate special INSERTS for each row that
+                        || skip defaulted fields, or we might need to load
+                        || default info for the table and use that in the
+                        || Domains.
                         {self.generate-insert-statement-sql buf, r}
                      case RecordState.deleted do
                         {self.generate-delete-statement-sql buf, r}

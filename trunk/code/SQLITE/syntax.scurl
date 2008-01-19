@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -55,17 +55,17 @@
         This is relevant when more than one process might be using the database.
         Allowable values are
         {itemize
-            {item {ctext deferred} - this is the dafult,
+            {item {ctext deferred} - this is the default,
                 if {metavar lock-type} is unspecified}
             {item {ctext immediate}}
             {item {ctext exclusive}}
         }
         See {link href = {url "http://www.sqlite.org"}, SQLite}
         documentation pages for a full explanation of how
-        SQLite handles locking and concurency.
+        SQLite handles locking and concurrency.
     }
     {notes
-        NOTE: SQLite transactions can {bold not} be nested.
+        SQLite transactions can {bold not} be nested.
     }
 }
 {define-macro public {with-transaction
@@ -84,7 +84,7 @@
          else {{lock.get-text}.to-String}}
     {return
         {expand-template
-            {do
+            {value
                 let db:{compile-time-type-of ?db} = ?db
                 let body-failed?:bool
                 {db.execute "BEGIN " & ?{Literal lock-type}}

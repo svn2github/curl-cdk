@@ -25,13 +25,88 @@
 || - need lighter RecordSet subclass
 || -- lazier instantiation of records, data
 || 
-|| - may not need strict adherance to Curl RecordField protocol
+|| - may not need strict adherence to Curl RecordField protocol
 || -- if can directly rely on underlying SQLite semantics
 || --- uniqueness, modifiability, nullability, default-value
 || - but maybe useful for Curl UI
 
 
 {import * from COM.CURL.CDK.SQL-BASE}
+
+{doc-next
+    {purpose
+        Parent class for various SQLite events.
+    }
+}
+{define-class public abstract SQLiteEvent {inherits Event}
+}
+
+{doc-next
+    {purpose
+        {docref Event} sent if {param note-rollback?} {ctext = true}
+        is provided to {docref SQLiteConnection.default}.
+    }
+}
+{define-class public SQLiteRollbackEvent {inherits SQLiteEvent}
+}
+
+{doc-next
+    {purpose
+        {docref Event} sent if {param note-commit?} {ctext = true}
+        is provided to {docref SQLiteConnection.default}.
+    }
+}
+{define-class public SQLiteCommitEvent {inherits SQLiteEvent}
+  {doc-next
+    {purpose
+        If set to {ctext true} then commit will be canceled, and
+        the transaction will be rolled back.
+    }
+  }
+  field public consumed?:bool = false
+}
+
+{doc-next
+    {purpose
+        {docref Event} sent if {param note-update?} {ctext = true}
+        is provided to {docref SQLiteConnection.default}.
+    }
+}
+{define-class public SQLiteUpdateEvent {inherits SQLiteEvent}
+
+  field public constant database-name:String
+
+  field public constant table-name:String
+  {doc-next
+    {purpose
+        Will be {ctext SQLiteOperation.INSERT},
+        {ctext SQLiteOperation.DELETE}, or
+        {ctext SQLiteOperation.UPDATE}.
+    }
+  }
+  field public constant operation:SQLiteOperation
+  {doc-next
+    {purpose
+        Rowid of the affected row, for an update, this is the rowid after
+        the update.
+    }
+  }
+  field public constant rowid:int64
+
+  {constructor public {default
+                          database-name:String,
+                          table-name:String,
+                          operation:SQLiteOperation,
+                          rowid:int64
+                      }
+    set self.database-name = database-name
+    set self.table-name = table-name
+    set self.operation = operation
+    set self.rowid = rowid
+  }
+}
+
+
 
 {doc-next
     {purpose
@@ -66,17 +141,17 @@
         {param database-url} will be created if needed.
     }
     {parameter note-commit?,
-        Should {docref SQLiteCommit} events get sent to any
+        Should {docref SQLiteCommitEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
     {parameter note-rollback?,
-        Should {docref SQLiteRollback} events get sent to any
+        Should {docref SQLiteRollbackEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
     {parameter note-update?,
-        Should {docref SQLiteUpdate} events get sent to any
+        Should {docref SQLiteUpdateEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
@@ -467,7 +542,7 @@
     }
     {parameter callback,
         Called with each row that results from executing a query.
-        May return {ctext false} to stop execution of the query.
+        May return {ctext false} to stop execution of that query.
     }
     {parameter restart-callback,
         Called after completing execution of the query to ask if query
@@ -491,6 +566,10 @@
         Row to stop executing query at.  This will use
         LIMIT clauses if the query is a SELECT statement.  This may not
         be used if {param query} contains multiple queries.
+    }
+    {return-vals
+        Returns {ctext true} if execution succeeded.  If {param callback}
+        returns {ctext false} then this will return {ctext true}.
     }
   }
   {method public {execute-sqlite
@@ -546,7 +625,7 @@
                     }
                     {if-non-null callback then
                         {if not {callback statement.current-row} then
-                            {return}
+                            {break}
                         }
                     }
                 }
@@ -561,7 +640,7 @@
             {if {statement.prepare-next} then
                 {if size-limit >= 0 or start-record != 0 then
                     {error
-                        "size-limit or start-record were supplied for a multistatement query."
+                        {lmessage 'size-limit' or 'start-record' were supplied for a multistatement query.}
                     }
                 }
              else
@@ -598,13 +677,9 @@
   || Internal implementation stuff, copied from old SQLiteConnection
   || Notification
   {method private {define-callbacks
-                  }:({proc-type {operation:SQLiteOperation,
-                                 database-name:String,
-                                 table-name:String,
-                                 rowid:int64
-                                 }:void},
-                     {proc-type {}:void},
-                     {proc-type {}:int})
+                  }:(SQLiteUpdateHookProcType,
+                     SQLiteRollbackHookProcType,
+                     SQLiteCommitHookProcType)
     || FIXME: This will result in event handling in the middle of other code,
     || at possibly illegal points in time, or unusual times anyway.
     {return
@@ -614,17 +689,16 @@
                rowid:int64
               }:void
             {self.handle-event 
-                {SQLiteUpdate database-name, table-name, operation, rowid}
+                {SQLiteUpdateEvent database-name, table-name, operation, rowid}
             }
         },
         {proc {}:void
-            {self.handle-event {SQLiteRollback}}
+            {self.handle-event {SQLiteRollbackEvent}}
         },
-        {proc {}:int
-            let e:SQLiteCommit = {SQLiteCommit}
+        {proc {}:bool
+            let e:SQLiteCommitEvent = {SQLiteCommitEvent}
             {self.handle-event e}
-            let rollback?:int = {if e.consumed? then 1 else 0}
-            {return rollback?}
+            {return e.consumed?}
         }
     }
   }
@@ -647,9 +721,9 @@
   }
 
   field constant private commit-callback:SQLiteCommitHookProcType
-  {method protected {register-commit-hook
-                        callback:#SQLiteCommitHookProcType
-                    }:void
+  {method private {register-commit-hook
+                      callback:#SQLiteCommitHookProcType
+                  }:void
     set self.database.commit-hook = callback
   }
 
@@ -671,9 +745,9 @@
   }
 
   field constant private rollback-callback:SQLiteRollbackHookProcType
-  {method protected {register-rollback-hook
-                        callback:#SQLiteRollbackHookProcType
-                 }:void
+  {method private {register-rollback-hook
+                      callback:#SQLiteRollbackHookProcType
+                  }:void
     set self.database.rollback-hook = callback
   }
 
@@ -695,9 +769,9 @@
   }
 
   field constant private update-callback:SQLiteUpdateHookProcType
-  {method protected {register-update-hook
-                        callback:#SQLiteUpdateHookProcType
-                 }:void
+  {method private {register-update-hook
+                      callback:#SQLiteUpdateHookProcType
+                  }:void
     set self.database.update-hook = callback
   }
 
