@@ -30,8 +30,8 @@
             {db.create-statement
                 "select * from products where id=?"}
         {while {ps.step} == SQLiteStatus.ROW do
-            def id:String = {ps.get-column-text 0}
-            def name:String = {ps.get-column-text 1}
+            def id:String = {non-null {ps.get-column-text 0}}
+            def name:String = {non-null {ps.get-column-text 1}}
             def price:double = {ps.get-column-double 2}
             {display.add
                 {text cursor = cursor-hand,

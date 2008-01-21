@@ -28,8 +28,8 @@
         s = "select id, name, price from products order by price desc"
      do
         {while {s.step} == SQLiteStatus.ROW do
-            def id:String = {s.get-column-text 0}
-            def name:String = {s.get-column-text 1}
+            def id:String = {non-null {s.get-column-text 0}}
+            def name:String = {non-null {s.get-column-text 1}}
             def price:double = {s.get-column-double 2}
             {display.add
                 {text

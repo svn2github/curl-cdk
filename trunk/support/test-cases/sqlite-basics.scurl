@@ -144,7 +144,7 @@ CREATE TABLE work.test (
         || == test rollback hook
         set con.note-rollback? = true
         {con.add-event-handler
-            {on SQLiteRollback do
+            {on SQLiteRollbackEvent do
                 {log.append {message Rollback}}}}
         {do
             {con.execute "BEGIN;"}
@@ -154,7 +154,7 @@ CREATE TABLE work.test (
         || == test commit hook
         set con.note-commit? = true
         {con.add-event-handler
-            {on e:SQLiteCommit do
+            {on e:SQLiteCommitEvent do
 ||--            set e.consumed? = true
 ||--            {log.append {lmessage canceling Commit}}
                 {log.append {lmessage Commit}}}}
@@ -169,12 +169,12 @@ CREATE TABLE work.test (
         || == test update hook
         set con.note-update? = true
         {con.add-event-handler
-            {on e:SQLiteUpdate do
+            {on e:SQLiteUpdateEvent do
                 {log.append 
                     {message
                         {value e.operation.name}
-                        on '{value e.database}' 
-                        table '{value e.table}'
+                        on '{value e.database-name}' 
+                        table '{value e.table-name}'
                         row {value e.rowid}
                     }}}}
         {do

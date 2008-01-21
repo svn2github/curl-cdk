@@ -403,7 +403,7 @@ CREATE TABLE products (
 }
 
 {itemize
-    {item {bold progress handler}
+    {item {bold Progress handler}
         Use {docref SQLiteDatabase.set-progress-handler}
         to get periodic calls to a function
         during long-running SQL operations.
