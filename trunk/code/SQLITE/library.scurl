@@ -788,12 +788,9 @@
          else
             {ByteArray efficient-size = length}
         }
-    {if length > 0 then
-        set nn-out.efficient-size = out.size + length
-        {for i = 0 below length do
-            {nn-out.append {unsafe-memory-get byte, _bytes, index = i}}
-        }
-    }
+      {for i = 0 below length do
+          {nn-out.append {unsafe-memory-get byte, _bytes, index = i}}
+      }
     {return nn-out}
   }
 
