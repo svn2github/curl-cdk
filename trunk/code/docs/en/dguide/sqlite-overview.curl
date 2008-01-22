@@ -435,13 +435,17 @@ CREATE TABLE products (
         after migration from old Connection is finalized.}
 }
 
-{x-example-ref title = {message progress Notification},
+{x-example-ref title = {message Simple Explorer},
+    {url "examples/simple-explorer.curl"}
+}
+
+{x-example-ref title = {message Progress Notification},
     {url "examples/progress.curl"}
 }
 
-{x-example-ref title = {message Busy Handler},
-    {url "examples/busy-handler.curl"}
-}
+||--{x-example-ref title = {message Busy Handler},
+||--    {url "examples/busy-handler.curl"}
+||--}
 
 || ====================
 {heading level=3,
@@ -482,7 +486,7 @@ CREATE TABLE products (
 }
 
 {x-example-ref title = {message Authorization},
-    {url "examples/__authorization.curl"}
+    {url "examples/authorization.curl"}
 }
 
 || ====================

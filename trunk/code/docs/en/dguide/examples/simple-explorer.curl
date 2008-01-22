@@ -1,0 +1,172 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{define-class public QueryDisplay {inherits BaseFrame}
+  field public-get constant database:SQLiteDatabase
+  field public-get constant query-model:QueryModel
+  field grid:RecordGrid
+  field query-panel:TextArea
+  {constructor public {default database:SQLiteDatabase}
+    set self.database = database
+    set self.query-model = {QueryModel self.database}
+    || controls
+    set self.query-panel =
+        {TextArea
+            width = {add-stretch},
+            height = {add-stretch},
+            {on ValueChanged at c:TextArea do
+                set self.query-model.sql = c.value}}
+    set self.grid =
+        {RecordGrid
+            width = {add-stretch},
+            height = {add-stretch}}
+    || layout
+    def main = {PanedWindow orientation = "vertical"}
+    {main.add-pane self.query-panel}
+    {main.add-pane
+        self.grid}
+    {main.set-pane-sizes {{Array-of double} 10%, 90%}}
+    def display =
+        {VBox style-class = "sql",
+            hstretch? = true,
+            main}
+    {self.add-internal display}
+    || coordination
+    {self.query-model.add-event-handler
+        {on QueryResult at q:QueryModel do
+            {output {message selected {value q.result.size} in  {value q.elapsed}}}
+            {self.reset-grid}
+            set self.grid.record-source = q.result
+            {dwim-grid self.grid}
+        }}
+    {self.query-model.add-event-handler
+        {on QueryFailure at q:QueryModel do
+            {popup-message q.exception.message}
+        }}
+  }
+  {method {execute}:void
+    {with-busy-cursor
+        {self.query-model.execute}}
+  }
+  {method {reset-grid}:void
+    || NOTE: clears vestigial column specs
+    set self.grid.record-source = null
+    set self.grid.sort = null
+    set self.grid.filter = null
+  }
+}
+{define-class public abstract QueryStatus {inherits Event}}
+{define-class public QueryResult {inherits QueryStatus}}
+{define-class public QueryFailure {inherits QueryStatus}}
+|| --------------------
+{define-class public QueryModel {inherits EventTarget}
+  field public-get constant database:SQLiteDatabase
+  field public-get sql:String
+  field public-get result:#RecordSet
+  field public-get exception:#Exception
+  field public-get last-sql:#String
+  {constructor public {default
+                          database:SQLiteDatabase,
+                          sql:String = "",
+                          ...:EventHandler}
+    set self.database = database
+    set self.sql = sql
+    set self.last-sql = null
+    {construct-super {splice ...}}
+  }
+  {getter public {empty?}:bool
+    {return self.sql.empty?}
+  }
+  {getter public {current?}:bool
+    {return self.sql == self.last-sql}
+  }
+  {getter public {enabled?}:bool
+    {return
+        not self.current? and
+        not self.sql.empty?}
+  }
+  field started:DateTime = {DateTime}
+  field elapsed:Time = 0s
+  {method public {execute}:void
+    set self.exception = null
+    set self.started = {DateTime}
+    set self.elapsed = {self.started.elapsed}
+    {try
+        def rs = {SQLiteBasicRecordSet self.database, self.sql}
+        set self.elapsed = {self.started.elapsed}
+        set self.result = rs
+        set self.last-sql = self.sql
+        || report success
+        {self.handle-event {QueryResult}}
+     catch e:Exception do
+        set self.elapsed = {self.started.elapsed}
+        set self.exception = e
+        || report failure
+        {self.handle-event {QueryFailure}}
+    }
+  }
+}
+{define-proc {dwim-grid rg:RecordGrid}:void
+    def n = rg.columns.size
+    def w =
+        {if n < 6 then 1in
+         elseif n < 12 then .75in
+         else .375in}
+    {for col in rg.columns do
+        def numeric? =
+            {if-non-null f = col.field then
+                def d = f.domain
+                {type-switch d
+                 case d:SQLiteVariantDomain do
+                    {switch d.affinity
+                     case SQLiteDatatypeAffinity.NUMERIC,
+                        SQLiteDatatypeAffinity.INTEGER
+                     do true
+                     else false}
+                 else d.type isa NumericType}
+             else false}
+        {if numeric? then
+            set col.halign = "right"}
+        set col.width = w}
+}
+
+|| --------------------
+{value
+    def loc = {url "OE.db"}
+    def db = {SQLiteDatabase loc}
+    def display = {QueryDisplay db}
+    
+    def exec =
+        {CommandButton label = "Execute",
+            {on Action do
+                {display.execute}}}
+    {VBox
+        width = 6in, height = 4in,
+        {on AttachEvent do
+            set display.query-panel.value =
+                "SELECT * from sqlite_master"
+            {display.query-panel.handle-event {ValueChanged}}
+            {exec.handle-event {Action}}},
+        {HBox
+            exec,
+            {Fill}},
+        display}
+}

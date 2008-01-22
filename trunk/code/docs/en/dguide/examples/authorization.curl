@@ -1,0 +1,95 @@
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+{import SQLiteAuthorizerProcType from COM.CURL.CDK.SQLITE-LIBRARY}
+
+{define-class public AuthorizationPolicy
+  field public-get constant policies:{HashTable-of SQLiteOperation, SQLiteAuthorizerReturnCode}
+  field public-get constant default-policy:SQLiteAuthorizerReturnCode
+  field public-get constant authorizer:SQLiteAuthorizerProcType
+  field public-get last-denied:#{Array-of #String}
+  {constructor public {default 
+                          default-policy:SQLiteAuthorizerReturnCode =
+                              SQLiteAuthorizerReturnCode.DENY,
+                          ...}
+    set self.default-policy = default-policy
+    set self.policies =
+        {{HashTable-of SQLiteOperation, SQLiteAuthorizerReturnCode}
+            {splice ...}}
+    set self.authorizer =
+        {proc {operation:SQLiteOperation,
+               data1:#String,
+               data2:#String,
+               data3:#String,
+               data4:#String
+              }:SQLiteAuthorizerReturnCode
+            def policy = {self.policy-for operation}
+            {if policy == SQLiteAuthorizerReturnCode.DENY then
+                set self.last-denied =
+                    {{Array-of #String} data1, data2, data3, data4}}
+            {return policy}}
+  }
+  {method public {policy-for operation:SQLiteOperation}:SQLiteAuthorizerReturnCode
+    def (policy, policy?) = {self.policies.get-if-exists operation}
+    {return
+        {if policy? then policy 
+         else self.default-policy}}
+  }
+  {method public {register db:SQLiteDatabase}:void
+    set db.authorizer = self.authorizer
+  }
+  {method public {reset}:void
+    set self.last-denied = null
+  }
+}
+
+{include "simple-explorer.scurl"}
+
+{value
+    def loc = {url "OE.db"}
+    def db = {SQLiteDatabase loc}
+    def display = {QueryDisplay db}
+    || authorization policy
+    def policy = 
+        {AuthorizationPolicy 
+            "READ", "OK",
+            "SELECT", "OK",
+            "FUNCTION", "OK"}
+    {policy.register db}
+    
+    || layout
+    def exec =
+        {CommandButton label = "Execute",
+            {on Action do
+                {display.execute}}}
+    {VBox
+        width = 6in, height = 4in,
+        {on AttachEvent do
+            set display.query-panel.value =
+                "SELECT * from sqlite_master"
+            {display.query-panel.handle-event {ValueChanged}}
+            {exec.handle-event {Action}}},
+        {HBox
+            {CommandButton label = "Execute",
+                {on Action do
+                    {display.execute}}},
+            {Fill}},
+        display}
+}

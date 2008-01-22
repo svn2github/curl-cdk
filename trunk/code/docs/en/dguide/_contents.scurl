@@ -52,12 +52,47 @@
         {node
             |"Bulk Insertion"|,
             {url "generic-example.curl?examples/import-csv.curl"}
+        },
+        {node
+            |"Create RecordSet"|,
+            {url "generic-example.curl?examples/recordset-create.curl"}
+        },
+        {node
+            |"RecordSet with Form"|,
+            {url "generic-example.curl?examples/recordset-form.curl"}
+        },
+        {node
+            |"RecordSet with Chart"|,
+            {url "generic-example.curl?examples/recordset-chart.curl"}
+        },
+        {node
+            |"Attach Database"|,
+            {url "generic-example.curl?examples/attach-save.curl"}
+        },
+        {node
+            |"Simple Explorer"|,
+            {url "generic-example.curl?examples/simple-explorer.curl"}
+        },
+        {node
+            |"Progress Notification"|,
+            {url "generic-example.curl?examples/progress.curl"}
+        },
+||--        {node
+||--            |"Busy Handler"|,
+||--            {url "generic-example.curl?examples/busy-handler.curl"}
+||--        },
+        {node
+            |"Install Function"|,
+            {url "generic-example.curl?examples/install-function.curl"}
+        },
+        {node
+            |"Install Aggregate Function"|,
+            {url "generic-example.curl?examples/install-aggregate.curl"}
+        },
+        {node
+            |"Authorization"|,
+            {url "generic-example.curl?examples/authorization.curl"}
         }
     }
-||--function-regexp.curl
-||--import-csv-rs.curl
-||--statement-insert-save.curl
-||--transaction-statement.curl
-||--transaction.curl
 }
 
