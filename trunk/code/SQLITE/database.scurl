@@ -174,8 +174,12 @@
         The {docref Url} of the database to connect to.
 
         If {param u} is {ctext null} then a memory database connection
-        is opened. Otherwise if it is not a local file {docref Url}, the
-        file will be downloaded and copied to a local file.
+        is opened. If {param u} is not a local file {docref Url}, the
+        file will be downloaded and copied to a local file.  An error
+        will be thrown if {param u} is not a local file {docref Url},
+        and it does not exist.  If {param u} is a local file {docref Url},
+        but it does not exist, it will be created, however the parent
+        directory of {param u} must already exist.
     }
     {notes
         The database connection will not be opened till an attempt is

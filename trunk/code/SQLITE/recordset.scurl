@@ -129,8 +129,10 @@
     || If we might need to write to a table, and primary-keys were not
     || supplied, and we have enough info to figure it out, get the
     || primary-keys another way.
+
     {if query-changed? then
         set self.query-parameters = null
+        set self.base-where-clause-parameters = null
     }
     {if self.request-modifiable? and
         self.primary-keys == null and self.table-name != null and
@@ -203,8 +205,6 @@
                           base-where-clause-parameters:#Array = null,
                           ...:EventHandler
                       }
-    set self.query-parameters = query-parameters
-    set self.base-where-clause-parameters = base-where-clause-parameters
     {construct-super.create
         connection,
         database-name,
@@ -219,6 +219,8 @@
         strict-types? = strict-types?,
         ...
     }
+    set self.query-parameters = query-parameters
+    set self.base-where-clause-parameters = base-where-clause-parameters
     {if load-on-construction? then
         set self.load-state = RecordSetLoadState.unloaded
         {self.load}

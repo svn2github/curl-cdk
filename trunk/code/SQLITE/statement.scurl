@@ -584,7 +584,12 @@
          case SQLiteDatatype.BLOB do
             || TODO: test this
             {self.get-column-blob index}
-         else {error {lmessage Unexpected SQLite datatype {value t}}}
+         else
+            {throw
+                {SQLiteException
+                    {lmessage Unexpected SQLite datatype {value t}}
+                }
+            }
         }
     }
   }
