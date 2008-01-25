@@ -90,8 +90,10 @@
     || internal
     || ----------
     {StyleRule "PanedWindow",
-        || TODO: how eliminate the black
-        sash-background = "#BBE9F0",
-        sash-border-color = "#DEF"
+        sash-border-color = "white",
+||--        sash-background = "#BBE9F0",
+        || NOTE: this avoids the black line
+        background = "#BBE9F0",
+        sash-background = "transparent"
     }
 }
