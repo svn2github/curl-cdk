@@ -578,7 +578,7 @@
             {if xi <= max-int32 and xi >= min-int32 then
                 xi asa int
              else xi}
-         case SQLiteDatatype.FLOAT do {self.get-column-double index}
+         case SQLiteDatatype.REAL do {self.get-column-double index}
          case SQLiteDatatype.TEXT do {self.get-column-text index}
          case SQLiteDatatype.NULL do null
          case SQLiteDatatype.BLOB do

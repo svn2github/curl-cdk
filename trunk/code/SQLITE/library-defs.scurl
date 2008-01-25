@@ -237,11 +237,10 @@
         }
     }
 }
-|| QUESTION: Is FLOAT and REAL the same?
 {define-enum public SQLiteDatatype
     ERROR =      0,
     INTEGER =      1,
-    FLOAT =        2,
+    REAL =         2, || aka FLOAT
     TEXT =         3,
     BLOB =         4,
     NULL =         5

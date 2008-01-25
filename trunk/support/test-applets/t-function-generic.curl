@@ -133,7 +133,7 @@
                                 {if v < max-int64 then
                                     v asa int
                                  else v}
-                             case SQLiteDatatype.FLOAT do {interface.value-double _x}
+                             case SQLiteDatatype.REAL do {interface.value-double _x}
                              case SQLiteDatatype.BLOB do 
                                 let n:int = {interface.value-bytes _x}
                                 let bytes:ByteArray = {ByteArray efficient-size = n}

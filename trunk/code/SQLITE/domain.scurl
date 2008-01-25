@@ -94,7 +94,7 @@
             {signum kx - ky}
          else 
             {switch tx
-             case SQLiteDatatype.INTEGER, SQLiteDatatype.FLOAT do
+             case SQLiteDatatype.INTEGER, SQLiteDatatype.REAL do
                 {with-compiler-directives allow-any-calls? = true,
                     allow-implicit-any-casts? = true
                  do
@@ -117,18 +117,23 @@
     || follow type affinity
     {switch self.affinity 
      case SQLiteDatatypeAffinity.INTEGER, 
-        SQLiteDatatypeAffinity.NUMERIC do
-        let n:int = xx.size
+        SQLiteDatatypeAffinity.NUMERIC
+     do
         || INTEGER
         let (xi:int64, xin:int) = {xx.to-int64}
-        {if xin == n then
+        {if xin == xx.size then
             {return
                 {if xi > max-int32 or xi < min-int32 then
                     xi asa int
                  else xi}}}
+    }
+    {switch self.affinity 
+     case SQLiteDatatypeAffinity.NUMERIC, 
+        SQLiteDatatypeAffinity.REAL
+     do
         || DOUBLE
         let (xd:double, xdn:int) = {xx.to-double}
-        {if xdn == n then
+        {if xdn == xx.size then
             {return xd}}
     }
     || BLOB
@@ -169,9 +174,9 @@
     {return
         {switch t
          case String do ("TEXT", true)
-         case double do ("FLOAT", true)
+         case double do ("REAL", true)
          case int, int8, int16, int64, uint8, uint16 do ("INTEGER", true)
-         case uint32, uint64 do ("INTEGER", true)
+         case uint32, uint64 do ("INTEGER", true) || new types in 6.0
          case Null do ("NULL", true)
          case ByteArray do ("BLOB", true)
          else ("NULL", false)}}
@@ -181,22 +186,26 @@
         {switch a
          case SQLiteDatatypeAffinity.TEXT do String
          case SQLiteDatatypeAffinity.INTEGER do int || TODO: int64 ?
-         case SQLiteDatatypeAffinity.NUMERIC do double
-         else any}}
+         case SQLiteDatatypeAffinity.NUMERIC, SQLiteDatatypeAffinity.REAL do
+            double
+         else any
+        }
+    }
   }
   {method {type-mismatch-exception x:any}:ValidationException
     {return
-        {ValidationException 
+        {ValidationException
             {lmessage Wrong type '{type-of x}' for '{type-of self}'}}}
   }
 }
-|| 1,2,3,4,5 => INTEGER, FLOAT, TEXT, BLOB, NULL
-{let constant SQLiteDatatypeOrdering:ByteVec =
+|| 1,2,3,4,5 => INTEGER, REAL, TEXT, BLOB, NULL
+{let constant package SQLiteDatatypeOrdering:ByteVec =
     {ByteVec 99, 1, 1, 2, 3, 0}
 }
 {define-enum public SQLiteDatatypeAffinity
     INTEGER,
     NUMERIC,
+    REAL,
     TEXT,
     NONE
 }
@@ -219,13 +228,20 @@
        then
           SQLiteDatatypeAffinity.TEXT
 
+       || SQLite docs say that BLOB has affinity NONE, which seems weird.
        elseif {decltype.find-string "BLOB", ignore-case? = true} >= 0
        then
           SQLiteDatatypeAffinity.NONE
 
-       else
-          SQLiteDatatypeAffinity.NUMERIC}
-    }
+       elseif {decltype.find-string "FLOA", ignore-case? = true} >= 0 or
+          {decltype.find-string "REAL", ignore-case? = true} >= 0 or
+          {decltype.find-string "DOUB", ignore-case? = true} >= 0 or
+       then
+          SQLiteDatatypeAffinity.REAL
+       else || BOOLEAN, TIMESTAMP, NUMERIC, made up type
+          SQLiteDatatypeAffinity.NUMERIC
+      }
+  }
 }
 {define-proc package {ByteArray-compare xs:ByteArray, ys:ByteArray}:int
     let n:int = {min xs.size, ys.size}

@@ -245,10 +245,16 @@
   }
   {method public {get-tables database:String}:StringArray
     let tables:StringArray = {StringArray}
-    || Note: the database is ignored, but if you have attached other databases,
-    || This info is available via <database name>.sqlite_master.
+    || FIXME: not sure which version will fix that temp.sqlite_master
+    || will work, earlier versions needed temp.sqlite_temp_master
     {self.execute-sqlite
-        "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')", ||""
+        "SELECT name FROM " & ||""
+        {if database == "temp" then
+            "sqlite_temp_master" ||""
+         else
+            {self.combined-table-name database, "sqlite_master"} ||""
+        } &
+        " WHERE type IN ('table', 'view')", ||""
         callback =
             {proc {row:Array}:bool
                 {tables.append row[0] asa String}
@@ -294,8 +300,9 @@
         || added to the table.
         {try
             {self.execute-sqlite
-                "SELECT seq from sqlite_sequence WHERE name='" & ||""
-                {self.combined-table-name database-name, table-name} & "'", ||""
+                "SELECT seq from " & ||""
+                {self.combined-table-name database-name, "sqlite_sequence"} &
+                " WHERE name='" & table-name & "'", ||""
 |#
                 args-callback =
                     {proc {statement:SQLiteStatement}:void
