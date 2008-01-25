@@ -493,9 +493,9 @@ CREATE TABLE products (
 {heading level=3,
    Operational considerations
 }
-{paragraph
-   TODO.
-}
+||--{paragraph
+||--   TODO.
+||--}
 
 {itemize
     {item HTTP considerations}
@@ -514,55 +514,43 @@ CREATE TABLE products (
    More about SQLITE
 }
 {paragraph
-   TODO.
-}
+    The {link href = {url "http://www.sqlite.org"}, SQLite website}
+    is the authoritative reference.
 
-{itemize
-    {item See website for primary docs, especially}
+    You can find information on
     {itemize
-        {item datatypes and affinities}
+        {item {link href = {url "http://www.sqlite.org/lang.html"}, SQL Syntax}}
+        {item {link href = {url "http://www.sqlite.org/datatype3.html"}, datatypes and affinities}}
+        {item {link href = {url "http://www.sqlite.org/lockingv3.html"}, locking and concurrency}}
+        {item {link href = {url "http://www.sqlite.org/pragma.html"}, pragma commands}}
+        || {item {link href = {url "", xxx}}}        
     }
-    {item Recommend book}
+
+    and {link href = {url "http://www.sqlite.org/sitemap.html"}, much more}.
+
+    An execellent reference book is
+    {link href = {url "http://www.apress.com/book/view/1590596730"}, 
+    The Definitive Guide to SQLite}.
 }
 
 || ====================
-{heading level=2,
-    SQLITE Samples
-}
-{paragraph
-   TODO.
-}
-
-||-- scenarios
-||-- * basic
-||-- ** create
-||-- ** populate
-||-- ** query
-||-- *** exists, value, row, col, rows
-||-- * advanced sql
-||-- ** triggers
-||-- ** constraints
-||-- ** views
-||-- * parameterized queries
-||-- ** API
-||-- ** callbacks
-||-- ** functions
-||-- * concurrency
-
-|| ====================
-{heading level=3,
-   Examples
-}
-{itemize
-    {item order entry}
-    {item aggregation}
-    {item undo history}
-    {item settings}
-    {item logging}
-    {item example index}
-    {item translation history}
-    {item OCC}
-}
+||--{heading level=2,
+||--    SQLITE Samples
+||--}
+||--{paragraph
+||--   TODO.
+||--}
+||--
+||--{itemize
+||--    {item order entry}
+||--    {item aggregation}
+||--    {item undo history}
+||--    {item settings}
+||--    {item logging}
+||--    {item example index}
+||--    {item translation history}
+||--    {item OCC}
+||--}
 
 || ====================
 {curl-copyright}
