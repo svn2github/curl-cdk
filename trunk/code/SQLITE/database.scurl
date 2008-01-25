@@ -1265,7 +1265,7 @@
                      else
                         int64 asa Type
                     }
-                 case SQLiteDatatype.FLOAT do
+                 case SQLiteDatatype.REAL do
                     double asa Type
                  case SQLiteDatatype.TEXT do
                     String
