@@ -25,10 +25,10 @@
         {db.execute {read-from {url "products.sql"}}}
         def ps =
             {db.create-statement
-                "select id, name, price from products order by price desc"}
+                "SELECT id, name, price FROM products ORDER BY price DESC"}
         def p =
             {db.create-statement
-                "select * from products where id=?"}
+                "SELECT * FROM products WHERE id=?"}
         {while {ps.step} == SQLiteStatus.ROW do
             def id:String = {non-null {ps.get-column-text 0}}
             def name:String = {non-null {ps.get-column-text 1}}

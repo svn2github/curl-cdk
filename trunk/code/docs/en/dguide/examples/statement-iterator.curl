@@ -31,7 +31,7 @@
                 {bold Price},
                 halign = "right"}}
     {with-statement in db
-        s = "select name, price from products order by price desc"
+        s = "SELECT name, price FROM products ORDER BY price DESC"
      do
         {for row in {s.rows-to-Iterator} do
             {display.add

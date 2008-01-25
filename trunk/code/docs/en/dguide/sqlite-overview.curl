@@ -32,7 +32,7 @@
 }
 {summary
     {itemize
-        {item Use {ctext SQLiteDatabase} to organize data.}
+        {item Use {ctext SQLiteDatabase} to manage relational data.}
         {item Use {ctext SQLiteStatement} for queries.}
         {item Use {ctext SQLiteRecordSet} to present and manipulate query results in Curl.}
     }
@@ -46,9 +46,9 @@
     This allows data centric Curl applications to take advantage of the
     full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
 
-    SQLite databases are fully integrated with Curl {docref COM.CURL.DATA-ACCESS} package:
-    query results are represented using {docref SQLiteRecordSet} subclasses,
-    so standard Curl techniques to present and manipulate data can be used
+    SQLite databases are fully integrated with the Curl {docref COM.CURL.DATA-ACCESS} package.
+    Query results are represented using {docref SQLiteRecordSet} objects,
+    so standard Curl techniques for presentation and manipulation of data can be used
     (like {docref RecordView}, {docref RecordGrid}, {docref RecordForm} and {docref DataBinding}).
 }
 
@@ -62,13 +62,14 @@
     Use {docref SQLiteDatabase} to create or read a database.
     
     {itemize
-        {item specify the {ctext Url} of the database file.}
+        {item Create a {ctext SQLiteDatabase} object
+            with the {docref Url} of the database file.}
         {item The specified database file will be opened.}
         {item If the specified file does not exist, it will be created.}
         {item To create an "in-memory" database, supply {ctext null}.}
         {item SQLite database files use the local filesystem.}
         {item If an {monospace http} location is specified,
-            its contents will be copied to {monospace curl://user-data/}.}
+            its contents will be copied to {monospace curl://local-data/}.}
     }
 
     Use {docref SQLiteDatabase.execute} to perform SQL operations.
@@ -170,7 +171,7 @@ CREATE TABLE products (
         {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.}
         {item execute with {docref-abbr SQLiteStatement.step}.}
         {item obtain data with {docref-abbr SQLiteStatement.get-column-value} and other {ctext get-column-} methods.}
-        {item reset for further use with {docref-abbr SQLiteStatement.reset}.
+        {item reset for further reuse with {docref-abbr SQLiteStatement.reset}.
             Note that parameter bindings are retained when a statement is reset.
             Use {docref-abbr SQLiteStatement.clear-bindings} to unset bound parameters.}
         {item dispose with {docref-abbr SQLiteStatement.finalize}.
@@ -200,7 +201,6 @@ CREATE TABLE products (
             def insert =
                 {db.create-statement
                     "INSERT INTO log (when, where, what) VALUES (?, ?, ?)"}
-            {insert.reset}
             {insert.bind "now", "here", "this"}
             {insert.step}
         }}
@@ -219,7 +219,7 @@ CREATE TABLE products (
             inserts rows into a specified table from a CSV file.}
     }
 
-    This example uses boston temperature data in CSV format
+    This example uses Boston temperature data in CSV format
     (also used in {link href = {dguide.merge "charts.curl"}, Charts chapter})
     to compute annual summary informetion ussing SQL.
     
@@ -422,9 +422,9 @@ CREATE TABLE products (
         The application can observe changes by adding event handlers
         for these actions.
         {itemize
-            {item {docref SQLiteUpdate} when a row is modified.}
-            {item {docref SQLiteCommit} before SQL {ctext COMMIT}.}
-            {item {docref SQLiteRollback} after SQL {ctext REVERT}.}
+            {item {docref SQLiteUpdateEvent} when a row is modified.}
+            {item {docref SQLiteCommitEvent} before SQL {ctext COMMIT}.}
+            {item {docref SQLiteRollbackEvent} after SQL {ctext REVERT}.}
         }
     }
 }
@@ -464,7 +464,7 @@ CREATE TABLE products (
         A {bold function} computes a value from its arguments,
         and can be used anywhere a value is expected.
         An {bold aggregation function} accumulates values
-        from a set of records, and must be used in a statement
+        from a set of records, often used in a statement
         with a {ctext GROUP BY} partition. 
     }
     {item {bold authorizers}

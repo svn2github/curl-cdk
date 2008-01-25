@@ -25,7 +25,7 @@
 
     def display = {VBox}
     {with-statement in db
-        s = "select id, name, price from products order by price desc"
+        s = "SELECT id, name, price FROM products ORDER BY price DESC"
      do
         {while {s.step} == SQLiteStatus.ROW do
             def id:String = {non-null {s.get-column-text 0}}
