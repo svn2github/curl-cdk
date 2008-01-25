@@ -235,7 +235,7 @@
 
        elseif {decltype.find-string "FLOA", ignore-case? = true} >= 0 or
           {decltype.find-string "REAL", ignore-case? = true} >= 0 or
-          {decltype.find-string "DOUB", ignore-case? = true} >= 0 or
+          {decltype.find-string "DOUB", ignore-case? = true} >= 0
        then
           SQLiteDatatypeAffinity.REAL
        else || BOOLEAN, TIMESTAMP, NUMERIC, made up type

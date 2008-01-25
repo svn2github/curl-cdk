@@ -586,7 +586,7 @@
             {self.get-column-blob index}
          else
             {throw
-                {SQLiteException
+                {Exception ||SQLiteException 
                     {lmessage Unexpected SQLite datatype {value t}}
                 }
             }
