@@ -264,10 +264,6 @@
         Sometimes an implementation may be able to calculate this
         automatically.
     }
-    {parameter strict-types?,
-        Should the types in the SQL meta-data be enforced.  Some
-        implementations may ignore this.
-    }
     {parameter 
         ..., may include {docref EventHandler}s to
         be attached to this recordset.

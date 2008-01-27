@@ -14,23 +14,6 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| TODO
-|| 
-|| - check SQLite dynamic type conventions
-|| -- has well defined sort order: first datatype, then per-type ordering
-|| -- null first, unlike what Record.compare-field does
-||
-|| - extend API beyond Connection / ConnectedRecordSet
-|| -- something like Statement with cursor
-|| - need lighter RecordSet subclass
-|| -- lazier instantiation of records, data
-|| 
-|| - may not need strict adherence to Curl RecordField protocol
-|| -- if can directly rely on underlying SQLite semantics
-|| --- uniqueness, modifiability, nullability, default-value
-|| - but maybe useful for Curl UI
-
-
 {import * from COM.CURL.CDK.SQL-BASE}
 
 {doc-next
@@ -348,8 +331,8 @@
             let affinity:SQLiteDatatypeAffinity = 
                 {SQLiteDatatypeAffinity-from-declared-type type}
             let domain:Domain =
-                {SQLiteVariantDomain.from-affinity
-                    affinity, strict? = strict-types?
+                {SQLiteVariantDomain.from-affinity affinity,
+                    strict? = strict-types?
                 }
             let primary-key?:bool =
                 {if-non-null primary-keys then
@@ -363,14 +346,11 @@
                     domain = domain,
                     || NOTE: needs to be nullable to defeat Curl check
                     nullable? = true, ||nullable?,
-                    || NOTE: SQLite allows this
-                    modifiable? = true, ||not primary-key?
+                    modifiable? = true,
                     primary-key? = primary-key?,
                     auto-increment? = 
                         primary-key? and primary-key-is-auto-increment? and
-                        (affinity == SQLiteDatatypeAffinity.INTEGER or
-                         affinity == SQLiteDatatypeAffinity.NUMERIC or
-                         affinity == SQLiteDatatypeAffinity.NONE),
+                        (affinity == SQLiteDatatypeAffinity.INTEGER),
                     type
                 }
             {fs.append f}
@@ -577,7 +557,7 @@
     {return-vals
         Returns {ctext true} if execution succeeded.  If {param callback}
         returns {ctext false} then this will return {ctext true}.
-    }
+  }
   }
   {method public {execute-sqlite
                      query:String,
@@ -729,8 +709,8 @@
 
   field constant private commit-callback:SQLiteCommitHookProcType
   {method private {register-commit-hook
-                      callback:#SQLiteCommitHookProcType
-                  }:void
+                        callback:#SQLiteCommitHookProcType
+                    }:void
     set self.database.commit-hook = callback
   }
 
@@ -753,8 +733,8 @@
 
   field constant private rollback-callback:SQLiteRollbackHookProcType
   {method private {register-rollback-hook
-                      callback:#SQLiteRollbackHookProcType
-                  }:void
+                        callback:#SQLiteRollbackHookProcType
+                 }:void
     set self.database.rollback-hook = callback
   }
 
@@ -777,8 +757,8 @@
 
   field constant private update-callback:SQLiteUpdateHookProcType
   {method private {register-update-hook
-                      callback:#SQLiteUpdateHookProcType
-                  }:void
+                        callback:#SQLiteUpdateHookProcType
+                 }:void
     set self.database.update-hook = callback
   }
 

@@ -227,6 +227,10 @@
     }
   }
 
+  {getter public {connection}:SQLiteConnection
+    {return super.connection asa SQLiteConnection}
+  }
+
   || SQLConnectedRecordSet APIs
 
 

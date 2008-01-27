@@ -2252,7 +2252,8 @@
         If a version number looks like X.Y.Z then this number will be
         X*1000000 + Y*1000 + Z.
     }
-  }{dll-method public {libversion-number ("sqlite3_libversion_number")
+  }
+  {dll-method public {libversion-number ("sqlite3_libversion_number")
                      }:int
   }
 
