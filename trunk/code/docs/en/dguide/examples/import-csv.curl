@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -24,13 +24,13 @@
     || schema
     {db.execute "
 CREATE TABLE temp (
- year INT NOT NULL,
- month INT NOT NULL,
- day INT NOT NULL,
- max INT NOT NULL,
- mean INT NOT NULL,
- min INT NOT NULL,
- PRIMARY KEY (year, month, day)
+  year INT NOT NULL,
+  month INT NOT NULL,
+  day INT NOT NULL,
+  max INT NOT NULL,
+  mean INT NOT NULL,
+  min INT NOT NULL,
+  PRIMARY KEY (year, month, day)
 );"}
     || data
     {SQLiteStatement.import-csv db, "temp",

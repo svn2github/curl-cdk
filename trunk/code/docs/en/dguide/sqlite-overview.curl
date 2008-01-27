@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -298,19 +298,19 @@ CREATE TABLE products (
             {docref SQLiteRecordSet.create-from-table-name}}
     }
 
-    {Frame background = "pink", margin = 6px,
-        {paragraph {bold TODO:}
-            Examples illustrating modifiability variants.    
-            
-            {itemize
-                {item table recordsets}
-                {item view recordsets}
-                {item query recordsets}
-            }
-        }}
+||--    {Frame background = "pink", margin = 6px,
+||--        {paragraph {bold TODO:}
+||--            Examples illustrating modifiability variants.    
+||--            
+||--            {itemize
+||--                {item table recordsets}
+||--                {item view recordsets}
+||--                {item query recordsets}
+||--            }
+||--        }}
     
     {x-example-ref title = {message Create RecordSet},
-        {url "examples/recordset-create.curl"}
+        {url "examples/recordset-grid.curl"}
     }
 
     The {docref RecordField}s in a {docref SQLiteRecordSet} may
@@ -429,11 +429,11 @@ CREATE TABLE products (
     }
 }
 
-{Frame background = "pink", margin = 6px,
-    {italic {bold TODO:}
-        Confirm how these are specified and enabled,
-        after migration from old Connection is finalized.}
-}
+||--{Frame background = "pink", margin = 6px,
+||--    {italic {bold TODO:}
+||--        Confirm how these are specified and enabled,
+||--        after migration from old Connection is finalized.}
+||--}
 
 {x-example-ref title = {message Simple Explorer},
     {url "examples/simple-explorer.curl"}

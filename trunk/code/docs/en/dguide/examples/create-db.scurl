@@ -14,20 +14,20 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 applet}
-{applet manifest = "manifest.mcurl", locale = "en"}
-
-{include "../utils/guide-header.scurl"}
-{include "../utils/support.scurl"}
-
-{value
-    let which:String = {get-the-applet}.url.query
-    {if which.size <= 1 then
-        {bold No example specified}
-     else  
-        {example-ref 
-            title = "CDK Example",
-            {url {which.tail 1}}
-        }
-    }
+{define-proc public {create-db
+                        loc:#Url,
+                        schema:Url,
+                        csv-files:UrlArray
+                    }:SQLiteDatabase
+    || open database
+    def db = {SQLiteDatabase loc}
+    || database schema
+    {db.execute {read-from schema}}
+    || data population
+    {for loc in csv-files do
+        def name = loc.basename
+        {SQLiteStatement.import-csv db, name, loc}}
+    || result 
+    {return db}
 }
+        

@@ -1,17 +1,17 @@
 -- schema
 DROP TABLE IF EXISTS products;
 CREATE TABLE products (
- id TEXT NOT NULL PRIMARY KEY,
+ id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
  name TEXT NOT NULL,
- price DOUBLE NOT NULL
+ price DOUBLE NOT NULL DEFAULT 0.00
 )
 ;
 -- data
-INSERT INTO products VALUES ('0001','paper',10.00);
-INSERT INTO products VALUES ('0002','envelope',5.00);
-INSERT INTO products VALUES ('0003','pen',4.00);
-INSERT INTO products VALUES ('0004','pencil',2.00);
-INSERT INTO products VALUES ('0005','marker',7.00);
-INSERT INTO products VALUES ('0006','folder',9.00);
-INSERT INTO products VALUES ('0007','calendar',4.00);
+INSERT INTO products VALUES (1,'paper',10.00);
+INSERT INTO products VALUES (2,'envelope',5.00);
+INSERT INTO products VALUES (3,'pen',4.00);
+INSERT INTO products VALUES (4,'pencil',2.00);
+INSERT INTO products VALUES (5,'marker',7.00);
+INSERT INTO products VALUES (6,'folder',9.00);
+INSERT INTO products VALUES (7,'calendar',4.00);
 

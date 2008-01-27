@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -18,37 +18,37 @@
 {applet manifest = "../manifest.mcurl",
     {compiler-directives careful? = true}}
 {import * from COM.CURL.CDK.SQLITE}
+{import * from COM.CURL.CDK.SQLITE-LIBRARY}
 
 {include "simple-explorer.scurl"}
 {include "authorization.scurl"}
 
 {value
-    def loc = {url "OE.db"}
-    def db = {SQLiteDatabase loc}                   
-    || authorization policy: disallow schema changes
+    || words database
+    def db = {SQLiteDatabase null}
+    {db.execute "CREATE TABLE words (word TEXT NOT NULL PRIMARY KEY);"}
+    {SQLiteStatement.import-csv db, "words", {url "Nouns.txt"}}
+
+    || authorization policy: disallow modification or schema changes
     def policy = 
-        {AuthorizationPolicy
-            || read
+        {AuthorizationPolicy 
             "READ", "OK",
             "SELECT", "OK",
-            "FUNCTION", "OK",
-            || modify
-            "DELETE", "OK",
-            "INSERT", "OK",
-            "UPDATE", "OK"}
+            "FUNCTION", "OK"}
+    
     || explorer
-    def display = 
+    def display =
         {QueryDisplay db,
+            policy = policy,
             width = 6in,
-            height = 4in,
-            policy = policy}
-    || start with schema info
-    {display.add-event-handler
-        {on AttachEvent do
-            set display.query-panel.value =
-                "SELECT * from sqlite_master"
-            {display.query-panel.handle-event {ValueChanged}}
-            {display.execute}
-        }}
+            height = 4in}
+    
+    || start with slow query !
+    {display.query-panel.set-value-with-events
+        "SELECT prefix AS k, s.word AS sword, p.word AS pword FROM
+  (SELECT substr(word,length(word)-1,2) AS suffix, word FROM words WHERE word LIKE 'a%') s,
+  (SELECT substr(word,0,2) AS prefix, word FROM words) p
+WHERE prefix=suffix
+ORDER BY k"}
     display
 }

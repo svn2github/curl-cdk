@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -15,13 +15,26 @@
 ||| limitations under the License.
 
 {define-class public QueryDisplay {inherits BaseFrame}
+  || model
   field public-get constant database:SQLiteDatabase
   field public-get constant query-model:QueryModel
+  field public-get policy:#AuthorizationPolicy
+  || presentation
   field grid:RecordGrid
   field query-panel:TextArea
-  {constructor public {default database:SQLiteDatabase}
+  field progress:ProgressBar
+  
+  || construction
+  {constructor public {default 
+                          database:SQLiteDatabase,
+                          policy:#AuthorizationPolicy = null, 
+                          ...}
+    set self.policy = policy
     set self.database = database
+    {if-non-null policy = self.policy then
+        {policy.register self.database}}
     set self.query-model = {QueryModel self.database}
+    
     || controls
     set self.query-panel =
         {TextArea
@@ -33,33 +46,111 @@
         {RecordGrid
             width = {add-stretch},
             height = {add-stretch}}
+    set self.progress =
+        {ProgressBar width = .75in}
+    def command-bar =
+        {HBox
+            {CommandButton label = "Execute",
+                {on Action do
+                    {self.execute}}},
+            {CommandButton label = "Cancel",
+                {on Action do
+                    {self.database.interrupt}}},
+            {Fill},
+            self.progress}
+    
     || layout
     def main = {PanedWindow orientation = "vertical"}
     {main.add-pane self.query-panel}
     {main.add-pane
         self.grid}
-    {main.set-pane-sizes {{Array-of double} 10%, 90%}}
+    {main.set-pane-sizes {{Array-of double} 20%, 80%}}
     def display =
-        {VBox style-class = "sql",
+        {VBox
             hstretch? = true,
+            command-bar,
             main}
+    {construct-super {splice ...}}
     {self.add-internal display}
+    
     || coordination
     {self.query-model.add-event-handler
-        {on QueryResult at q:QueryModel do
-            {output {message selected {value q.result.size} in  {value q.elapsed}}}
-            {self.reset-grid}
-            set self.grid.record-source = q.result
-            {dwim-grid self.grid}
+        {on QueryStateChanged at q:QueryModel do
+            {self.note-query-state-changed q}
         }}
-    {self.query-model.add-event-handler
-        {on QueryFailure at q:QueryModel do
-            {popup-message q.exception.message}
+    
+    || progress
+    def instructions-interval = 50
+    {self.database.set-progress-handler instructions-interval,
+        {proc {}:bool
+            || NOTE: allow refresh display, possible cancel
+            {dispatch-events false}
+            {self.note-progress-ongoing}
+            {return false}
         }}
   }
+  || operations
   {method {execute}:void
     {with-busy-cursor
         {self.query-model.execute}}
+  }
+  || presentation
+  {method {note-query-state-changed q:QueryModel}:void
+    {self.note-progress-stop}
+    {switch q.state
+        
+     case QueryState.unknown do
+        || nothing to do
+        
+     case QueryState.running do
+        {self.note-progress-start}
+        
+     case QueryState.complete do
+        {self.note-result
+            {non-null q.result}}
+        
+     case QueryState.failure do
+        {self.note-failure
+            {non-null q.exception}}
+        
+     else {unreachable}}
+  }
+  {method {note-result result:RecordSet}:void
+    def elapsed = {self.started.elapsed}
+    {output {message selected {value result.size} in  {value elapsed}}}
+    {self.refresh-grid result}
+  }
+  {method {note-failure exception:Exception}:void
+    {popup-message exception.message}
+  }
+  || progress
+  field started:DateTime = {DateTime}
+  field last-progress-report:Time
+  {method {note-progress-start}:void
+    {self.report-progress ""}
+    set self.started = {DateTime}
+    set self.last-progress-report = 0s
+  }
+  {method {note-progress-stop}:void
+    {self.report-progress ""}
+  }
+  def progress-interval = .5s
+  {method {note-progress-ongoing}:void
+    def elapsed = {self.started.elapsed}
+    {if elapsed - self.last-progress-report > QueryDisplay.progress-interval then
+        set self.last-progress-report = elapsed
+        def caption = {String {value elapsed}}
+        {self.report-progress caption}}
+  }
+  {method {report-progress caption:String}:void
+    set self.progress.caption = caption
+    set self.progress.indeterminate? = not caption.empty?
+  }
+  || display support
+  {method {refresh-grid rs:RecordSet}:void
+    {self.reset-grid}
+    set self.grid.record-source = rs
+    {dwim-grid self.grid}
   }
   {method {reset-grid}:void
     || NOTE: clears vestigial column specs
@@ -68,13 +159,20 @@
     set self.grid.filter = null
   }
 }
+|| --------------------
+{define-enum public QueryState
+    unknown,
+    running,
+    complete,
+    failure
+}
 {define-class public abstract QueryStatus {inherits Event}}
-{define-class public QueryResult {inherits QueryStatus}}
-{define-class public QueryFailure {inherits QueryStatus}}
+{define-class public QueryStateChanged {inherits QueryStatus}}
 || --------------------
 {define-class public QueryModel {inherits EventTarget}
   field public-get constant database:SQLiteDatabase
-  field public-get sql:String
+  field _state:QueryState
+  field _sql:String = ""
   field public-get result:#RecordSet
   field public-get exception:#Exception
   field public-get last-sql:#String
@@ -87,6 +185,25 @@
     set self.last-sql = null
     {construct-super {splice ...}}
   }
+  || the query
+  {getter public {sql}:String
+    {return self._sql}
+  }
+  {setter public {sql val:String}
+    {if val != self._sql then
+        set self._sql = val
+        set self.state = QueryState.unknown}
+  }
+  {getter public {state}:QueryState
+    {return self._state}
+  }
+  || query state
+  {setter {state val:QueryState}
+    {if val != self._state then
+        set self._state = val
+        def e = {QueryStateChanged}
+        {self.handle-event e}}
+  }
   {getter public {empty?}:bool
     {return self.sql.empty?}
   }
@@ -98,24 +215,20 @@
         not self.current? and
         not self.sql.empty?}
   }
-  field started:DateTime = {DateTime}
-  field elapsed:Time = 0s
+  || operation
   {method public {execute}:void
     set self.exception = null
-    set self.started = {DateTime}
-    set self.elapsed = {self.started.elapsed}
+    set self.state = QueryState.running
     {try
         def rs = {SQLiteBasicRecordSet self.database, self.sql}
-        set self.elapsed = {self.started.elapsed}
         set self.result = rs
         set self.last-sql = self.sql
         || report success
-        {self.handle-event {QueryResult}}
+        set self.state = QueryState.complete
      catch e:Exception do
-        set self.elapsed = {self.started.elapsed}
         set self.exception = e
         || report failure
-        {self.handle-event {QueryFailure}}
+        set self.state = QueryState.failure
     }
   }
 }
@@ -133,6 +246,7 @@
                  case d:SQLiteVariantDomain do
                     {switch d.affinity
                      case SQLiteDatatypeAffinity.NUMERIC,
+                        SQLiteDatatypeAffinity.REAL,
                         SQLiteDatatypeAffinity.INTEGER
                      do true
                      else false}
@@ -142,3 +256,4 @@
             set col.halign = "right"}
         set col.width = w}
 }
+

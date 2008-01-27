@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -55,7 +55,7 @@
         },
         {node
             |"Create RecordSet"|,
-            {url "generic-example.curl?examples/recordset-create.curl"}
+            {url "generic-example.curl?examples/recordset-grid.curl"}
         },
         {node
             |"RecordSet with Form"|,
@@ -77,10 +77,6 @@
             |"Progress Notification"|,
             {url "generic-example.curl?examples/progress.curl"}
         },
-||--        {node
-||--            |"Busy Handler"|,
-||--            {url "generic-example.curl?examples/busy-handler.curl"}
-||--        },
         {node
             |"Install Function"|,
             {url "generic-example.curl?examples/install-function.curl"}
