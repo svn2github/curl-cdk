@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -21,7 +21,6 @@
 || - modifiable recordgrid where appropriate
 || - stronger "designer" support
 || -- differentiate DML (select) from DDL (create, etc)
-|| -- refresh schema info when it changes
 || - persistent settings
 || -- recent databases
 || -- SQL history
@@ -70,7 +69,10 @@
             {MenuAction label = {bold {lmessage Execute}},
                 bound-command = {self.commands.get-command "execute"}},
             {MenuAction label = {lmessage Cancel},
-                bound-command = {self.commands.get-command "cancel"}}
+                bound-command = {self.commands.get-command "cancel"}},
+            {SubMenu label = {lmessage Help},
+                {MenuAction label = {lmessage Guide}},
+                {MenuAction label = {lmessage About}}}
         }
     {add-context-popup self.panes,
         menu-pane =
@@ -136,6 +138,10 @@
                 set self._cancel? = false
                 set e.cancel? = true}
         }}
+    {self.add-event-handler
+        {on DBXSchemaChanged do
+            {self.schema-changed}
+        }}
     || init
     set self._database = database
     {self.database-changed}
@@ -170,7 +176,8 @@
             {proc {}:void
                 {with-busy-cursor
                     {with self.running? = true do
-                        {self.current-query-display.execute}}}},
+                        {self.current-query-display.execute}}
+                    {self.note-schema-changes}}},
             {proc {}:bool
                 {return
                     {if-non-null qd = self.current-query-display then
@@ -287,19 +294,54 @@
     {self.commands.request-update-commands}
   }
   {method {database-changed}:void
+    || detect schema changes
+    set self.database.authorizer =
+        {proc {operation:SQLiteOperation,
+               data1:#String, data2:#String,
+               data3:#String, data4:#String
+              }:SQLiteAuthorizerReturnCode
+            {if not self._schema-changed? and
+                {DBExplorer.schema-operations.member? operation}
+             then
+                set self._schema-changed? = true}
+            {return SQLiteAuthorizerReturnCode.OK}}
+    || allow interruption
     def instructions-interval = 100 || TODO: suitable value
     {self.database.set-progress-handler instructions-interval,
         {proc {}:bool
             def e = {DBXProgress}
             {self.handle-event e}
             {return e.cancel?}}}
+    || refresh GUI
     {self.update-display}
+    {self.schema-changed}
     {self.handle-event {DBXDatabaseChanged}}
   }
-  {method {update-display}:void
-    || index
+  {method {schema-changed}:void
+    set self._schema-changed? = false
     {self.index.add replace? = true,
         {self.make-schema-index}}
+  }
+  field _schema-changed?:bool
+  def schema-operations =
+      {{Set-of SQLiteOperation}
+        SQLiteOperation.COPY,
+        SQLiteOperation.CREATE_INDEX,
+        SQLiteOperation.CREATE_TABLE,
+        SQLiteOperation.CREATE_TRIGGER,
+        SQLiteOperation.CREATE_VIEW,
+        SQLiteOperation.DROP_INDEX,
+        SQLiteOperation.DROP_TABLE,
+        SQLiteOperation.DROP_TRIGGER,
+        SQLiteOperation.DROP_VIEW,
+        SQLiteOperation.ALTER_TABLE
+      }
+  {method {note-schema-changes}:void
+    {if self._schema-changed? then
+        {self.handle-event
+            {DBXSchemaChanged}}}
+  }
+  {method {update-display}:void
     || panes
     {self.panes.remove-all-panes}
     {self.add-query-pane}
@@ -433,6 +475,8 @@
 }
 {define-class public DBXDatabaseChanged {inherits DBXEvent}
 }
+{define-class public DBXSchemaChanged {inherits DBXEvent}
+}
 {define-class public DBXInfo {inherits DBXEvent}
   field public-get constant info:any
   {constructor public {default info:any}
@@ -477,12 +521,6 @@
     def rootv = {TreeNode node-data = {bold Views}}
     {for t in views do
         def nt = {SchemaTreeNode t asa String, "view"}
-||--        def fs = {db.sql-rows {format "PRAGMA table_info (%s)", t}}
-||--        {for f in fs do
-||--            def name = f[1]
-||--            def pk? = f[5] != 0
-||--            def nf = {SchemaTreeNode name, "column"}
-||--            {nt.append nf}}
         {rootv.append nt}}
     {return
         {TreeModel root =
@@ -533,21 +571,3 @@
 ||--        {b.detach}}
 ||--}
 || --------------------
-|#
-    || TEST: detect schema changes
-    let ops:{Set-of SQLiteOperation} = {{Set-of SQLiteOperation}}
-    def authorizer =
-        {proc {operation:SQLiteOperation,
-               data1:#String, data2:#String,
-               data3:#String, data4:#String
-              }:SQLiteAuthorizerReturnCode
-            {if data1 != "sqlite_master"
-                or operation != SQLiteOperation.READ
-             then
-                {ops.insert operation}}
-            {return SQLiteAuthorizerReturnCode.OK}
-        }
-    {with self.database.authorizer = authorizer do
-        {ops.clear}
- #|
-

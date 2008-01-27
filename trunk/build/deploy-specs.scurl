@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -17,6 +17,9 @@
 {DeploySpecs
     caption = {lmessage deploy CDK},
 
+    || SOURCE distribution
+    || ====================
+
     || duplicate source tree  
     || --------------------                      
     || -- code (copy)
@@ -30,6 +33,13 @@
         "support/project.cprj",
         "deploy",
         "src/support"
+    },
+    || incorporate test framework 
+    || --------------------
+    {DeploySpec
+        "lib/CDU/project.cprj",
+        "deploy",
+        "src/lib/CDU"
     },
     || incorporate STYLED library 
     || --------------------
@@ -57,6 +67,10 @@
                     {target.concat file},
                     error-if-exists? = false}}}
     },
+
+    || LIBRARY distribution
+    || ====================
+    
     || build library (pcurl)
     || -------------------- 
     {DeploySpec
@@ -64,19 +78,16 @@
         "deploy",
         "deploy/COM.CURL.CDK"
     },
+
+    || DOCS distribution
+    || ====================
+    
     || documentation (copy + docs)
     || --------------------
     {DeploySpec
         "code/project.cprj",
         "deploy-docs",
         "docs-install/COM.CURL.CDK"
-    },
-    || incorporate test framework 
-    || --------------------
-    {DeploySpec
-        "lib/CDU/project.cprj",
-        "deploy",
-        "src/lib/CDU"
     },
     || clean source control directories
     || --------------------
