@@ -46,19 +46,22 @@
                   }:SQLiteVariantDomain
     def spec =
         {{Tuple2-of SQLiteDatatypeAffinity, bool} affinity, strict?}
-    {return SQLiteVariantDomain.cache[spec]}
+|| Caching disabled until we fix Bug 28778, but maybe this has to stay
+|| disabled since 6.0.0 and 6.0.1 will have that bug.
+||--    {return SQLiteVariantDomain.cache[spec]}
+{return {SQliteVariantDomain affinity = affinity, strict? = strict?}}
   }
-  def cache =
-      {{Memoizer-of
-           {Tuple2-of SQLiteDatatypeAffinity, bool},
-           SQLiteVariantDomain}
-        {proc {spec:{Tuple2-of SQLiteDatatypeAffinity, bool}
-              }:SQLiteVariantDomain
-            {return
-                {SQLiteVariantDomain
-                    affinity = spec.t0,
-                    strict? = spec.t1}}
-        }}
+||--  def cache =
+||--      {{Memoizer-of
+||--           {Tuple2-of SQLiteDatatypeAffinity, bool},
+||--           SQLiteVariantDomain}
+||--        {proc {spec:{Tuple2-of SQLiteDatatypeAffinity, bool}
+||--              }:SQLiteVariantDomain
+||--            {return
+||--                {SQLiteVariantDomain
+||--                    affinity = spec.t0,
+||--                    strict? = spec.t1}}
+||--        }}
   
   {method public {validate x:any}:#ValidationException
     let (dt:SQLiteDatatype, valid?:bool) = {self.storage-class-for {type-of x}}

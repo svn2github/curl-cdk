@@ -100,7 +100,7 @@
         Name of the SQL table to load.  A SQL query against that table
         will be created.
     }
-    {parameter load-on-construction?,
+    {parameter load-now?,
         Should the {docref RecordSet} be loaded when construction is complete.
     }
     {notes
@@ -115,7 +115,7 @@
                               request-modifiable?:bool = false,
                               size-limit:int = -1,
                               base-where-clause:#String = null,
-                              load-on-construction?:bool = false,
+                              load-now?:bool = true,
                               strict-types?:bool = false,
                               ...:EventHandler
                           }:SQLConnectedRecordSet
@@ -128,7 +128,7 @@
     {details
         Parameters are the same as {docref SQLConnectedRecordSet.create}.
     }
-    {parameter load-on-construction?,
+    {parameter load-now?,
         Should the {docref RecordSet} be loaded when construction is complete.
     }
     {notes
@@ -153,7 +153,7 @@
                               || We can sometimes figure out the keys
                               || but often we can't.
                               primary-keys:#{Array-of String} = null,
-                              load-on-construction?:bool = false,
+                              load-now?:bool = true,
                               strict-types?:bool = false,
                               ...:EventHandler
                           }:SQLConnectedRecordSet
@@ -621,8 +621,9 @@
   {method public {generate-where-sql buf:StringBuf, record:BasicRecord}:void
     {buf.concat " WHERE "} ||""
     {if-non-null base-where-clause = self.base-where-clause then
+        {buf.concat " ("} ||""
         {buf.concat base-where-clause}
-        {buf.concat " AND "} ||""
+        {buf.concat ") AND "} ||""
     }
     {type-switch record
      case r:SQLHiddenIndexRecord do

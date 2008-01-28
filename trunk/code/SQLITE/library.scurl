@@ -240,8 +240,8 @@
     let errmsg:String = ""
     {if status-code != SQLiteStatus.OK.index then
         set errmsg = {errmsg-pointer.value.to-String}
+        {self.free errmsg-pointer.value}
     }
-    {self.free errmsg-pointer.value}
     {return {SQLiteStatus index = status-code}, errmsg}
   }
 

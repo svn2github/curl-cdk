@@ -268,6 +268,9 @@
         {proc {}:void
             {self.close}
         }
+    || FIXME: this is not right for in-memory databases or databases with
+    || temporary tables, because it wipes those out on suspend.  Should
+    || be on-exit for those.
     {register-suspend-proc {non-null self.suspend-proc}}
 
     {if-non-null callback = self._authorizer then

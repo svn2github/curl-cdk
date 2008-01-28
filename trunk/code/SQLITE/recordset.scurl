@@ -96,7 +96,7 @@
                       base-where-clause:#String = null,
                       strict-types?:bool = false,
                       base-where-clause-parameters:#Array = null,
-                      load-on-construction?:bool = false,
+                      load-now?:bool = true,
                       ...:EventHandler
                   }:SQLiteRecordSet
 
@@ -119,7 +119,7 @@
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = true,
             base-where-clause-parameters = base-where-clause-parameters,
-            load-on-construction? = load-on-construction?,
+            load-now? = load-now?,
             ...
         }
     }
@@ -199,7 +199,7 @@
                           || used.
                           query-is-full-row?:bool = false,
                           primary-keys:#{Array-of String} = null,
-                          load-on-construction?:bool = false,
+                          load-now?:bool = true,
                           strict-types?:bool = false,
                           query-parameters:#Array = null,
                           base-where-clause-parameters:#Array = null,
@@ -221,7 +221,7 @@
     }
     set self.query-parameters = query-parameters
     set self.base-where-clause-parameters = base-where-clause-parameters
-    {if load-on-construction? then
+    {if load-now? then
         set self.load-state = RecordSetLoadState.unloaded
         {self.load}
     }
@@ -435,6 +435,9 @@
     }
     let connection:SQLiteConnection =
         self.connection asa SQLiteConnection
+    || TODO: Should there be a flag to allow suppressing the
+    || transaction, in case code wants to do the transaction around
+    || several commits?
     {connection.execute-sql "", "BEGIN IMMEDIATE"} ||""
     {try
         let iter:{Iterator-of Record} = {self.to-Iterator}

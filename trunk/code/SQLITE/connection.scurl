@@ -237,7 +237,7 @@
          else
             {self.combined-table-name database, "sqlite_master"} ||""
         } &
-        " WHERE type IN ('table', 'view')", ||""
+        " WHERE name NOT LIKE 'sqlite_%' AND type IN ('table', 'view')", ||""
         callback =
             {proc {row:Array}:bool
                 {tables.append row[0] asa String}
@@ -462,7 +462,7 @@
                      request-modifiable?:bool=false,
                      size-limit:int=-1,
                      base-where-clause:#String = null,
-                     load-on-construction?:bool = false,
+                     load-now?:bool = true,
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -473,7 +473,7 @@
             table-name,
             request-modifiable? = request-modifiable?,
             size-limit = size-limit,
-            load-on-construction? = load-on-construction?,
+            load-now? = load-now?,
             strict-types? = strict-types?,
             ...
         }
@@ -494,7 +494,7 @@
                      || used.
                      query-is-full-row?:bool = false,
                      primary-keys:#{Array-of String} = null,
-                     load-on-construction?:bool = false,
+                     load-now?:bool = true,
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -509,7 +509,7 @@
             base-where-clause = base-where-clause,
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = query-is-full-row?,
-            load-on-construction? = load-on-construction?,
+            load-now? = load-now?,
             strict-types? = strict-types?,
             ...
         }
