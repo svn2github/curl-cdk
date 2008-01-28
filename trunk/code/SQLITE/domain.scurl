@@ -49,7 +49,7 @@
 || Caching disabled until we fix Bug 28778, but maybe this has to stay
 || disabled since 6.0.0 and 6.0.1 will have that bug.
 ||--    {return SQLiteVariantDomain.cache[spec]}
-{return {SQliteVariantDomain affinity = affinity, strict? = strict?}}
+{return {SQLiteVariantDomain affinity = affinity, strict? = strict?}}
   }
 ||--  def cache =
 ||--      {{Memoizer-of
