@@ -26,7 +26,7 @@
 
 {doc-next
     {purpose
-        {docref Event} sent if {param note-rollback?} {ctext = true}
+        {docref Event} sent if {param rollback-event?} {ctext = true}
         is provided to {docref SQLiteConnection.default}.
     }
 }
@@ -35,7 +35,7 @@
 
 {doc-next
     {purpose
-        {docref Event} sent if {param note-commit?} {ctext = true}
+        {docref Event} sent if {param commit-event?} {ctext = true}
         is provided to {docref SQLiteConnection.default}.
     }
 }
@@ -51,7 +51,7 @@
 
 {doc-next
     {purpose
-        {docref Event} sent if {param note-update?} {ctext = true}
+        {docref Event} sent if {param update-event?} {ctext = true}
         is provided to {docref SQLiteConnection.default}.
     }
 }
@@ -123,34 +123,34 @@
         file does not exist, fail.  If {ctext false}, then
         {param database-url} will be created if needed.
     }
-    {parameter note-commit?,
+    {parameter commit-event?,
         Should {docref SQLiteCommitEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
-    {parameter note-rollback?,
+    {parameter rollback-event?,
         Should {docref SQLiteRollbackEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
-    {parameter note-update?,
+    {parameter update-event?,
         Should {docref SQLiteUpdateEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?
     }
     {parameter ...,
         Event handlers to receive various subclasses of {docref SQLiteEvent}
-        as indicated by the values supplied in {param note-commit?},
-        {param note-rollback?} and {param note-update?}.
+        as indicated by the values supplied in {param commit-event?},
+        {param rollback-event?} and {param update-event?}.
     }
   }
   {constructor public {default 
                           database-url:#Url = null,
                           database:#SQLiteDatabase = null,
                           error-if-missing?:bool = false,
-                          note-commit?:bool = false,
-                          note-rollback?:bool = false,
-                          note-update?:bool = false,
+                          commit-event?:bool = false,
+                          rollback-event?:bool = false,
+                          update-event?:bool = false,
                           ...:EventHandler
                       }
     || Only supply the url or the database or neither (for in memory database)
@@ -176,9 +176,9 @@
     || Notification
     set (self.update-callback, self.rollback-callback, self.commit-callback) =
         {self.define-callbacks}
-    set self.note-commit? = note-commit?
-    set self.note-rollback? = note-rollback?
-    set self.note-update? = note-update?
+    set self.commit-event? = commit-event?
+    set self.rollback-event? = rollback-event?
+    set self.update-event? = update-event?
     
     || superclasses
     {construct-super.SQLConnection 
@@ -462,7 +462,11 @@
                      request-modifiable?:bool=false,
                      size-limit:int=-1,
                      base-where-clause:#String = null,
+<<<<<<< .mine
+                     load-on-construction?:bool = true,
+=======
                      load-now?:bool = true,
+>>>>>>> .r85
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -494,7 +498,11 @@
                      || used.
                      query-is-full-row?:bool = false,
                      primary-keys:#{Array-of String} = null,
+<<<<<<< .mine
+                     load-on-construction?:bool = true,
+=======
                      load-now?:bool = true,
+>>>>>>> .r85
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -690,13 +698,13 @@
     }
   }
 
-  field private _note-commit?:bool
-  {getter public {note-commit?}:bool
-    {return self._note-commit?}
+  field private _commit-event?:bool
+  {getter public {commit-event?}:bool
+    {return self._commit-event?}
   }
-  {setter public {note-commit? val:bool}:void
-    {if val != self._note-commit? then
-        set self._note-commit? = val
+  {setter public {commit-event? val:bool}:void
+    {if val != self._commit-event? then
+        set self._commit-event? = val
         {self.register-commit-hook
             {if val then 
                 self.commit-callback
@@ -714,13 +722,13 @@
     set self.database.commit-hook = callback
   }
 
-  field private _note-rollback?:bool
-  {getter public {note-rollback?}:bool
-    {return self._note-rollback?}
+  field private _rollback-event?:bool
+  {getter public {rollback-event?}:bool
+    {return self._rollback-event?}
   }
-  {setter public {note-rollback? val:bool}:void
-    {if val != self._note-rollback? then
-        set self._note-rollback? = val
+  {setter public {rollback-event? val:bool}:void
+    {if val != self._rollback-event? then
+        set self._rollback-event? = val
         {self.register-rollback-hook
             {if val then 
                 self.rollback-callback
@@ -738,13 +746,13 @@
     set self.database.rollback-hook = callback
   }
 
-  field private _note-update?:bool
-  {getter public {note-update?}:bool
-    {return self._note-update?}
+  field private _update-event?:bool
+  {getter public {update-event?}:bool
+    {return self._update-event?}
   }
-  {setter public {note-update? val:bool}:void
-    {if val != self._note-update? then
-        set self._note-update? = val
+  {setter public {update-event? val:bool}:void
+    {if val != self._update-event? then
+        set self._update-event? = val
         {self.register-update-hook
             {if val then 
                 self.update-callback

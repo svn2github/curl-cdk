@@ -265,7 +265,7 @@
         finalized, it will be compiled to get the byte code.
     }
   }
-  {getter public open {data-count}:int
+  {getter public open {column-data-count}:int
     {return {{SQLiteInterface}.data-count self.non-null-stmt}}
   }
 
@@ -606,9 +606,8 @@
   }
 
   {getter public {current-row}:Array
-    || TODO: consider data-count
     || - zero if no current row
-    let nval:int = self.column-count
+    let nval:int = self.column-data-count
     let row:Array = {Array efficient-size = nval}
     {for i = 0 below nval do
         {row.append {self.get-column-value i}}
