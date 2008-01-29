@@ -151,6 +151,7 @@ CREATE TABLE products (
 
     A statement, once prepared (or {docref-abbr SQLiteStatement.reset}),
     is essentially a cursor on the query results.
+    You can get results from a statement a row at a time, or consolidated.
 
     Use {docref-abbr SQLiteStatement.step} to obtain each data row.
     The {ctext step} return value indicates the kind of result.
@@ -169,8 +170,17 @@ CREATE TABLE products (
     {itemize
         {item create with {docref SQLiteDatabase.create-statement}.}
         {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.}
-        {item execute with {docref-abbr SQLiteStatement.step}.}
-        {item obtain data with {docref-abbr SQLiteStatement.get-column-value} and other {ctext get-column-} methods.}
+        {item get consolidated results.
+            {itemize
+                {item by iterating with {docref-abbr SQLiteStatement.rows-to-Iterator}.}
+                {item using {docref-abbr SQliteStatement.data-column} and other {ctext data-} methods.}
+            }}
+        {item get incremental results.
+            {itemize
+                {item execute with {docref-abbr SQLiteStatement.step}.}
+                {item obtain data with {docref-abbr SQLiteStatement.get-column-value}
+                    and other {ctext get-column-} methods.}
+            }}
         {item reset for further reuse with {docref-abbr SQLiteStatement.reset}.
             Note that parameter bindings are retained when a statement is reset.
             Use {docref-abbr SQLiteStatement.clear-bindings} to unset bound parameters.}
@@ -298,21 +308,6 @@ CREATE TABLE products (
             {docref SQLiteRecordSet.create-from-table-name}}
     }
 
-||--    {Frame background = "pink", margin = 6px,
-||--        {paragraph {bold TODO:}
-||--            Examples illustrating modifiability variants.    
-||--            
-||--            {itemize
-||--                {item table recordsets}
-||--                {item view recordsets}
-||--                {item query recordsets}
-||--            }
-||--        }}
-    
-    {x-example-ref title = {message Create RecordSet},
-        {url "examples/recordset-grid.curl"}
-    }
-
     The {docref RecordField}s in a {docref SQLiteRecordSet} may
     contain values of any datatype supported by the SQLite engine.
     The data conversion behavior provided by {docref SQLiteVariantDomain}
@@ -323,14 +318,17 @@ CREATE TABLE products (
     (For example, {docref RecordGrid} and {docref Chart} recognize numeric types.)
     Use the {ctext strict-types?} keyword to control whether
     the recordset domains enforce type affinity.    
-    
-    {x-example-ref title = {message RecordSet with Form},
-        {url "examples/recordset-form.curl"}
-    }
-    
-    {x-example-ref title = {message RecordSet with Chart},
-        {url "examples/recordset-chart.curl"}
-    }
+
+||--    {Frame background = "pink", margin = 6px,
+||--        {paragraph {bold TODO:}
+||--            Examples illustrating modifiability variants.    
+||--            
+||--            {itemize
+||--                {item table recordsets}
+||--                {item view recordsets}
+||--                {item query recordsets}
+||--            }
+||--        }}
     
     Some kinds of processing can performed either
     at the level of the database engine (in SQL),
@@ -364,9 +362,6 @@ CREATE TABLE products (
             SQL transactions (bounded by {monospace BEGIN}
             and {monospace COMMIT} or {monospace ROLLBACK}) allow
             compound operations to be performed atomically.
-            
-            || RS
-            || good practice: "early commit" from Curl - every mod or every record
         }
         {item {bold constraints}
             Certain constraints ({docref RecordField.nullable?} and
@@ -386,6 +381,37 @@ CREATE TABLE products (
             one database can be active through a single SQLite database.
         }
     }
+
+    These examples show uses of {ctext SQLiteRecordSet}
+    with Curl GUI classes for {ctext RecordSet} display.
+    Note the following techniques:
+
+    {itemize
+        {item use of {ctext request-modifiable?} parameter
+            to enable updates to occur}
+        {item use of {docref CurrentRecordChangeRequest}
+            to submit changes to database whenever
+            current record changes}
+        {item use of {ctext strict-types?} parameter
+            to preserve numeric type affinity}
+    }
+    
+    {x-example-ref title = {message RecordSet with Grid},
+        {url "examples/recordset-grid.curl"}
+    }
+    
+    {x-example-ref title = {message RecordSet with Form},
+        {url "examples/recordset-form.curl"}
+    }
+    
+    {x-example-ref title = {message RecordSet with Chart},
+        {url "examples/recordset-chart.curl"}
+    }
+
+    This example shows use of an attached database.
+    The example uses an in-memory database to log GUI events.
+    When you use the "Save" command, it attaches a file database,
+    and duplicates the table.
     
     {x-example-ref title = {message Attach Database},
         {url "examples/attach-save.curl"}
@@ -400,52 +426,93 @@ CREATE TABLE products (
     The SQLite engine allows for application to be notified of changes,
     by registration of callbacks.  These notification mechanisms
     are exposed by {docref SQLiteDatabase} using {docref SQLiteEvent} subclasses.
-}
 
-{itemize
-    {item {bold Progress handler}
-        Use {docref SQLiteDatabase.set-progress-handler}
-        to get periodic calls to a function
-        during long-running SQL operations.
+    {itemize
+        {item {bold Progress handler}
+            Use {docref SQLiteDatabase.set-progress-handler}
+            to get periodic calls to a function
+            during long-running SQL operations.
+        }
+        {item {bold Authorizers}
+            These allow the full range of SQL statements to be restricted.
+            This would be useful, for example, when processing user-supplied
+            SQL, to disallow modification oprations.
+            Use {docref SQLiteDatabase.authorizer} to supply a function
+            that will be called before any statement is prepared,
+            in order to allow or deny the correponding kind of operation.
+        }
+        {item {bold Busy handlers}
+            When more than one process might access the same database concurrently,
+            the SQLite engine uses locking to prevent inconsistent changes.
+            Attempts by an application to perform an operation which is locked
+            will get a {docref SQLiteStatus}.{ctext BUSY} result,
+            which, by default, will be thrown as an exception.
+            Use {docref SQLiteDatabase.busy-timeout}
+            (or the more advanced {docref SQLiteDatabase.set-busy-handler})
+            to control behavior for this condition.
+        }
+        {item {bold Update notification}
+            The application can observe changes by adding event handlers
+            for these actions.
+            {itemize
+                {item {docref SQLiteUpdateEvent} when a row is modified.}
+                {item {docref SQLiteCommitEvent} before SQL {ctext COMMIT}.}
+                {item {docref SQLiteRollbackEvent} after SQL {ctext REVERT}.}
+            }}
     }
-    {item {bold busy handler}
-        When more than one process might access the same database concurrently,
-        the SQLite engine uses locking to prevent inconsistent changes.
-        Attempts by an application to perform an operation which is locked
-        will get a {docref SQLiteStatus}.{ctext BUSY} result,
-        which, by default, will be thrown as an exception.
-        Use {docref SQLiteDatabase.busy-timeout}
-        (or the more advanced {docref SQLiteDatabase.set-busy-handler})
-        to control behavior for this condition.
-    }
-    {item {bold update notification}
-        The application can observe changes by adding event handlers
-        for these actions.
-        {itemize
-            {item {docref SQLiteUpdateEvent} when a row is modified.}
-            {item {docref SQLiteCommitEvent} before SQL {ctext COMMIT}.}
-            {item {docref SQLiteRollbackEvent} after SQL {ctext REVERT}.}
+
+    Several of these techniques are used in the following "database explorer" example,
+    which allows SQL expressions to be created and evaluated.
+
+    The examples are started with a query over the {ctext sqlite_master} table,
+    used by the SQLite engine to describe the database schema,
+    so that you can see tables and views defined in the database.
+
+    {itemize
+        {item
+            The code is a bit long for an example box.
+            Look at {link href = {curl-edit-url {url "examples/simple-explorer.scurl"}},
+            in the IDE}.
+        }
+        {item {ctext authorizer} callback is used to disallow inappropriate operations.
+            {x-code-ref title = "Authorizer",
+                {url "examples/authorization.scurl"}}
+            {itemize
+                {item in Authorization example,  schema changes are prohibited.}
+                {item in Progess example, modifications are also prohibited.}
+            }}
+        {item {ctext set-progress-handler} is used to give a visual indication
+            when a query is executing.  Note the use of {docref dispatch-events}
+            so that the UI will refresh during the callback, and so that
+            a time-consuming operation can be cancelled using {docref SQLiteDatabase.interrupt}.
+            {x-code-ref title = "Progress",
+                {url "examples/progress.scurl"}}
+            The initial query in this example is contrived to be slow.
+            It returns pairs of words with matching suffix and prefix,
+            using self-join over 5000 records, with a condition that requires a full table scan.
+            It will take some seconds to return the 4000 results for words starting with 'a'.
+            It takes some minutes to return 66000 results if you eliminate the where clause.
+            Use the {ctext Cancel} button if you don't want to wait.
         }
     }
+    
+
+    {x-example-ref title = {message Simple Explorer},
+        {url "examples/simple-explorer.curl"}
+    }
+
+    {x-example-ref title = {message Authorization},
+        {url "examples/authorization.curl"}
+    }
+
+    {x-example-ref title = {message Progress Notification},
+        {url "examples/progress.curl"}
+    }
+
+||--    {x-example-ref title = {message Busy Handler},
+||--        {url "examples/busy-handler.curl"}
+||--    }
 }
-
-||--{Frame background = "pink", margin = 6px,
-||--    {italic {bold TODO:}
-||--        Confirm how these are specified and enabled,
-||--        after migration from old Connection is finalized.}
-||--}
-
-{x-example-ref title = {message Simple Explorer},
-    {url "examples/simple-explorer.curl"}
-}
-
-{x-example-ref title = {message Progress Notification},
-    {url "examples/progress.curl"}
-}
-
-||--{x-example-ref title = {message Busy Handler},
-||--    {url "examples/busy-handler.curl"}
-||--}
 
 || ====================
 {heading level=3,
@@ -455,58 +522,90 @@ CREATE TABLE products (
     The SQLite engine allows for definition of application extensions,
     by registration of callbacks.  These extension mechanisms
     are exposed by {docref SQLiteDatabase}.
-}
 
-{itemize
-    {item {bold functions and aggregates}
-        The built-in SQLite functions can be extended using
-        {docref SQLiteDatabase.install-function}.
-        A {bold function} computes a value from its arguments,
-        and can be used anywhere a value is expected.
-        An {bold aggregation function} accumulates values
-        from a set of records, often used in a statement
-        with a {ctext GROUP BY} partition. 
+    {itemize
+        {item {bold functions}
+            The built-in SQLite functions can be extended using
+            {docref SQLiteDatabase.install-function}.
+            A {bold function} computes a value from its arguments,
+            and can be used anywhere a value is expected.
+        }
+        {item {bold aggregates}
+            An {bold aggregation function} accumulates values
+            from a set of records, often used in a statement
+            with a {ctext GROUP BY} partition. 
+        }
     }
-    {item {bold authorizers}
-        These allow the full range of SQL statements to be restricted.
-        This would be useful, for example, when processing user-supplied
-        SQL, to disallow modification oprations.
-        Use {docref SQLiteDatabase.authorizer} to supply a function
-        that will be called before any statement is prepared,
-        in order to allow or deny the correponding kind of operation.
+
+    {x-example-ref title = {message Install Function},
+        {url "examples/install-function.curl"}
     }
-}
 
-{x-example-ref title = {message Install Function},
-    {url "examples/install-function.curl"}
-}
-
-{x-example-ref title = {message Install Aggregate Function},
-    {url "examples/install-aggregate.curl"}
-}
-
-{x-example-ref title = {message Authorization},
-    {url "examples/authorization.curl"}
+    {x-example-ref title = {message Install Aggregate Function},
+        {url "examples/install-aggregate.curl"}
+    }
 }
 
 || ====================
 {heading level=3,
    Operational considerations
 }
-||--{paragraph
-||--   TODO.
-||--}
 
 {itemize
-    {item HTTP considerations}
-    {item server interaction}
-    || consider change log
-    {item lifecycle and resource usage}
-    {item transactions and locking}
-    {item concurrency}
-    {item attached databases}
-    || copy example
-    {item pragma settings}
+    {item {bold use over HTTP}
+        
+        The SQLite engine runs as a native executable, from the local filesystem,
+        and uses local files for database storage.  Therefore, when confronted with
+        HTTP {docref Url}, this library makes copies in the local filesystem.
+
+        When the CDK library is deployed over HTTP,
+        the SQLIte engine is included as an HTTP resource.
+        That executable library is copied into
+        the local {ctext curl://user-data/} partition,
+        the first time a particular version is needed.
+
+        Any database file specified by an application as an HTTP resource
+        is copied into the local {ctext curl://local-data/} partition
+        for that applet, before it can be opened.
+
+        Note that modifications to the database occur only in the local copy.
+        The application must make provisions for any submission
+        of data to an external destination.
+    }
+    {item {bold lifecycle and resource usage}
+
+        While a database is open system resources are in use.
+        Each prepared statement employs additional resources.
+        These resources are freed when statements are finalized,
+        and databases are closed.
+
+        You should release resources explicitly when you know
+        they are no longer needed.  You can use the
+        {docref with-database} and {docref with-statement} macros
+        to enclose temporary uses.
+
+        When applets are terminated, open databases and statements
+        are automatically closed, releasing their resources.
+        This may happen after applets are suspended.
+
+        SQLite always assures that data is written to the filesystem,
+        so no matter how a database is closed, it will be consistent,
+        and can be reopened.  Of course, memory databases, and temporary tables
+        and views are not preserved when the database is closed.
+    }
+    {item {bold concurrency, transactions and locking}
+
+        The SQLite engine is designed for reliable operation
+        with concurrent connections.  Database files are locked during
+        operations, to ensure consistency.  
+    }
+    {item {bold pragma settings}
+
+        The SQLite {ctext PRAGMA} command allows for applications
+        to change some operational characteristics of the engine.
+        Use {docref SQLiteDatabase.execute} to issue {ctext PRAGMA} directives,
+        just like any SQL statement. 
+    }
 }
 
 || ====================

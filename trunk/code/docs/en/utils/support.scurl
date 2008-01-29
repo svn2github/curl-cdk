@@ -172,16 +172,33 @@
                 {bold {value title}},
                 display}}}
 }
-{define-proc {x-code-box
+{define-proc public {code-ref
+                        loc:Url,
+                        ...
+                    }:Graphic
+    let result:any = 
+        {try
+            let buf:StringBuf = {read-from loc}
+            {strip-prelude-lines buf, prelude-line?}
+            {evaluate 
+                {format "\{curl-code \n%s\}",
+                    buf}}
+         catch e:Exception do
+            {paragraph
+                Error in {bold {value loc}}:{br}                
+                {text color = "red", {value e}}}}
+    {return {Frame result, {splice ...}}}
+}
+{define-proc {x-code-ref
                  title:String = {message Example},
-                 display:Visual,
+                 href:Url,
                  ...}:Visual
     {return
         {text-width-display 
             {expandable
                 border-width = 2px, 
                 {bold {value title}},
-                {code-box display,
+                {code-ref href,
                     {splice ...}}}}}
 }
 || sourceref

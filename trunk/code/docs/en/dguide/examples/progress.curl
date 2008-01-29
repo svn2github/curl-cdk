@@ -40,7 +40,7 @@
     def display =
         {QueryDisplay db,
             policy = policy,
-            width = 6in,
+            width = 8in,
             height = 4in}
     
     || start with slow query !
@@ -48,7 +48,6 @@
         "SELECT prefix AS k, s.word AS sword, p.word AS pword FROM
   (SELECT substr(word,length(word)-1,2) AS suffix, word FROM words WHERE word LIKE 'a%') s,
   (SELECT substr(word,0,2) AS prefix, word FROM words) p
-WHERE prefix=suffix
-ORDER BY k"}
+WHERE prefix=suffix ORDER BY k"}
     display
 }

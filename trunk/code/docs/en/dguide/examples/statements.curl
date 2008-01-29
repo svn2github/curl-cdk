@@ -39,7 +39,7 @@
                         {p.reset}
                         {p.bind id}
                         {p.step}
-                        {for i = 0 below p.data-count do
+                        {for i = 0 below p.column-count do
                             {info.add
                                 {row-prototype
                                     {bold {p.get-column-name i}},
