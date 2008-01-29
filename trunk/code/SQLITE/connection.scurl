@@ -462,11 +462,7 @@
                      request-modifiable?:bool=false,
                      size-limit:int=-1,
                      base-where-clause:#String = null,
-<<<<<<< .mine
-                     load-on-construction?:bool = true,
-=======
                      load-now?:bool = true,
->>>>>>> .r85
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
@@ -498,11 +494,7 @@
                      || used.
                      query-is-full-row?:bool = false,
                      primary-keys:#{Array-of String} = null,
-<<<<<<< .mine
-                     load-on-construction?:bool = true,
-=======
                      load-now?:bool = true,
->>>>>>> .r85
                      strict-types?:bool = false,
                      ...:EventHandler
                  }:SQLConnectedRecordSet
