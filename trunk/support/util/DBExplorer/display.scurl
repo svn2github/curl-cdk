@@ -345,13 +345,6 @@
     || panes
     {self.panes.remove-all-panes}
     {self.add-query-pane}
-||--    || NOTE: experimental pane adder
-||--    {self.panes.add-pane
-||--        {TabPane label = {lmessage New},
-||--            {on TabPaneShown at p:TabPane do
-||--                {self.add-query-pane before = p}}}}
-||--    || HACK ATTACK
-||--    {remove-last-tab-close-button self.panes}
   }
   || adapters
   {method {make-schema-index}:Graphic
@@ -391,7 +384,13 @@
             width = {add-stretch},
             height = {add-stretch}}
     || layout
-    def main = {PanedWindow orientation = "vertical"}
+    def main =
+        {PanedWindow orientation = "vertical"}
+    {do
+        || NOTE: set explicitly, because not affected by stylesheet
+        || -- when added to existing display
+        set main.background = "#BBE9F0"
+        set main.sash-background = "transparent"}
     {main.add-pane self.query-panel}
     {main.add-pane
         self.grid}
@@ -549,25 +548,3 @@
             set col.halign = "right"}
         set col.width = w}
 }
-|| --------------------
-|| TEST: support for pane added
-||--{define-proc {walk-elements-if g:Graphic, action:{proc-type {Graphic}:void}}:void
-||--    def f =
-||--        {proc {g:Graphic}:void
-||--            {action g}
-||--            {type-switch g
-||--             case b:Box do
-||--                {for g in b.graphical-children do
-||--                    {f g}}}}
-||--    {f g}
-||--}
-||--{define-proc {remove-last-tab-close-button tc:TabContainer}:void
-||--    let b:#Graphic = null
-||--    {walk-elements-if tc,
-||--        {proc {g:Graphic}:void
-||--            {if g.style-element == "TabContainer/close-button"
-||--             then set b = g}}}
-||--    {if-non-null b then
-||--        {b.detach}}
-||--}
-|| --------------------
