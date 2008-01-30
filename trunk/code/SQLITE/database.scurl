@@ -157,10 +157,11 @@
   field private rollback-callback-ptr:SQLiteRollbackCallbackPointerType =
     {uninitialized-value-for-type SQLiteRollbackCallbackPointerType}
 
-  || Note: this is null when the database is closed.  And when
-  || the database is open, a registered suspend proc will keep this
+  || Note: these is null when the database is closed.  And when
+  || the database is open, a registered proc will keep this
   || Object alive, which is required.
   field private suspend-proc:#{proc-type {}:void}
+  field private exit-proc:#{proc-type {}:void}
 
   || Saved and re-installed when the database is re-opened.
   field private constant installed-functions:{Array-of FunctionSpec} =
@@ -261,17 +262,28 @@
         }
     }
 
-    || Register the suspend proc. When the applet is suspended close
-    || the database, if open. We do not have to add the resume proc as
-    || the database connection will be opened lazily, if needed.
-    set self.suspend-proc =
+    || Register procs to release resources (by closing database).
+    || Database is opened lazily, so no need for resume proc.
+    || - File databases can be closed on suspend    
+    || - memory databases (or temp databases) would be lost
+
+    def suspend-proc =
         {proc {}:void
+            || |#DEBUG#| {errput {message on SUSPEND in {value self} ({value {get-working-directory-url}.filename})}}
+            {if self.close-on-suspend? then
+                || |#DEBUG#| {errput {message ... can close}}
+                {self.close}}
+        }
+    set self.suspend-proc = suspend-proc
+    {register-suspend-proc suspend-proc}
+
+    def exit-proc =
+        {proc {}:void
+            || |#DEBUG#| {errput {message on EXIT in {value self} ({value {get-working-directory-url}.filename}) }}
             {self.close}
         }
-    || FIXME: this is not right for in-memory databases or databases with
-    || temporary tables, because it wipes those out on suspend.  Should
-    || be on-exit for those.
-    {register-suspend-proc {non-null self.suspend-proc}}
+    set self.exit-proc = exit-proc
+    {register-exit-proc exit-proc}
 
     {if-non-null callback = self._authorizer then
         set self.authorizer = self._authorizer
@@ -397,20 +409,32 @@
   }
   {method public open {close}:void
     {if self.sqlite3 == 0 then {return}}
+    || |#DEBUG#| {errput {message SQLITE closing {value self} ({value {get-working-directory-url}.filename}) }}
 
     let constant statements:{Array-of SQLiteStatement} = self.statements
     {while statements.size > 0 do
         let constant stmt:SQLiteStatement = {statements.pop}
         || Ignore finalize errors.
         {stmt.finalize}
-    }
+        || |#DEBUG#| {errput {message SQLITE finalized {value stmt.sql}}}
+        }
     let constant status:SQLiteStatus = {{SQLiteInterface}.close self.sqlite3}
     {if status == SQLiteStatus.OK then
         set self._sqlite3 = 0
         {unregister-suspend-proc {non-null self.suspend-proc}}
         set self.suspend-proc = null
+        {unregister-exit-proc {non-null self.exit-proc}}
+        set self.exit-proc = null
      else
         {self.check-status}
+    }
+  }
+  
+  {getter private {close-on-suspend?}:bool
+    || TODO: check also for TEMP tables
+    {return
+        || don't want to lose in-memory databases
+        self.url != null
     }
   }
 
