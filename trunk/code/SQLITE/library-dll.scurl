@@ -101,7 +101,6 @@
                 {error {lmessage SharedLibrary {value name} not available for this platform.}}
             }
          else
-            || TODO: for MAC also
             {error {lmessage SharedLibrary {value name} not available for this platform.}}
         }
     || if HTTP, copy library to LocalFile
