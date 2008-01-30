@@ -115,3 +115,122 @@
         }}
   }
 }
+{define-class public SQLiteTableRecordSetsTestSuite {inherits TestSuite}
+  field public-get constant location:#Url
+  field public-get constant connection:SQLiteConnection
+  {constructor public {default 
+                          location:#Url,
+                          init-proc:#{proc-type {SQLiteDatabase}:void} = null
+                      }
+    set self.location = location
+    {construct-super
+        {if-non-null location 
+         then location.filename 
+         else ":memory:"}}
+    def database = {SQLiteDatabase self.location}
+    {if-non-null init-proc then
+        {init-proc database}}
+    set self.connection = {SQLiteConnection database = database}
+    {self.generate-tests}
+  }
+  {method {generate-tests}:void
+    def database = self.connection.database
+    def tables = 
+        {database.sql-column
+            "SELECT name FROM sqlite_master WHERE NOT name LIKE 'sqlite_%' AND type='table' ORDER BY name"}
+    {for table in tables do
+        {self.add
+            {SQLiteTableRecordSetTestCase self.connection, table asa String}}}
+  }
+}
+{define-class public SQLiteTableRecordSetTestCase {inherits TestCase}
+  field public-get constant connection:SQLiteConnection
+  field public-get constant table:String
+  {constructor public {default connection:SQLiteConnection, table:String}
+    set self.connection = connection
+    set self.table = table
+    {construct-super table}
+  }
+  {method public {run}:void
+    def db = self.connection.database
+    def table = self.table
+    def s-count =
+        {SQLiteStatement db,
+            {format "SELECT count(*) FROM %s", table}}
+    def s-select =        
+        {SQLiteStatement db,
+            {format "SELECT * FROM %s ORDER BY ROWID", table}}
+    
+    || first two rows
+    {s-select.step}
+    def row1 = s-select.current-row
+    {s-select.step}
+    def row2 = s-select.current-row
+    {s-select.reset}
+    
+    || working recordset
+    def rs =
+        {self.connection.create-sql-record-set 
+            "main", s-select.sql, 
+            table-name = table,
+            query-is-full-row? = true,
+            request-modifiable? = true}
+    
+    || column names
+    def ks = {StringArray}
+    {for f in rs.fields do
+        {ks.append f.name}}
+    
+    || delete first two records
+    || --------------------
+    def iter = {rs.to-Iterator}
+    def r1 = {iter.read-one}
+    def r2 = {iter.read-one}
+    {iter.reset}
+    {r1.delete}
+    {r2.delete}
+    {rs.commit}
+    || counts should match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after delete}}
+    
+    || reinsert first record
+    || --------------------
+    def rr1 = {rs.new-record}
+    {for k key i in ks do
+        set rr1[k] = row1[i]}
+    {rs.append rr1}
+    {rs.commit}
+    || counts should still match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after insert}}
+    
+    || modify first with values from second
+    || --------------------
+    {for k key i in ks do
+        set rr1[k] = row2[i]}
+    || reinsert first record
+    def rr2 = {rs.new-record}
+    {for k key i in ks do
+        set rr2[k] = row1[i]}
+    {rs.append rr2}
+    {rs.commit}
+    || counts should still match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after update}}
+    
+    || values should match
+    || --------------------
+    let match?:bool = true
+    {for k key i in ks do
+        {if rr1[k] != row2[i] then
+            set match? = false
+            {break}}
+        {if rr2[k] != row1[i] then
+            set match? = false
+            {break}}
+    }
+    {TestCondition.assert match?,
+        message = {lmessage row data consistency}}
+  }
+}
