@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Copyright (C) 1998-2007, Sumisho Computer Systems Corp.  All Rights Reserved.-->
+<!-- Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.-->
 <!-- -->
 <!-- An OpenCurl project. -->
 <!-- -->
@@ -15,6 +15,18 @@
 <!-- See the License for the specific language governing permissions and -->
 <!-- limitations under the License. -->
 <translation-dictionary version="2">
+
+<string>
+<original>'size-limit' or 'start-record' were supplied for a multistatement query.</original>
+</string>
+
+<string>
+<original>Can not generate valid WHERE clause with no known primary keys.</original>
+</string>
+
+<string>
+<original>Cannot commit non-modifiable RecordSet.</original>
+</string>
 
 <string>
 <original>Illegal type: %s</original>
