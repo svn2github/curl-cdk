@@ -84,6 +84,22 @@
          case "linux" do
             {manifest-url "file", name,
                 platform = "linux"}
+         case "mac" do
+            || Note: to build the shared libraries for OSX, you have to
+            || do configure --disable-tcl and then edit the Makefile
+            || to add -no-undefined to libtool command line used to make
+            || shared libraries called LTLINK.  Then copy the dylib from
+            || the .libs directory.
+            {platform-switch
+             case "x86" do
+                {manifest-url "file", name,
+                    platform = "mac", arch = "x86"}
+             case "ppc" do
+                {manifest-url "file", name,
+                    platform = "mac", arch = "ppc"}
+             else
+                {error {lmessage SharedLibrary {value name} not available for this platform.}}
+            }
          else
             || TODO: for MAC also
             {error {lmessage SharedLibrary {value name} not available for this platform.}}
@@ -94,6 +110,5 @@
             || TODO: dguide recommends "curl://common/"
             {user-data-copy-of mloc, name}
          else mloc}
-    {return 
-        {SharedLibrary.from-url loc}}
+    {return {SharedLibrary.from-url loc}}
 }
