@@ -21,6 +21,21 @@
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
+
+{doc
+    type = package,
+    COM.CURL.CDK.SQL-BASE
+    {purpose
+        The package provides generic support for working with SQL databases.
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
 {import * from CURL.DATA-ACCESS.BASE}
 {import * from CURL.DATA-ACCESS.CONNECTED}
 

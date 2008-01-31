@@ -28,36 +28,56 @@
 {paragraph
     The Curl Data Kit (CDK) library
     facilitates building data-centric applications in Curl.
+
+    {itemize
+
+        {item {bold local SQL databases}
+            
+            The {docref COM.CURL.CDK.SQLITE} package
+            allows you to build applications that make use of local SQL databases,
+            using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
+            SQL engine.
+
+            This allows data centric Curl applications to take advantage of the
+            full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
+
+            SQLite databases are fully integrated with the Curl {docref COM.CURL.DATA-ACCESS} package.
+        }
+
+        {item {bold CDK Roadmap}
+            Additional functionality is planned for future releases.
+        }
+    }
+
+    CDK development takes place at the Open Source
+    {link href = {url "http://curl-cdk.wiki.sourceforge.net/"}, Curl Data Kit Project}.
     
-    It includes support for client side SQLite databases.
 }
 
 {heading level=2,
-    What's New in CDK 1.0
+    What's New in CDK 0.8
 }
 
 {paragraph
-    This is the first CDK Release.
+    This is a preview of the first CDK Release.
+
+    {preliminary
+        This preview contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.
+    }
 }
 
 {paragraph
-    This CDK Release is for use with Curl API Version 6.0.
+    This CDK Preview Release is for use with Curl API Version 6.0.
     
-    Core CDK Release packages are marked as version 1.0.
+    CDK Preview Release packages are marked as version 0.8.
     
     {itemize
         {item
             {link href = {url "sqlite-overview.curl"},
             SQLite Overview}}
     }
-
-||--    Some CDK Extras packages remain in prototype form,
-||--    and are marked as version 0.9.
-||--    
-||--    {itemize
-||--        {item
-||--            {link href = {url "cdk-extras.curl"},
-||--            CDK Extras}}
     
 }
 

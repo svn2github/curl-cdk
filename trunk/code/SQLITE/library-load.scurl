@@ -21,6 +21,28 @@
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
+
+{doc
+    type = package,
+    COM.CURL.CDK.SQLITE-LIBRARY
+    {purpose
+        The package provides direct access to
+        {link href = {url "http://www.sqlite.org"}, SQLite}
+        SQL engine.
+    }
+    {details
+        This is a separate package to isolate low level library interface,
+        and associated types.  In general, you should not import this directly,
+        just import {ctext COM.CURL.CDK.SQLITE}
+        and it will re-export the necessary types.
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
 
 {include "library-defs.scurl"}

@@ -21,6 +21,23 @@
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
+
+{doc
+    type = package,
+    COM.CURL.CDK.SQLITE
+    {purpose
+        The package provides support for local SQL databases,
+        using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
+        SQL engine.
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
 {import * from CURL.DATA-ACCESS.BASE}
 {import * from CURL.DATA-ACCESS.CONNECTED}
 {import * from CURL.LANGUAGE.REGEXP}

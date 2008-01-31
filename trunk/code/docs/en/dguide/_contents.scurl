@@ -54,7 +54,7 @@
             {url "generic-example.curl?examples/import-csv.curl"}
         },
         {node
-            |"Create RecordSet"|,
+            |"RecordSet with Grid"|,
             {url "generic-example.curl?examples/recordset-grid.curl"}
         },
         {node
@@ -74,6 +74,10 @@
             {url "generic-example.curl?examples/simple-explorer.curl"}
         },
         {node
+            |"Authorization"|,
+            {url "generic-example.curl?examples/authorization.curl"}
+        },
+        {node
             |"Progress Notification"|,
             {url "generic-example.curl?examples/progress.curl"}
         },
@@ -84,10 +88,6 @@
         {node
             |"Install Aggregate Function"|,
             {url "generic-example.curl?examples/install-aggregate.curl"}
-        },
-        {node
-            |"Authorization"|,
-            {url "generic-example.curl?examples/authorization.curl"}
         }
     }
 }
