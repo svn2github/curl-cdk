@@ -90,6 +90,7 @@
             || to add -no-undefined to libtool command line used to make
             || shared libraries called LTLINK.  Then copy the dylib from
             || the .libs directory.
+            || The libraries were stripped with "strip -x -u -r".
             {platform-switch
              case "x86" do
                 {manifest-url "file", name,

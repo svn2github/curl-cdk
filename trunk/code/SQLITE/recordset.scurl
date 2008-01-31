@@ -292,9 +292,9 @@
     {super.commit}
   }
 
-  {method public {generate-prefix-values-sql
+  {method protected {generate-prefix-values-sql
                      buf:StringBuf,
-                     records:BasicRecord,
+                     record:BasicRecord,
                      check-if-modified?:bool = false,
                      primary-keys?:bool = false
                 }:void
@@ -303,7 +303,7 @@
 
   {method protected {generate-values-list-sql
                         buf:StringBuf,
-                        records:BasicRecord
+                        record:BasicRecord
                     }:void
     || for SQLite this will generate a string with ?s in it.
     {for fi = 0 below self.fields.size do

@@ -276,6 +276,7 @@
     let hidden-primary-key-field-name:#String
     let primary-key-is-auto-increment?:bool = false
     || FIXME: should we skip this if not request-modifiable?
+    || Use table-name, if available to get additional meta-data.
     {if-non-null table-name then
         || FIXME: There is no way to get if a column is auto-increment, so
         || we check for a row about this table in sqlite_sequence, but

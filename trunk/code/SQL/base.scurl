@@ -484,7 +484,7 @@
   }
   {method protected abstract {generate-values-list-sql
                                  buf:StringBuf,
-                                 records:BasicRecord
+                                 record:BasicRecord
                              }:void
     || for CDBC this will generate a string with everything in it.
     || for SQLite this will generate a string with ?s in it.
@@ -500,9 +500,9 @@
   }
   {method protected {generate-insert-statement-sql
                         buf:StringBuf,
-                        records:BasicRecord
+                        record:BasicRecord
                     }:void
-    {self.generate-prefix-values-sql buf, records}
+    {self.generate-prefix-values-sql buf, record}
     {buf.concat "INSERT INTO "}
     {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
     {buf.concat " "}
@@ -510,7 +510,7 @@
         {self.generate-field-names-list-sql buf}
     }
     {buf.concat " VALUES("}
-    {self.generate-values-list-sql buf, records}
+    {self.generate-values-list-sql buf, record}
     {buf.concat ")"}
   }
 
@@ -603,12 +603,12 @@
         {ctext true}.
     }
   }
-  {method public abstract {generate-prefix-values-sql
-                              buf:StringBuf,
-                              record:BasicRecord,
-                              check-if-modified?:bool = false,
-                              primary-keys?:bool = false
-                          }:void
+  {method protected abstract {generate-prefix-values-sql
+                                 buf:StringBuf,
+                                 record:BasicRecord,
+                                 check-if-modified?:bool = false,
+                                 primary-keys?:bool = false
+                             }:void
   }
 
   {doc-next
