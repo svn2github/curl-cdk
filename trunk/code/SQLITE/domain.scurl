@@ -44,13 +44,34 @@
                       affinity:SQLiteDatatypeAffinity,
                       strict?:bool = false
                   }:SQLiteVariantDomain
-    def spec =
-        {{Tuple2-of SQLiteDatatypeAffinity, bool} affinity, strict?}
-|| Caching disabled until we fix Bug 28778, but maybe this has to stay
-|| disabled since 6.0.0 and 6.0.1 will have that bug.
+    || Use of tuple in this way fails, until Bug 28778 is fixed.
+||--    def spec =
+||--        {{Tuple2-of SQLiteDatatypeAffinity, bool} affinity, strict?}
 ||--    {return SQLiteVariantDomain.cache[spec]}
-{return {SQLiteVariantDomain affinity = affinity, strict? = strict?}}
+    {return
+        {if strict? then
+            SQLiteVariantDomain.cache-strict[affinity]
+         else
+            SQLiteVariantDomain.cache[affinity]}
+    }
   }
+  def cache =
+      {{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain}
+        {proc {affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
+            {return
+                {SQLiteVariantDomain
+                    affinity = affinity,
+                    strict? = false}}
+        }}
+  def cache-strict =
+      {{Memoizer-of SQLiteDatatypeAffinity, SQLiteVariantDomain}
+        {proc {affinity:SQLiteDatatypeAffinity}:SQLiteVariantDomain
+            {return
+                {SQLiteVariantDomain
+                    affinity = affinity,
+                    strict? = true}}
+        }}
+  || This will not work until Bug 28778 is fixed
 ||--  def cache =
 ||--      {{Memoizer-of
 ||--           {Tuple2-of SQLiteDatatypeAffinity, bool},
@@ -213,9 +234,9 @@
     NONE
 }
 
-{define-proc package {SQLiteDatatypeAffinity-from-declared-type 
-                         decltype:String
-                     }:SQLiteDatatypeAffinity
+{define-proc public {SQLiteDatatypeAffinity-from-declared-type 
+                        decltype:String
+                    }:SQLiteDatatypeAffinity
   {return
       {if decltype.empty?
        then
