@@ -575,7 +575,7 @@
     || in the database, if it is PRAGMA or whatever then we do it manually.
     || Note: there had better not be a ; at the end of the statement.
     let limit-already-handled?:bool =
-        {if start-record != 0 or size-limit >= 0 and
+        {if (start-record != 0 or size-limit >= 0) and
             {query.prefix? "SELECT", ignore-case? = true}
          then
             set query = query & " LIMIT " & start-record & ", " & size-limit
@@ -608,7 +608,7 @@
                         {if start-record > row-index then
                             {continue}
                          elseif size-limit >= 0 and
-                            row-index > (start-record + size-limit)
+                            row-index >= (start-record + size-limit)
                          then
                             {break}
                         }

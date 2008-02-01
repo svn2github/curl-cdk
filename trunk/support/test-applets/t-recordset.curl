@@ -458,6 +458,27 @@
     || This would not actually work unless it had a narrowing base-where-clause
     || that made t0 a stand alone primary-key.
     {assert rs.modifiable? == (table-name == "table1")}
+    set rs =
+        {con.create-sql-record-set
+            database-name,
+            "PRAGMA " & {make-table-name database-name, "table_info"} &
+            "(" & table-name & ")",
+            table-name = null,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    {assert rs.size == 
+        {enum-size SQLiteDecltype} * {enum-size SQLiteNullness} * 2}
+    {assert rs.fields.size == 6}
+    {rs.load-range 2, 5}
+    {assert rs.size == 5}
+    {rs.load-range 0, 1}
+    {assert rs.size == 1}
+    {rs.load-range 2, 0}
+    {assert rs.size == 0}
+    {rs.load-range 8, -1}
+    {assert rs.size ==
+        ({enum-size SQLiteDecltype} * {enum-size SQLiteNullness} * 2) - 8}
+    {assert not rs.modifiable?}
 }
 
 {define-proc package {do-recordsets-for-all-tables
