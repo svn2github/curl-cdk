@@ -46,14 +46,13 @@
                 {TestSuite.import
                     {url "test-cases/dguide-test-cases.scurl"}}},
             || samples
-            {TestSuite "applets",
+            {TestSuite "samples",
                 || explorer
                 {AppletTestCase {url "../samples/DBExplorer/start.curl"}}
             },
             || applets
             {TestSuite "applets",
                 || lifecycle
-                {AppletTestCase {url "test-applets/t-census.curl"}},
                 {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}}
             }
         }
