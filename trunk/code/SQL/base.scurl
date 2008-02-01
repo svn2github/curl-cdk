@@ -303,20 +303,12 @@
         size-limit,
         ...
     }
-    {self.query-initialized}
-    let (fields:RecordFields, hidden-primary-key-field-name:#String) =
-        {connection.get-sql-fields
-            self.database-name,
-            query,
-            table-name = self.table-name,
-            hidden-primary-key-field = self.hidden-primary-key-field,
-            query-is-full-row? = self.query-is-full-row?,
-            primary-keys = self.primary-keys,
-            strict-types? = strict-types?
-        }
-    set self.hidden-primary-key-field-name = hidden-primary-key-field-name
+    || also sets self.modifiable?
+    let fields:RecordFields =
+        {self.query-initialized}
     {construct-super.BasicRecordSet
-        fields, modifiable? = request-modifiable?
+        fields,
+        modifiable? = request-modifiable? and self.modifiable?
     }
   }
 
@@ -360,7 +352,7 @@
   }
   {method protected abstract {query-initialized
                                  query-changed?:bool = true
-                             }:void
+                             }:RecordFields
   }
 
   {doc-next
@@ -397,20 +389,9 @@
     set self.query-is-full-row? = query-is-full-row?
     set self.primary-keys = primary-keys
     set self.strict-types? = strict-types?
-    {self.query-initialized query-changed? = query-changed?}
+    let fields:RecordFields =
+        {self.query-initialized query-changed? = query-changed?}
     {if query-changed? then
-        let connection:SQLConnection = (self.connection asa SQLConnection)
-        let (fields:RecordFields, hidden-primary-key-field-name:#String) =
-            {connection.get-sql-fields
-                self.database-name,
-                query,
-                table-name = self.table-name,
-                hidden-primary-key-field = self.hidden-primary-key-field,
-                query-is-full-row? = self.query-is-full-row?,
-                primary-keys = self.primary-keys,
-                strict-types? = self.strict-types?
-            }
-        set self.hidden-primary-key-field-name = hidden-primary-key-field-name
         {self.init fields = fields}
     }
     || load will call init and refresh the fields, but should we call init

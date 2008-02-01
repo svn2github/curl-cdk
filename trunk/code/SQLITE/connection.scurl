@@ -324,7 +324,7 @@
                 set names[name] = {Array i}
             }
             {if i == hidden-primary-key-field then
-                set hidden-primary-key-field-name = name
+                set hidden-primary-key-field-name = real-name
                 {continue}
             }
             let decltype:#String = {statement.get-column-decltype i}
@@ -511,6 +511,7 @@
             base-where-clause = base-where-clause,
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = query-is-full-row?,
+            primary-keys = primary-keys,
             load-now? = load-now?,
             strict-types? = strict-types?,
             ...

@@ -128,10 +128,12 @@
     || every other field as keys
     let odds-primary-keys:StringBuf = {StringBuf ", PRIMARY KEY("}
     {for key i in base do
-        {if i > 0 then
-            {odds-primary-keys.concat ", "}
+        {if i mod 2 == 1 then
+            {if i > 2 then
+                {odds-primary-keys.concat ", "}
+            }
+            {format out = odds-primary-keys, "t%d", i}
         }
-        {format out = odds-primary-keys, "t%d", i}
     }
     {odds-primary-keys.concat ")"}
     {tables-columns.append {join-strings base} & odds-primary-keys}
@@ -397,7 +399,6 @@
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
-    {assert rs.request-modifiable?}
     set rs =
         {con.create-sql-record-set-from-table-name
             database-name,
@@ -407,6 +408,7 @@
             request-modifiable? = true
         } asa SQLiteRecordSet
     {test-load-record-set rs}
+    {assert rs.modifiable?}
     set rs =
         {SQLiteRecordSet.create-from-table-name
             con,
@@ -427,7 +429,9 @@
             request-modifiable? = true
         } asa SQLiteRecordSet
     {test-load-record-set rs}
-    {assert rs.modifiable?}
+    || table0 has no declared primary-key, so it can only be modifiable
+    || when primary keys are in the query (since ROWID is not part of query.)
+    {assert rs.modifiable? == (table-name != "table0")}
 
     set rs =
         {con.create-sql-record-set
@@ -442,6 +446,18 @@
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
+    set rs =
+        {con.create-sql-record-set
+            database-name,
+            "SELECT t0 from " &
+                {make-table-name database-name, table-name},
+            table-name = table-name,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    || table1 is all primary-keys.
+    || This would not actually work unless it had a narrowing base-where-clause
+    || that made t0 a stand alone primary-key.
+    {assert rs.modifiable? == (table-name == "table1")}
 }
 
 {define-proc package {do-recordsets-for-all-tables
@@ -512,7 +528,8 @@ Also do RecordSet with bad SQL
 Also do RecordSet with no table (just values)
 *
 Test each RecordSet for normal read, size-limit read, range read, modifiability, and try with strict? = true (but that may need twiddling to avoid rows where
-strict isn't true).
+strict isn't true).  Test fill* with various sorts of changes (although fill* is
+a strange API...)
 For modifiable ones, try insert with no values, insert with values,
 insert with wrong type/value values, modify with good values,
 modify with bad values, delete.

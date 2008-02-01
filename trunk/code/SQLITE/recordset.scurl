@@ -126,7 +126,7 @@
     }
   }
 
-  {method protected {query-initialized query-changed?:bool = true}:void
+  {method protected {query-initialized query-changed?:bool = true}:RecordFields
     || If we might need to write to a table, and primary-keys were not
     || supplied, and we have enough info to figure it out, get the
     || primary-keys another way.
@@ -135,23 +135,59 @@
         set self.query-parameters = null
         set self.base-where-clause-parameters = null
     }
+    let connection:SQLiteConnection =
+        self.connection asa SQLiteConnection
     {if self.request-modifiable? and
-        self.primary-keys == null and self.table-name != null and
-        self.query-is-full-row?
+        self.primary-keys == null and
+        self.table-name != null
      then
-        let connection:SQLiteConnection =
-            self.connection asa SQLiteConnection
         set self.primary-keys =
             {connection.get-primary-keys-for-table
                  self.database-name,
                  {non-null self.table-name}
              }
     }
-    set self.request-modifiable? =
+
+    let fields:RecordFields =
+        {if query-changed? then
+            let temp-fields:#RecordFields
+            set (temp-fields, self.hidden-primary-key-field-name) =
+                {connection.get-sql-fields
+                    self.database-name,
+                    self.query,
+                    table-name = self.table-name,
+                    hidden-primary-key-field = self.hidden-primary-key-field,
+                    query-is-full-row? = self.query-is-full-row?,
+                    primary-keys = self.primary-keys,
+                    strict-types? = self.strict-types?
+                }
+            {non-null temp-fields}
+         else
+            self.fields
+        }
+
+    set self.modifiable? =
         self.request-modifiable? and
         self.table-name != null and
-        (self.hidden-primary-key-field >= 0 or
-         (self.primary-keys != null and self.primary-keys.size > 0))
+        (self.hidden-primary-key-field >= 0 or 
+         (self.primary-keys != null and self.primary-keys.size > 0 and
+            {value
+                let primary-key-count:int
+                {for fi = 0 below fields.size do
+                    let constant f:SQLRecordField =
+                        {fields.get-by-index fi} asa SQLRecordField
+                    {if f.primary-key? then
+                        {inc primary-key-count}
+                        {break}
+                    }
+                }
+                || Note: the code could insist that the could of primary-keys
+                || in the fields matches those in the table, but that doesn't
+                || allow some interesting narrowing queries.
+                primary-key-count > 0
+            })
+        )
+    {return fields}
   }
 
 
@@ -187,8 +223,8 @@
                           connection:SQLConnection,
                           database-name:String,
                           query:String,
-                          request-modifiable?:bool=false,
-                          size-limit:int=-1,
+                          request-modifiable?:bool = false,
+                          size-limit:int = -1,
                           table-name:#String = null,
                           base-where-clause:#String = null,
                           hidden-primary-key-field:int = -1,
@@ -213,9 +249,9 @@
         request-modifiable? = request-modifiable?,
         size-limit = size-limit,
         table-name = table-name,
-        query-is-full-row? = query-is-full-row?,
         base-where-clause = base-where-clause,
         hidden-primary-key-field = hidden-primary-key-field,
+        query-is-full-row? = query-is-full-row?,
         primary-keys = primary-keys,
         strict-types? = strict-types?,
         ...
@@ -273,11 +309,7 @@
                     {if i == self.hidden-primary-key-field then
                         {if col == null then
                             set col = min-int64
-                            {if self.primary-keys == null or 
-                                self.primary-keys.size == 0
-                             then
-                                set self.request-modifiable? = false
-                            }
+                            set self.modifiable? = false
                         }
                         set (r asa SQLHiddenIndexRecord).row-id = col asa int64
                      else
