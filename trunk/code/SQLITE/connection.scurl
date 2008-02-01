@@ -385,9 +385,9 @@
     let primary-keys:{Array-of String} = {new {Array-of String}}
     || Couldn't get bind-text to work with this query...
     {self.execute-sqlite
-        "PRAGMA table_info ('" &  ||""
-        {self.combined-table-name database-name, table-name} &
-        "')", ||""
+        "PRAGMA " &
+        {self.combined-table-name database-name, "table_info"} & ||""
+        "(" & table-name & ")", ||""
 |#
          args-callback =
             {proc {statement:SQLiteStatement}:void

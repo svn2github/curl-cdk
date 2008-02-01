@@ -30,8 +30,9 @@
             {connection.combined-table-name database-name, table-name},
             args-callback = 
                 {proc {statement:SQLiteStatement}:void
+                    let column-name:String = {statement.get-column-name 0}
                     set need-rowid? =
-                        ({statement.get-column-name 0} == "ROWID") ||""
+                        {column-name.equal? "ROWID", ignore-case? = true} ||""
                     || Cancel running the statement, we could make
                     || args-callback return a 'continue' bool instead.
                     {error}
