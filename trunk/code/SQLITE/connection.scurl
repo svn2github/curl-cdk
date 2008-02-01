@@ -559,7 +559,7 @@
     {return-vals
         Returns {ctext true} if execution succeeded.  If {param callback}
         returns {ctext false} then this will return {ctext true}.
-  }
+    }
   }
   {method public {execute-sqlite
                      query:String,
@@ -577,7 +577,7 @@
         {if start-record != 0 or size-limit >= 0 and
             {query.prefix? "SELECT", ignore-case? = true}
          then
-            set query = query & "LIMIT " & start-record & ", " & size-limit
+            set query = query & " LIMIT " & start-record & ", " & size-limit
             true
          else
             false
