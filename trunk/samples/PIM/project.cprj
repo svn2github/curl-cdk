@@ -1,0 +1,24 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "6.0",
+    compiler-directives = "careful? = true",
+    use-style-sheets? = false,
+    style-package-name = "",
+    style-sheet-name = "",
+    {target
+        name = "default",
+        target-url-name = "deploy-default",
+        {resource-transform "start.dcurl\u0000file\u0000start.dcurl", copy? = true},
+        {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
+        {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
+        {assembly-transform "COM.CURL.CDK", use-path? = true},
+        {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
+        {resource-transform "start.dcurl\u0000resource\u0000start.dcurl", copy? = true}
+    },
+    {file-setting "start.dcurl", start-file? = true}
+}
