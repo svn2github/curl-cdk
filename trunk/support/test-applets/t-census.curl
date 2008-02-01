@@ -25,71 +25,110 @@
 {import * from CURL.IDE.PERFORMANCE}
 
 {value
-    let con:SQLiteConnection = {SQLiteConnection database-url = {url "census.db"}}
-    let db:SQLiteDatabase = con.database
+    def con = {SQLiteConnection database-url = null}
+    def db = con.database
     
-    || testing parameters
-    || TODO: from query args
-    let create?:bool = true
-    let temp?:bool = false
-    let demand?:bool = true
-
-    {if create? then
-        || schema
-        {db.execute         
-            {if temp? then "
-CREATE TEMP TABLE CENSUS (
-        ID INTEGER NOT NULL PRIMARY KEY,
-        AGE VARCHAR(3),
-        CLASSOFWORKER VARCHAR(255),
-        EDUCATION VARCHAR(255),
-        MARITALSTATUS VARCHAR(255),
-        RACE VARCHAR(255),
-        SEX VARCHAR(255)
-);"
-             else "
-DROP TABLE IF EXISTS census;
-CREATE TABLE CENSUS (
-        ID INTEGER NOT NULL PRIMARY KEY,
-        AGE VARCHAR(3),
-        CLASSOFWORKER VARCHAR(255),
-        EDUCATION VARCHAR(255),
-        MARITALSTATUS VARCHAR(255),
-        RACE VARCHAR(255),
-        SEX VARCHAR(255)
-);"}
-        }
-        || population
-        {SQLiteStatement.import-csv db, "census", {url "census5000.csv"}}
-    }
-    
-    let create-rs:{proc-type {String}:RecordSet} =
-        {proc {name:String}:RecordSet
-            let w:StopWatch = {StopWatch}
-            {w.start}
-            let rs:RecordSet = 
-                {con.create-record-set "main", name, 
-                    request-modifiable? = true}
-            {w.stop}
-            let msg:String =
-                {message Query returned {value rs.size} records in {w.elapsed}}
-            {output msg}
-            {{get-the-applet}.set-status msg}
-            {return rs}
-        }
-    
-    let tables:StringArray = {con.get-tables "main"}
-    
-    {if demand? then
-        {for t in tables do
-            {create-rs t}}
-    }
-    
-    let display:RecordGrid = 
+    def display = 
         {RecordGrid 
             width = {add-stretch}, 
             height = {add-stretch}}
+
+    def create-db =
+        {proc {}:void
+            || schema
+            {db.execute "
+CREATE TABLE CENSUS (
+ ID INTEGER NOT NULL PRIMARY KEY,
+ AGE VARCHAR(3),
+ CLASSOFWORKER VARCHAR(255),
+ EDUCATION VARCHAR(255),
+ MARITALSTATUS VARCHAR(255),
+ RACE VARCHAR(255),
+ SEX VARCHAR(255)
+);
+CREATE VIEW by_education AS
+SELECT
+ education, 
+ COUNT(*) AS count,
+ ROUND(AVG(age)) AS age
+FROM census 
+GROUP BY education 
+ORDER BY education
+;
+"}
+            || population
+            {SQLiteStatement.import-csv db, "census", {url "census5000.csv"}}
+        }
+
+
+    || act as test subject
+    def this-applet = {get-the-applet}
+    def this-name = this-applet.url.filename
+    def outlog =
+        {proc {msg:String}:void
+            {this-applet.parent-invoke-async "log", msg}
+        }
+    || operations
+    def create-rs =
+        {proc {name:String}:RecordSet
+            def w = {StopWatch}
+            {w.start}
+            def rs = 
+                {con.create-sql-record-set-from-table-name "main", name, 
+                    request-modifiable? = true}
+            {w.stop}
+            def msg =
+                {message Query returned {value rs.size} records in {w.elapsed}}
+            {outlog msg}
+            {{get-the-applet}.set-status msg}
+            {return rs}
+        }
+    , demand =
+        {proc {}:void
+            def tables =
+                {db.sql-column
+                    "SELECT name FROM sqlite_master WHERE type IN ('table','view')"}
+            {for t in tables do
+                {create-rs t asa String}}
+        }
+    , do-table =
+        {proc {t:String}:void
+            def rs = {create-rs t}
+            set display.record-source = rs
+        }
+    || test operations
+    def always = 
+        {proc {}:bool
+            {return true}}
+    {this-applet.register-applet-invoke-handler
+        verifier = always, 
+        {proc {name:String, ...:any}:any
+            {return
+                {switch name
+                 case "demand" do
+                    {demand}
+                    true
+                 else
+                    {unreachable}
+                }}}}
     
+    || note applet lifecycle
+    {on-applet-suspend do
+        {output {message >> SUSPEND {value this-name}}}}
+    {on-applet-resume do
+        {output {message >> RESUME {value this-name}}}}
+    {register-exit-proc
+        {proc {}:void
+            {output {message >> EXIT {value this-name}}}}}
+
+    || initialize
+    {create-db}    
+    def tables = {con.get-tables "main"}
+    def s-select =
+        {db.create-statement "SELECT * FROM CENSUS WHERE EDUCATION LIKE ?"}
+    {s-select.prepare}
+
+    || display
     {VBox
         hstretch? = true,
         {HBox
@@ -98,8 +137,8 @@ CREATE TABLE CENSUS (
                 {splice tables},
                 {on ValueFinished at c:ComboBox do
                     {with-busy-cursor
-                        let rs:RecordSet = {create-rs c.value asa String}
-                        set display.record-source = rs}}},
+                        {do-table c.value asa String}}
+                }},
             {CommandButton label = "insert",
                 {on Action do
                     {with-busy-cursor
