@@ -1,0 +1,519 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDK.SQLITE}
+
+{define-enum package SQLiteDecltype
+    none = "",
+    blob = "BLOB", || Will end up as affinity none
+    text = "VARCHAR",
+    integer = "INTEGER",
+    real = "REAL",
+    numeric = "NUMERIC"
+}
+{let constant package defaults:FastArray = {FastArray |"'a'"|, "x'01'", |"'b'"|, 1, 1.1, 2}}
+{let constant package defaults-as-values:FastArray = {FastArray "a", {ByteArray 1}, "b", 1, 1.1, 2}}
+{define-enum package SQLiteNullness
+    maybe-null = "",
+    non-null = "NOT NULL"
+}
+{define-proc public {any-equal? x:any, y:any}:bool
+    def array-equal? =
+        {proc {xs:any, ys:any}:bool
+            {with-compiler-directives allow-any-calls? = true do
+                {if xs.size != ys.size then
+                    {return false}
+                }
+                {for xv key i in xs do
+                    {if not {any-equal? xv, ys[i]} then
+                        {return false}
+                    }
+                }}
+            {return true}
+        }
+    {if x == y then
+        {return true}
+    }
+    {type-switch x
+     case xs:ByteArray do
+        {type-switch y
+         case ys:ByteArray do
+            {if {xs.equal? ys} then
+                {return true}
+            }
+        }
+     case xs:Array do
+        {type-switch y
+         case ys:Array do
+            {return {array-equal? xs, ys}}
+        }
+     case xs:{Array-of Array} do
+        {type-switch y
+         case ys:{Array-of Array} do
+            {return {array-equal? xs, ys}}
+        }
+    }
+    {return false}
+}
+|| Should we add a strict column?  How much non-strict data are we going to
+|| put in?
+{define-proc package {make-base-columns}:StringArray
+    let column-index:int = 0
+    let base-columns:StringArray = {new StringArray}
+    {for i in SQLiteDecltype do
+        {for j in SQLiteNullness do
+            {base-columns.append
+                {format "t%d %s %s", column-index, i.value, j.value}
+            }
+            {inc column-index}
+            {base-columns.append
+                {format "t%d %s %s DEFAULT %s",
+                    column-index, i.value, j.value, defaults[i.index]
+                }
+            }
+            {inc column-index}
+        }
+    }
+    {return base-columns}
+}
+
+{define-proc package {join-strings as:StringArray}:String
+    let buf:StringBuf = {StringBuf}
+    {for s key i in as do
+        {if i > 0 then
+            {buf.concat ", "}
+        }
+        {buf.concat s}
+    }
+    {return {buf.to-String}}
+}
+
+{define-proc package {make-tables-columns}:StringArray
+
+    let base:StringArray = {make-base-columns}
+    let tables-columns:StringArray = {new StringArray}
+    || plain
+    {tables-columns.append {join-strings base}}
+
+    || with all fields as keys
+    || Note: this and odds as keys may need to be changed if SQLite starts
+    || enforcing that PRIMARY KEY requires NOT NULL
+    let all-primary-keys:StringBuf = {StringBuf ", PRIMARY KEY("}
+    {for key i in base do
+        {if i > 0 then
+            {all-primary-keys.concat ", "}
+        }
+        {format out = all-primary-keys, "t%d", i}
+    }
+    {all-primary-keys.concat ")"}
+    {tables-columns.append {join-strings base} & all-primary-keys}
+
+    || every other field as keys
+    let odds-primary-keys:StringBuf = {StringBuf ", PRIMARY KEY("}
+    {for key i in base do
+        {if i > 0 then
+            {odds-primary-keys.concat ", "}
+        }
+        {format out = odds-primary-keys, "t%d", i}
+    }
+    {odds-primary-keys.concat ")"}
+    {tables-columns.append {join-strings base} & odds-primary-keys}
+
+    || first int as key
+    let first-int-as-key:StringArray = {base.clone}
+    {for k key i in first-int-as-key do
+        {if {k.find-string "INT"} >= 0 and {k.find-string "NOT NULL"} >= 0 then
+            set first-int-as-key[i] = k & " PRIMARY KEY"
+            {break}
+        }
+    }
+    {tables-columns.append {join-strings first-int-as-key}}
+    || second int as auto-inc key
+    let second-int-as-key:StringArray = {base.clone}
+    let seen-first?:bool
+    {for k key i in second-int-as-key do
+        {if {k.find-string "INT"} >= 0 and {k.find-string "NOT NULL"} >= 0 then
+            {if seen-first? then
+                set second-int-as-key[i] = k & " PRIMARY KEY AUTOINCREMENT"
+                {break}
+             else
+                set seen-first? = true
+            }
+        }
+    }
+    {tables-columns.append {join-strings second-int-as-key}}
+    {return tables-columns}
+}
+
+{define-proc {create-table
+                database:SQLiteDatabase,
+                database-name:String,
+                table-name:String,
+                columns:String
+             }:void
+    {database.execute
+        "CREATE " &
+        {if database-name == "temp" then
+            "TEMP "
+         else
+            ""
+        } &
+        "TABLE " &
+        {switch database-name
+         case "main", "", "temp" do
+            table-name
+         else
+            database-name & "." & table-name
+        } & " (" & columns & ")"
+
+    }
+}
+
+{define-proc package {generate-value
+                         type:SQLiteDecltype,
+                         row-index:int,
+                         column-index:int
+                     }:any
+
+    {if type == SQLiteDecltype.none then
+        || re-assign none to one of the other types.
+        set type =
+            {SQLiteDecltype index =
+                (row-index mod ({enum-size SQLiteDecltype} - 1) + 1)}
+    }
+    {if type == SQLiteDecltype.numeric then
+        set type = 
+            {if row-index mod 1 == 0 then
+                SQLiteDecltype.integer 
+             else
+                SQLiteDecltype.real 
+            }
+    }
+    {return
+        {switch type
+         case SQLiteDecltype.none do
+            {error}
+         case SQLiteDecltype.blob do
+            {ByteArray row-index asa byte, column-index asa byte}
+         case SQLiteDecltype.text do
+            ('A' + row-index) asa char &
+            ('a' + column-index) asa char
+         case SQLiteDecltype.integer do
+            row-index * 1000 + column-index
+         case SQLiteDecltype.real do
+            (row-index * 1000 + column-index) asa double + 0.1
+         case SQLiteDecltype.numeric do
+            {error}
+         else
+            {error}
+        }
+    }
+}
+
+{define-proc package {data-for-row
+                         row-index:int,
+                         include-defaults?:bool = false
+                     }:(values:Array, sql-values:StringBuf, sql-names:StringBuf)
+    let column-index:int = 0
+    let column-values:Array = {Array}
+    let sql-column-values-buf:StringBuf = {StringBuf}
+    let sql-column-names-buf:StringBuf = {StringBuf}
+    {for i in SQLiteDecltype do
+        {for j in SQLiteNullness do
+            {if j == SQLiteNullness.maybe-null and row-index == 0 then
+                || non-defaulted
+                {column-values.append null}
+                {if sql-column-values-buf.size > 0 then
+                    {sql-column-values-buf.concat ","}
+                    {sql-column-names-buf.concat ","}
+                }
+                {sql-column-names-buf.concat {format "t%d", column-index}}
+                {sql-column-values-buf.concat "?"}
+                {inc column-index}
+                || defaulted
+                {if include-defaults? then
+                    {column-values.append defaults-as-values[i.index]}
+                }
+                {inc column-index}
+             else
+                {if sql-column-values-buf.size > 0 then
+                    {sql-column-values-buf.concat ","}
+                    {if row-index == 0 then
+                        {sql-column-names-buf.concat ","}
+                    }
+                }
+                {if row-index == 0 then
+                    {sql-column-names-buf.concat {format "t%d", column-index}}
+                }
+                {sql-column-values-buf.concat "?"}
+                || non-defaulted
+                {column-values.append
+                    {generate-value i, row-index, column-index}
+                }
+                
+                {inc column-index}
+
+                || defaulted
+                {sql-column-values-buf.concat ",?"}
+                {if row-index == 0 then
+                    {sql-column-names-buf.concat {format ", t%d", column-index}}
+                }
+                {column-values.append
+                    {generate-value i, row-index, column-index}
+                }
+                {inc column-index}
+            }
+        }
+    }
+    {return column-values, sql-column-values-buf, sql-column-names-buf}
+}
+{define-proc package {make-table-name
+                         database-name:String,
+                         table-name:String
+                     }:String
+    {return
+        {switch database-name
+         case "main", "" do
+            table-name
+         else
+            database-name & "." & table-name
+        }
+    }
+}
+
+{define-proc package {insert-test-data
+                         database:SQLiteDatabase,
+                         database-name:String,
+                         table-name:String
+                     }:void
+    {for row-index = 0 below 10 do
+        let column-index:int = 0
+        let (column-values:Array, sql-column-values-buf:StringBuf,
+             sql-column-names-buf:StringBuf) =
+            {data-for-row row-index}
+        let sql:String =
+            "INSERT INTO " &
+            {make-table-name database-name, table-name} & 
+            {if row-index == 0 then
+                " (" & sql-column-names-buf & ") "
+             else
+                " "
+            } &
+            "VALUES(" & sql-column-values-buf & ")"
+        {with-statement in database statement = sql do
+            {statement.bind {splice column-values}}
+            {statement.step}
+        }
+    }
+}
+{define-proc package {check-normal-rows
+                         rs:SQLiteRecordSet, start-row:int = 0
+                     }:void
+    let row-index:int = start-row
+    {for record in {rs.to-Iterator} do
+        let data:Array = {data-for-row row-index, include-defaults? = true}
+        {for d key column-index in data do
+            let record-value:any = record[{format "t%d", column-index}]
+            {assert {type-of d} == {type-of record-value} and
+                {any-equal? d, record-value}}
+        }
+        {inc row-index}
+    }
+}
+{define-proc package {test-load-record-set
+                         rs:SQLiteRecordSet,
+                         pre-loaded?:bool = true
+                     }:void
+    {assert rs.fields.size == 
+        {enum-size SQLiteDecltype} * {enum-size SQLiteNullness} * 2}
+    {if not pre-loaded? then
+        {assert rs.size == 0}
+        {rs.load}
+    }
+    {assert rs.size == 10}
+    {check-normal-rows rs, start-row = 0}
+
+    {rs.load-range 2, 5}
+    {assert rs.size == 5}
+    {check-normal-rows rs, start-row = 2}
+
+    {rs.load-range 0, 1}
+    {assert rs.size == 1}
+    {check-normal-rows rs, start-row = 0}
+
+    {rs.load-range 2, 0}
+    {assert rs.size == 0}
+
+    {rs.load-range 8, -1}
+    {assert rs.size == 2}
+    {check-normal-rows rs, start-row = 8}
+}
+
+{define-proc package {do-recordsets-read
+                         con:SQLiteConnection,
+                         database:SQLiteDatabase,
+                         database-name:String,
+                         table-name:String
+                     }:void
+    let rs:SQLiteRecordSet =
+        {con.create-sql-record-set-from-table-name
+            database-name,
+            table-name,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    {test-load-record-set rs}
+    {assert rs.modifiable?}
+    set rs =
+        {con.create-sql-record-set-from-table-name
+            database-name,
+            table-name,
+            load-now? = false
+        } asa SQLiteRecordSet
+    {test-load-record-set rs, pre-loaded? = false}
+    {assert not rs.modifiable?}
+    set rs =
+        {con.create-sql-record-set-from-table-name
+            database-name,
+            table-name,
+            strict-types? = true,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    {test-load-record-set rs}
+    {assert rs.modifiable?}
+    {assert rs.request-modifiable?}
+    set rs =
+        {con.create-sql-record-set-from-table-name
+            database-name,
+            table-name,
+            || Should we also test a base-where-clause that does something?
+            base-where-clause = |"t0 <> 'xxx' OR t0 ISNULL"|,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    {test-load-record-set rs}
+    set rs =
+        {SQLiteRecordSet.create-from-table-name
+            con,
+            database-name,
+            table-name,
+            || Should we also test a base-where-clause that does something?
+            base-where-clause = |"t2 <> ?"|,
+            base-where-clause-parameters = {Array "yyy"}
+        }
+    {test-load-record-set rs}
+    {assert not rs.modifiable?}
+
+    set rs =
+        {con.create-sql-record-set
+            database-name,
+            "SELECT * from " & {make-table-name database-name, table-name},
+            table-name = table-name,
+            request-modifiable? = true
+        } asa SQLiteRecordSet
+    {test-load-record-set rs}
+    {assert rs.modifiable?}
+
+    set rs =
+        {con.create-sql-record-set
+            database-name,
+            || Without "as ROWID", t14 gets renamed for table3
+            "SELECT ROWID as ROWID, * from " &
+                {make-table-name database-name, table-name},
+            table-name = table-name,
+            request-modifiable? = true,
+            hidden-primary-key-field = 0,
+            strict-types? = true
+        } asa SQLiteRecordSet
+    {test-load-record-set rs}
+    {assert rs.modifiable?}
+}
+
+{define-proc package {do-recordsets-for-all-tables
+                         database:SQLiteDatabase, database-name:String
+                     }:void
+    let con:SQLiteConnection = {SQLiteConnection database = database}
+    let tables-columns:StringArray = {make-tables-columns}
+    {for tc key i in tables-columns do
+        let table-name:String = {format "table%d", i}
+        {create-table database, database-name, table-name, tc}
+        {insert-test-data database, database-name, table-name}
+    }
+    {try
+        {for tc key i in tables-columns do
+            let table-name:String = {format "table%d", i}
+            {do-recordsets-read con, database, database-name, table-name}
+        }
+     finally
+        {for tc key i in tables-columns do
+            let table-name:String = {format "table%d", i}
+            {database.execute
+                "DROP TABLE " & {make-table-name database-name, table-name},
+                throw-on-error? = false
+            }
+        }
+    }
+}
+
+{define-proc package {do-databases}:void
+    {with-database
+        db = {SQLiteDatabase null}
+     do
+        {do-recordsets-for-all-tables db, ""}
+    }
+    {with-database
+        db = {SQLiteDatabase {url "curl://temp/xyz"}}
+     do
+        {do-recordsets-for-all-tables db, "main"}
+    }
+    {with-database
+        db = {SQLiteDatabase {url "curl://temp/xyz2"}}
+     do
+        {db.execute "ATTACH '" & {url "curl://temp/xyz"}.local-filename & "' AS
+xyz"}
+        {do-recordsets-for-all-tables db, "xyz"}
+        {do-recordsets-for-all-tables db, ""}
+    }
+    {with-database
+        db = {SQLiteDatabase null}
+     do
+        {do-recordsets-for-all-tables db, "temp"}
+    }
+    || How can we test HTTP copying...
+}
+
+{do-databases}
+
+|#
+*
+RecordSets for each table, by table, by partial table
+    (including all keys, missing some keys, but with a base-where-clause, 
+    and with no keys, if has lots of keys, do with and without rowid.)
+Also do RecordSet with join of two tables (not modifiable)
+Also do RecordSet with view
+Also do RecordSet with PRAGMA
+Also do RecordSet with non-existant table
+Also do RecordSet with bad SQL
+Also do RecordSet with no table (just values)
+*
+Test each RecordSet for normal read, size-limit read, range read, modifiability, and try with strict? = true (but that may need twiddling to avoid rows where
+strict isn't true).
+For modifiable ones, try insert with no values, insert with values,
+insert with wrong type/value values, modify with good values,
+modify with bad values, delete.
+#|

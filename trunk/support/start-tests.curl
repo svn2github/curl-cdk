@@ -53,7 +53,8 @@
             || applets
             {TestSuite "applets",
                 || lifecycle
-                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}}
+                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}},
+                {AppletTestCase {url "../support/test-applets/t-recordset.curl"}}
             }
         }
     
