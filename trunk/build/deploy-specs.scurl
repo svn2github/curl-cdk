@@ -130,6 +130,10 @@
                     {source-root.concat "NOTICE"},
                     {target-root.concat "NOTICE"},
                     error-if-exists? = false} 
+                {copy 
+                    {source-root.concat "README.txt"},
+                    {target-root.concat "README.txt"},
+                    error-if-exists? = false} 
             }}
     }
 }
