@@ -14,104 +14,122 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{DeploySpecs
-    caption = {lmessage deploy CDK},
+{value
+    def name = "COM.CURL.CDK"
+    def version = "0.8"
+    def dirname = name & "." & version
+    
+    {DeploySpecs
+        caption = {lmessage deploy CDK},
 
-    || SOURCE distribution
-    || ====================
+        || SOURCE distribution
+        || ====================
 
-    || duplicate source tree  
-    || --------------------                      
-    || -- code (copy)
-    {DeploySpec
-        "code/project.cprj",
-        "deploy-source",
-        "src/code"
-    },
-    || -- support (copy)
-    {DeploySpec
-        "support/project.cprj",
-        "deploy",
-        "src/support"
-    },
-    || incorporate test framework 
-    || --------------------
-    {DeploySpec
-        "lib/CDU/project.cprj",
-        "deploy",
-        "src/lib/CDU"
-    },
-    || incorporate STYLED library 
-    || --------------------
-    {DeployCopy
-        "lib/COM.CURL.GUI.STYLED-6.0-pcurl-en",
-        "src/lib/COM.CURL.GUI.STYLED-6.0-pcurl-en"
-    },
-    || -- build scripts (copy)
-    {DeployAction
-        caption = {lmessage copy 'build' scripts},
-        {proc {self:DeployAction,
-               source-root:Url,
-               target-root:Url}:void
-            def target = {target-root.concat "src/build"}
-            {create-Directory target,
-                error-if-exists? = false}
-            def files =
-                {StringArray
-                    "deploy.curl",
-                    "deploy-batch.curl",
-                    "deploy-specs.scurl"}
-            {for file in files do
+        || duplicate source tree  
+        || --------------------                      
+        || -- code (copy)
+        {DeploySpec
+            "code/project.cprj",
+            "deploy-source",
+            "src/code"
+        },
+        || -- samples (copy)
+        {DeploySpec
+            "samples/DBExplorer/project.cprj",
+            "deploy",
+            "src/samples/DBExplorer"
+        },
+        || -- support (copy)
+        {DeploySpec
+            "support/project.cprj",
+            "deploy",
+||--        "src/support",
+            "src/tests"
+        },
+        || incorporate test framework 
+        || --------------------
+        {DeploySpec
+            "lib/CDU/project.cprj",
+            "deploy",
+            "src/lib/CDU"
+        },
+        || incorporate STYLED library 
+        || --------------------
+        {DeployCopy
+            "lib/COM.CURL.GUI.STYLED-6.0-pcurl-en",
+            "src/lib/COM.CURL.GUI.STYLED-6.0-pcurl-en"
+        },
+        || -- build scripts (copy)
+        {DeployAction
+            caption = {lmessage copy 'build' scripts},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+||--            def target = {target-root.concat "src/build"}
+                def target = {target-root.concat "src/tools"}
+                {create-Directory target,
+                    error-if-exists? = false}
+                def files =
+                    {StringArray
+                        "deploy.curl",
+                        "deploy-batch.curl",
+                        "deploy-specs.scurl"}
+                {for file in files do
+                    {copy 
+                        {source-root.concat "build/" & file},
+                        {target.concat file},
+                        error-if-exists? = false}}}
+        },
+
+        || LIBRARY distribution
+        || ====================
+        
+        || build library (pcurl)
+        || -------------------- 
+        {DeploySpec
+            "code/project.cprj",
+            "deploy",
+            "deploy/" & dirname
+        },
+
+        || DOCS distribution
+        || ====================
+        
+        || documentation (copy + docs)
+        || --------------------
+        {DeploySpec
+            "code/project.cprj",
+            "deploy-docs",
+            "docs-install/" & dirname
+        },
+
+        || final steps
+        || ====================
+        
+        || clean source control directories
+        || --------------------
+        {DeployAction
+            caption = {lmessage clean .svn},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                {clean-svn-directories target-root}
+            }},
+        || BOILERPLATE material {copy)
+        || -------------------- 
+        {DeployAction
+            caption = {lmessage copy BOILERPLATE},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
                 {copy 
-                    {source-root.concat "build/" & file},
-                    {target.concat file},
-                    error-if-exists? = false}}}
-    },
-
-    || LIBRARY distribution
-    || ====================
-    
-    || build library (pcurl)
-    || -------------------- 
-    {DeploySpec
-        "code/project.cprj",
-        "deploy",
-        "deploy/COM.CURL.CDK"
-    },
-
-    || DOCS distribution
-    || ====================
-    
-    || documentation (copy + docs)
-    || --------------------
-    {DeploySpec
-        "code/project.cprj",
-        "deploy-docs",
-        "docs-install/COM.CURL.CDK"
-    },
-    || clean source control directories
-    || --------------------
-    {DeployAction
-        caption = {lmessage clean .svn},
-        {proc {self:DeployAction,
-               source-root:Url,
-               target-root:Url}:void
-            {clean-svn-directories target-root}
-        }},
-    || BOILERPLATE material {copy)
-    || -------------------- 
-    {DeployAction
-        caption = {lmessage copy BOILERPLATE},
-        {proc {self:DeployAction,
-               source-root:Url,
-               target-root:Url}:void
-            {copy 
-                {source-root.concat "LICENSE"},
-                {target-root.concat "LICENSE"},
-                error-if-exists? = false}
-            {copy 
-                {source-root.concat "NOTICE"},
-                {target-root.concat "NOTICE"},
-                error-if-exists? = false} 
-        }}
+                    {source-root.concat "LICENSE"},
+                    {target-root.concat "LICENSE"},
+                    error-if-exists? = false}
+                {copy 
+                    {source-root.concat "NOTICE"},
+                    {target-root.concat "NOTICE"},
+                    error-if-exists? = false} 
+            }}
+    }
 }
