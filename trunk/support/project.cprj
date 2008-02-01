@@ -18,8 +18,6 @@
         {resource-transform "test-data\u0000directory\u0000test-data", copy? = true},
         {assembly-transform "COM.CURL.CDK", use-path? = true},
         {resource-transform "start-tests.curl\u0000file\u0000start-tests.curl", copy? = true},
-        {package-transform "COM.CURL.CDK.DB-DISPLAY\u0000package\u0000util/DBExplorer/load.scurl", copy? = true},
-        {resource-transform "DB-STYLE-SHEET\u0000file\u0000util/DBExplorer/stylesheet.scurl", copy? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {assembly-transform "COM.CURL.CDU", use-path? = true},
         {assembly-transform "COM.CURL.GUI.STYLED", use-path? = true},

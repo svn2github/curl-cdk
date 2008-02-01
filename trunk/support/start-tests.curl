@@ -20,6 +20,7 @@
 }
 {import * from COM.CURL.CDU.CURL-UNIT}
 {import * from COM.CURL.CDU.CURL-UNIT-UI}
+{import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
 
 {document-style PlainDocument}
 {set-document-properties hstretch? = true, vstretch? = true}
@@ -44,10 +45,16 @@
                 {AppletTestCase {url "../code/docs/en/dguide/sqlite-overview.curl"}},
                 {TestSuite.import
                     {url "test-cases/dguide-test-cases.scurl"}}},
+            || samples
             {TestSuite "applets",
-                {AppletTestCase {url "../support/test-applets/start.curl"}},
-                || TODO: this is obsolete
-                {AppletTestCase {url "../support/test-applets/t-census.curl"}}
+                || explorer
+                {AppletTestCase {url "../samples/DBExplorer/start.curl"}}
+            },
+            || applets
+            {TestSuite "applets",
+                || lifecycle
+                {AppletTestCase {url "test-applets/t-census.curl"}},
+                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}}
             }
         }
     

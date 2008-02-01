@@ -15,42 +15,26 @@
 ||| limitations under the License.
 
 {curl 6.0 manifest}
-{manifest COM.CURL.CDK.SUPPORT,
-    version = "0.8"}
+{manifest COM.CURL.CDK.DB-EXPLORER}
 
-|| libraries
-|| --------------------
 {delegate-to COM.CURL.CDK,
-    location = "../code/manifest.mcurl"}
-
-{delegate-to COM.CURL.CDU,
-    location = "../lib/CDU/manifest.mcurl"}
-
-|| NOTE: not used yet
-||--{delegate-to COM.CURL.GUI.STYLED,
-||--    location = "../lib/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"}
-
-|| test infrastructure
-|| --------------------
-{component package COM.CURL.CDK.SQLITE-TEST-SUPPORT,
-    location = "test-extensions/sqlite-test-support.scurl"}
-
-|| test cases
-|| --------------------
-{component file start-tests.curl,
-    location = "start-tests.curl"
+    location = "../../code/manifest.mcurl"
+}
+{delegate-to COM.CURL.GUI.STYLED,
+    location = "../../lib/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"
 }
 
-{component directory test-cases,
-    location = "test-cases"
+{component file start.curl,
+    location = "start.curl"
 }
 
-{component directory test-data,
-    location = "test-data"
+{component package COM.CURL.CDK.DB-EXPLORER,
+    location = "load.scurl",
+    version = "0.8"
 }
 
-{component directory test-applets,
-    location = "test-applets"
+{component file DBX-STYLE-SHEET,
+    location = "stylesheet.scurl"
 }
 
 {component file project.cprj,
