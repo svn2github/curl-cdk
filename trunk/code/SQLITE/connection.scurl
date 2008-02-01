@@ -474,6 +474,7 @@
             table-name,
             request-modifiable? = request-modifiable?,
             size-limit = size-limit,
+            base-where-clause = base-where-clause,
             load-now? = load-now?,
             strict-types? = strict-types?,
             ...
