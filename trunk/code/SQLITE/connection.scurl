@@ -226,16 +226,16 @@
     {purpose Obtain a list of the tables in the specified database.
     }
   }
-  {method public {get-tables database:String}:StringArray
+  {method public {get-tables database-name:String}:StringArray
     let tables:StringArray = {StringArray}
     || FIXME: not sure which version will fix that temp.sqlite_master
     || will work, earlier versions needed temp.sqlite_temp_master
     {self.execute-sqlite
         "SELECT name FROM " & ||""
-        {if database == "temp" then
+        {if database-name == "temp" then
             "sqlite_temp_master" ||""
          else
-            {self.combined-table-name database, "sqlite_master"} ||""
+            {self.combined-table-name database-name, "sqlite_master"} ||""
         } &
         " WHERE name NOT LIKE 'sqlite_%' AND type IN ('table', 'view')", ||""
         callback =
@@ -409,20 +409,21 @@
     {return primary-keys}
   }
 
-  {method public {get-fields database:String, query:String}:RecordFields
+  {method public {get-fields database-name:String, query:String}:RecordFields
     || Note: this could also accept table names and turn them into queries,
     || but that dumb.
     {return
         {self.get-sql-fields
-            database,
+            database-name,
             query
         }
     }
   }
 
-  {method public {table-exists? database:String, table:String}:bool
-    || TODO: more efficient to just use SQL
-    let tables:StringArray = {self.get-tables database}
+  {method public {table-exists? database-name:String, table:String}:bool
+    || TODO: more efficient to use SQL directly.
+    let tables:StringArray = {self.get-tables database-name}
+    || FIXME: Should this be case-insensative?
     {return {tables.find table} >= 0}
   }
 
@@ -435,7 +436,7 @@
                      request-modifiable?:bool=false,
                      size-limit:int=-1,
                      ...:EventHandler
-                 }:SQLConnectedRecordSet
+                 }:SQLiteRecordSet
     {return
         {if {query.find ' '} < 0 then
             {self.create-sql-record-set-from-table-name
@@ -466,7 +467,7 @@
                      load-now?:bool = true,
                      strict-types?:bool = false,
                      ...:EventHandler
-                 }:SQLConnectedRecordSet
+                 }:SQLiteRecordSet
     {return
         {SQLiteRecordSet.create-from-table-name
             self,
@@ -499,7 +500,7 @@
                      load-now?:bool = true,
                      strict-types?:bool = false,
                      ...:EventHandler
-                 }:SQLConnectedRecordSet
+                 }:SQLiteRecordSet
     {return
         {SQLiteRecordSet.create
             self,

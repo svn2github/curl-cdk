@@ -40,6 +40,26 @@
         }
      catch e:Exception do
     }
+    || It looks like you need a rowid when loading a view, but it isn't
+    || true, the rowid always ends up being null.  So we could try to check
+    || for non-null rowids, but that wouldn't work for empty views, so
+    || we will directly check if the table is a view.
+    {if need-rowid? then
+        {connection.execute-sqlite
+            "SELECT name FROM " & ||""
+            {if database-name == "temp" then
+                "sqlite_temp_master" ||""
+            else
+                {connection.combined-table-name database-name, "sqlite_master"} ||""
+            } &
+            " WHERE name = '" & table-name & "' AND type = 'view'", ||""
+         callback =
+            {proc {row:Array}:bool
+                set need-rowid? = false
+                {return true}
+            }
+        }
+    }
     {return need-rowid?}
   }
 
@@ -271,6 +291,14 @@
   || SQLConnectedRecordSet APIs
 
 
+  field private load-range-clear-modifiable?:bool
+  {method public {load-range start-record:int, size-limit:int}:void
+    set self.load-range-clear-modifiable? = false
+    {super.load-range start-record, size-limit}
+    {if self.load-range-clear-modifiable? then
+        set self.modifiable? = false
+    }
+  }
   || Basically the same as SQLConnectedRecordSet except for the
   || query-parameters support.
   {method protected {load-range-internal
@@ -309,7 +337,7 @@
                     {if i == self.hidden-primary-key-field then
                         {if col == null then
                             set col = min-int64
-                            set self.modifiable? = false
+                            set self.load-range-clear-modifiable? = true
                         }
                         set (r asa SQLHiddenIndexRecord).row-id = col asa int64
                      else
@@ -633,13 +661,13 @@
 || --------------------
 {define-class public SQLiteBasicRecordSet {inherits SQLiteRecordSet}
   {constructor public {default
-                          database:SQLiteDatabase,
+                          database-name:SQLiteDatabase,
                           sql:String,
                           request-modifiable?:bool = false,
                           parameters:#Array = null,
                           strict-types?:bool = false,
                           ...:EventHandler}
-    def connection = connection-cache[database]
+    def connection = connection-cache[database-name]
     {construct-super.create connection, "main", sql,
         request-modifiable? = request-modifiable?,
         strict-types? = strict-types?,
