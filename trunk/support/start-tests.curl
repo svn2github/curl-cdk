@@ -55,7 +55,7 @@
                 || lifecycle
                 {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}},
                 {AppletTestCase {url "test-applets/t-recordset.curl"},
-                    timeout = 240s}
+                    timeout = 480s}
             }
         }
     
