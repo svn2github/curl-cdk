@@ -502,9 +502,12 @@
     {connection.execute-sql "", "BEGIN IMMEDIATE"} ||""
     {try
         let iter:{Iterator-of Record} = {self.to-Iterator}
+        || This order is important to reduce the chance of a uniqueness
+        || constraint violation.
         let update-states:{FastArray-of RecordState} =
             {new {FastArray-of RecordState}, 
-                RecordState.modified, RecordState.appended, RecordState.deleted}
+                RecordState.deleted, RecordState.modified,
+                RecordState.appended}
         || FIXME: we can set the row-ids this way, but other defaulted
         || columns aren't getting re-read.
         let insert-records:#{Array-of Record}

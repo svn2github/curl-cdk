@@ -198,6 +198,20 @@
         {make-table-name database-name, table-name}
     }
 }
+{define-proc package {drop-table
+                         database:SQLiteDatabase,
+                         database-name:String,
+                         table-name:String
+                     }:void
+            {database.execute
+                "DROP TABLE " & {make-table-name database-name, table-name},
+                throw-on-error? = false
+            }
+            {database.execute
+                "DROP VIEW " & {make-table-name database-name, table-name & "view"},
+                throw-on-error? = false
+            }
+}
 
 {define-proc package {generate-value
                          type:SQLiteDecltype,
@@ -366,6 +380,105 @@
         {inc row-index}
     }
 }
+{define-proc package {test-write-record-set
+                         rs:SQLiteRecordSet,
+                         skip-rows:#{Array-of int} = null,
+                         skip-columns:#{Array-of int} = null,
+                         commit-frequently?:bool = false
+                     }:void
+    || FIXME: Don't do this for VIEWS (until we make up some triggers to
+    || make that work...)
+    || Don't do this for things that skip rows because we don't know how to
+    || calculate what is already missing properly.
+    {if skip-rows == null and rs.modifiable? and
+        not {rs.table-name.suffix? "view"}
+     then
+        {rs.load}
+        let row-index:int = 0
+        || Delete a few rows.
+        {for r in {rs.to-Iterator} do
+            {if row-index == 2 or row-index == 8 or row-index == 9 then
+                {r.delete}
+            }
+            {inc row-index}
+        }
+        {if commit-frequently? then
+            {rs.commit}
+            {rs.load}
+            {assert rs.size == 7}
+            {check-normal-rows rs,
+                skip-rows = {{Array-of int} 2, 8, 9},
+                skip-columns = skip-columns
+            }
+        }
+        || Don't do this for things that skip columns because there end up
+        || being NOT NULL columns that aren't in the record set.
+        {if skip-columns == null then
+            || append a freshly made row 9
+            let data:Array = {data-for-row 9}
+            let rd:RecordData = {RecordData}
+            {for d key i in data do
+                let field-name:String = {format "t%d", i}
+                let (rf:RecordField, found?:bool) =
+                    {rs.fields.get-if-exists field-name}
+                {if found? then
+                    set rd[field-name] = d
+                }
+            }
+            {rs.append rd}
+            {if commit-frequently? then
+                {rs.commit}
+                {rs.load}
+                {assert rs.size == 8}
+                {check-normal-rows rs,
+                    skip-rows = {{Array-of int} 2, 8},
+                    skip-columns = skip-columns
+                }
+            }
+        }
+        let base-row-index:int =
+            {if commit-frequently? then
+                {if skip-columns == null then 7 else 6}
+             else
+                {if skip-columns == null then 10 else 7}
+            }
+        || Change last row into the values for row 8
+        set row-index = 0
+        {for r in {rs.to-Iterator} do
+            {if row-index == base-row-index then
+                let data:Array = {data-for-row 8}
+                {for d key i in data do
+                    let field-name:String = {format "t%d", i}
+                    let (rf:RecordField, found?:bool) =
+                        {rs.fields.get-if-exists field-name}
+                    {if found? then
+                        set r[field-name] = d
+                    }
+                }
+            }
+            {inc row-index}
+        }
+        {rs.commit}
+        {rs.load}
+        {assert rs.size == {if skip-columns == null then 8 else 7}}
+        {check-normal-rows rs,
+            skip-rows =
+                {if skip-columns == null then
+                    {{Array-of int} 2, 9}
+                 else
+                    {{Array-of int} 2, 7, 9}
+                },
+            skip-columns = skip-columns
+        }
+
+        let database:SQLiteDatabase = (rs.connection asa SQLiteConnection).database
+        let database-name:String = rs.database-name
+        let table-name:String = {non-null rs.table-name}
+        {database.execute "DELETE FROM " & {make-table-name database-name, table-name}}
+        {insert-test-data (rs.connection asa SQLiteConnection).database, database-name, table-name}
+    }
+}
+
 {define-proc package {test-load-record-set
                          rs:SQLiteRecordSet,
                          pre-loaded?:bool = true,
@@ -409,6 +522,17 @@
         {check-normal-rows rs, start-row = 8,
             skip-rows = skip-rows, skip-columns = skip-columns
         }
+    }
+
+    {test-write-record-set rs,
+        skip-rows = skip-rows,
+        skip-columns = skip-columns,
+        commit-frequently? = true
+    }
+    {test-write-record-set rs,
+        skip-rows = skip-rows,
+        skip-columns = skip-columns,
+        commit-frequently? = false
     }
 }
 
@@ -523,7 +647,8 @@
     || This would not actually work unless it had a narrowing base-where-clause
     || that made t0 a stand alone primary-key.
     {assert rs.modifiable? == (table-name == "table1")}
-    {test-load-record-set rs,
+    {test-load-record-set
+        rs,
         skip-columns =
             {new {Array-of int},
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
@@ -544,7 +669,8 @@
     || This would not actually work unless it had a narrowing base-where-clause
     || that made t0 a stand alone primary-key.
     {assert rs.modifiable?}
-    {test-load-record-set rs,
+    {test-load-record-set
+        rs,
         skip-columns =
             {new {Array-of int},
                 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12,
@@ -605,7 +731,7 @@
             || Without "as ROWID", t14 gets renamed for table3
             "SELECT ROWID as ROWID, * from " &
                 {make-table-name database-name, table-name & "view"},
-            table-name = table-name,
+            table-name = table-name & "view",
             request-modifiable? = true,
             hidden-primary-key-field = 0,
             strict-types? = true,
@@ -616,6 +742,50 @@
     {test-load-record-set rs, pre-loaded? = false}
     {assert not rs.modifiable?}
 
+    set rs =
+        {con.create-sql-record-set
+            database-name,
+            || Without "as ROWID", t14 gets renamed for table3
+            "SELECT * from " &
+                {make-table-name database-name, table-name & "view"},
+            table-name = table-name & "view",
+            request-modifiable? = true,
+            primary-keys = {StringArray "t14"},
+            load-now? = false
+        } asa SQLiteRecordSet
+    || modifiable because we are providing a primary-key
+    {assert rs.modifiable?}
+    {test-load-record-set rs, pre-loaded? = false}
+    {assert rs.modifiable?}
+
+}
+{define-proc package {do-once-per-database-tests
+                         con:SQLiteConnection,
+                         database:SQLiteDatabase,
+                         database-name:String
+                     }:void
+    {try
+        let rs:SQLiteRecordSet =
+            {con.create-sql-record-set
+                database-name,
+                "SELECT * from " &
+                    {make-table-name database-name, "dne"},
+                table-name = "dne"
+            }
+        {error "Should have failed..."}
+     catch ex:SQLiteException do
+        || TODO: Is this the right type of exception?
+    }
+    {try
+        let rs:SQLiteRecordSet =
+            {con.create-sql-record-set
+                database-name,
+                "bork bork bork"
+            }
+        {error "Should have failed..."}
+     catch ex:SQLiteException do
+        || TODO: Is this the right type of exception?
+    }
 }
 
 {define-proc package {do-recordsets-for-all-tables
@@ -624,33 +794,27 @@
                      }:void
     let con:SQLiteConnection = {SQLiteConnection database = database}
     let tables-columns:StringArray = {make-tables-columns}
-    {for tc key i in tables-columns do
-        let table-name:String = {format "table%d", i}
-        {create-table database, database-name, table-name, tc}
-        {insert-test-data database, database-name, table-name}
-    }
     {try
-        {assert {con.get-database-names}.size == database-count}
-        {assert
-            {con.get-tables database-name}.size == (tables-columns.size * 2)}
 
-        {for i = 0 below tables-columns.size do
+        {for tc key i in tables-columns do
             let table-name:String = {format "table%d", i}
+            {drop-table database, database-name, table-name}
+            {create-table database, database-name, table-name, tc}
+            {insert-test-data database, database-name, table-name}
+
             {assert {con.table-exists? database-name, table-name}}
             {assert {con.table-exists? database-name, table-name & "view"}}
             {do-recordsets-read con, database, database-name, table-name}
+            || reset table.
         }
+        {do-once-per-database-tests con, database, database-name}
+        {assert {con.get-database-names}.size == database-count}
+        {assert
+            {con.get-tables database-name}.size == (tables-columns.size * 2)}
      finally
         {for tc key i in tables-columns do
             let table-name:String = {format "table%d", i}
-            {database.execute
-                "DROP TABLE " & {make-table-name database-name, table-name},
-                throw-on-error? = false
-            }
-            {database.execute
-                "DROP VIEW " & {make-table-name database-name, table-name & "view"},
-                throw-on-error? = false
-            }
+            {drop-table database, database-name, table-name}
         }
     }
 }
@@ -679,6 +843,9 @@ xyz"}
      do
         {do-recordsets-for-all-tables db, "temp", database-count = 2}
     }
+
+    {delete {url "curl://temp/xyz"}, error-if-missing? = false}
+    {delete {url "curl://temp/xyz2"}, error-if-missing? = false}
     || How can we test HTTP copying...
 }
 
@@ -702,4 +869,7 @@ a strange API...)
 For modifiable ones, try insert with no values, insert with values,
 insert with wrong type/value values, modify with good values,
 modify with bad values, delete.
+
+Test events sequence somehow.
+
 #|

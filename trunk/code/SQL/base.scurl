@@ -200,7 +200,7 @@
 {define-class public abstract SQLConnectedRecordSet
   {inherits ConnectedRecordSet, BasicRecordSet}
 
-  field protected table-name:#String
+  field public-get protected-set table-name:#String
   field protected base-where-clause:#String
   field protected hidden-primary-key-field:int
   field protected query-is-full-row?:bool
