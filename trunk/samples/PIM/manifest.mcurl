@@ -29,3 +29,8 @@
 {component file pim-ui.scurl,
     location = "pim-ui.scurl"
 }
+
+{component file project.cprj,
+    location = "project.cprj"
+}
+

@@ -39,6 +39,11 @@
             "deploy",
             "src/samples/DBExplorer"
         },
+        {DeploySpec
+            "samples/PIM/project.cprj",
+            "deploy",
+            "src/samples/PIM"
+        },
         || -- support (copy)
         {DeploySpec
             "support/project.cprj",

@@ -8,16 +8,15 @@
     api-version = "6.0",
     compiler-directives = "careful? = true",
     use-style-sheets? = false,
-    style-package-name = "",
-    style-sheet-name = "",
+    style-package-name = "COM.CURL.GUI.STYLED-CONTROLS",
+    style-sheet-name = "DEFAULT-STYLE-SHEET",
     {target
-        name = "default",
-        target-url-name = "deploy-default",
+        name = "deploy",
+        target-url-name = "c:\\curl\\PIM",
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {resource-transform "start.dcurl\u0000file\u0000start.dcurl", copy? = true},
         {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
-        {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
         {assembly-transform "COM.CURL.CDK", use-path? = true},
-        {resource-transform "pim-ui.scurl\u0000file\u0000pim-ui.scurl", copy? = true},
         {resource-transform "start.dcurl\u0000resource\u0000start.dcurl", copy? = true}
     },
     {file-setting "start.dcurl", start-file? = true}
