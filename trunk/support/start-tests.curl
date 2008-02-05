@@ -47,6 +47,9 @@
                     {url "test-cases/dguide-test-cases.scurl"}}},
             || samples
             {TestSuite "samples",
+                || TODO: can not test yet: choose-file and CSPD dependence
+||--                || PIM
+||--                {AppletTestCase {url "../samples/PIM/start.dcurl"}},
                 || explorer
                 {AppletTestCase {url "../samples/DBExplorer/start.curl"}}
             },
@@ -55,7 +58,7 @@
                 || lifecycle
                 {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}},
                 {AppletTestCase {url "test-applets/t-recordset.curl"},
-                    timeout = 480s}
+                    timeout = 60s}
             }
         }
     

@@ -794,10 +794,13 @@
                      }:void
     let con:SQLiteConnection = {SQLiteConnection database = database}
     let tables-columns:StringArray = {make-tables-columns}
+||--    {output "== ", database-name, " - ", database.url}
+||--    {output {DateTime}}
     {try
 
         {for tc key i in tables-columns do
             let table-name:String = {format "table%d", i}
+||--            {output "  == ", table-name, " at ", {DateTime}}
             {drop-table database, database-name, table-name}
             {create-table database, database-name, table-name, tc}
             {insert-test-data database, database-name, table-name}
@@ -819,8 +822,20 @@
     }
 }
 
-{define-proc package {localfile-pragma db:SQLiteDatabase}:void
-    {db.execute "PRAGMA synchronous = OFF"}
+
+
+{define-proc package {localfile-pragma
+                         db:SQLiteDatabase,
+                         name:String = ""
+                     }:void
+    || enormously faster
+    {switch name
+     case "", "main", "temp" do
+        {db.execute "PRAGMA synchronous = OFF"}
+     else
+        || attached databases need prefix
+        {db.execute "PRAGMA " & name & ".synchronous = OFF"}
+    }
 }
 {define-proc package {do-databases}:void
     {with-database
@@ -838,8 +853,9 @@
         db = {SQLiteDatabase {url "curl://temp/xyz2"}}
      do
         {localfile-pragma db}
-        {db.execute "ATTACH '" & {url "curl://temp/xyz"}.local-filename & "' AS
-xyz"}
+        {db.execute "ATTACH '" &
+            {url "curl://temp/xyz"}.local-filename & "' AS xyz"}
+        {localfile-pragma db, name = "xyz"}
         {do-recordsets-for-all-tables db, "xyz", database-count = 2}
         {do-recordsets-for-all-tables db, "", database-count = 2}
     }
