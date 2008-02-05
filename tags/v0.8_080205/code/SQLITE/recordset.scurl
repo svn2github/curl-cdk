@@ -1,0 +1,687 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| ConnectedRecordSet protocol
+|| --------------------
+{define-class public SQLiteRecordSet {inherits SQLConnectedRecordSet}
+
+  {define-proc private {need-rowid?
+                           connection:SQLiteConnection,
+                           database-name:String,
+                           table-name:String
+                       }:bool
+    let need-rowid?:bool = true
+    {try
+        {connection.execute-sqlite
+            "SELECT ROWID from " & ||""
+            {connection.combined-table-name database-name, table-name},
+            args-callback = 
+                {proc {statement:SQLiteStatement}:void
+                    let column-name:String = {statement.get-column-name 0}
+                    set need-rowid? =
+                        {column-name.equal? "ROWID", ignore-case? = true} ||""
+                    || Cancel running the statement, we could make
+                    || args-callback return a 'continue' bool instead.
+                    {error}
+                }
+        }
+     catch e:Exception do
+    }
+    || It looks like you need a rowid when loading a view, but it isn't
+    || true, the rowid always ends up being null.  So we could try to check
+    || for non-null rowids, but that wouldn't work for empty views, so
+    || we will directly check if the table is a view.
+    {if need-rowid? then
+        {connection.execute-sqlite
+            "SELECT name FROM " & ||""
+            {if database-name == "temp" then
+                "sqlite_temp_master" ||""
+            else
+                {connection.combined-table-name database-name, "sqlite_master"} ||""
+            } &
+            " WHERE name = '" & table-name & "' AND type = 'view'", ||""
+         callback =
+            {proc {row:Array}:bool
+                set need-rowid? = false
+                {return true}
+            }
+        }
+    }
+    {return need-rowid?}
+  }
+
+  {define-proc private {table-name-to-query
+                           connection:Connection,
+                           database-name:String,
+                           table-name:String,
+                           base-where-clause:#String = null
+                       }:(query:String, hidden-primary-key-field:int)
+    let conn:SQLiteConnection = (connection asa SQLiteConnection)
+    let need-rowid?:bool =
+        {SQLiteRecordSet.need-rowid? conn, database-name, table-name}
+    {return
+        "SELECT " &  ||""
+        {if need-rowid? then
+            "ROWID, " ||""
+         else
+            ""
+        } &
+        "* FROM " & ||""
+        {conn.combined-table-name database-name, table-name} &
+        {if-non-null base-where-clause then
+            " WHERE " & base-where-clause ||""
+         else
+            ""
+        },
+        {if need-rowid? then 0 else -1}
+    }
+  }
+
+  || What is where-clause for?  For missing key information when doing
+  || updates, or just reducing data?
+  {doc-next
+    {purpose
+        Create a {docref SQLiteRecordSet} from a SQL table name.
+    }
+    {details
+        Parameters other than {param table-name} are the same as
+        {docref SQLiteRecordSet.create}.
+    }
+    {parameter table-name,
+        Name of the SQL table to load.  A SQL query against that table
+        will be created.
+    }
+    {notes
+        This calls {docref SQLiteRecordSet.create}.
+    }
+  }
+  {factory public {create-from-table-name
+                      connection:SQLConnection,
+                      database-name:String,
+                      table-name:String,
+                      request-modifiable?:bool=false,
+                      size-limit:int=-1,
+                      base-where-clause:#String = null,
+                      strict-types?:bool = false,
+                      base-where-clause-parameters:#Array = null,
+                      load-now?:bool = true,
+                      ...:EventHandler
+                  }:SQLiteRecordSet
+
+    let (query:String, hidden-primary-key-field:int) =
+        {SQLiteRecordSet.table-name-to-query
+            connection,
+            database-name,
+            table-name,
+            base-where-clause = base-where-clause
+        }
+    {return
+        {SQLiteRecordSet.create
+            connection,
+            database-name,
+            query,
+            request-modifiable? = request-modifiable?,
+            size-limit = size-limit,
+            table-name = table-name,
+            base-where-clause = base-where-clause,
+            hidden-primary-key-field = hidden-primary-key-field,
+            query-is-full-row? = true,
+            base-where-clause-parameters = base-where-clause-parameters,
+            load-now? = load-now?,
+            ...
+        }
+    }
+  }
+
+  {method protected {query-initialized query-changed?:bool = true}:RecordFields
+    || If we might need to write to a table, and primary-keys were not
+    || supplied, and we have enough info to figure it out, get the
+    || primary-keys another way.
+
+    {if query-changed? then
+        set self.query-parameters = null
+        set self.base-where-clause-parameters = null
+    }
+    let connection:SQLiteConnection =
+        self.connection asa SQLiteConnection
+    {if self.request-modifiable? and
+        self.primary-keys == null and
+        self.table-name != null
+     then
+        set self.primary-keys =
+            {connection.get-primary-keys-for-table
+                 self.database-name,
+                 {non-null self.table-name}
+             }
+    }
+
+    let fields:RecordFields =
+        {if query-changed? then
+            let temp-fields:#RecordFields
+            set (temp-fields, self.hidden-primary-key-field-name) =
+                {connection.get-sql-fields
+                    self.database-name,
+                    self.query,
+                    table-name = self.table-name,
+                    hidden-primary-key-field = self.hidden-primary-key-field,
+                    query-is-full-row? = self.query-is-full-row?,
+                    primary-keys = self.primary-keys,
+                    strict-types? = self.strict-types?
+                }
+            {non-null temp-fields}
+         else
+            self.fields
+        }
+
+    set self.modifiable? =
+        self.request-modifiable? and
+        self.table-name != null and
+        (self.hidden-primary-key-field >= 0 or 
+         (self.primary-keys != null and self.primary-keys.size > 0 and
+            {value
+                let primary-key-count:int
+                {for fi = 0 below fields.size do
+                    let constant f:SQLRecordField =
+                        {fields.get-by-index fi} asa SQLRecordField
+                    {if f.primary-key? then
+                        {inc primary-key-count}
+                        {break}
+                    }
+                }
+                || Note: the code could insist that the could of primary-keys
+                || in the fields matches those in the table, but that doesn't
+                || allow some interesting narrowing queries.
+                primary-key-count > 0
+            })
+        )
+    {return fields}
+  }
+
+
+  {doc-next
+    {purpose
+        Create a {docref SQLiteRecordSet}.
+    }
+    {parameter query-parameters,
+        An array of values to be bound to the {param query} when it is
+        executed.  {docref SQLiteStatement.bind-any} will be used,
+        so the {param query} must use the positional marker '?'.
+    }
+    {parameter base-where-clause-parameters,
+        An array of values to be bound to the {param base-where-clause}
+        when it is executed.  {docref SQLiteStatement.bind-any} will be used,
+        so the query must use the positional marker '?'.  This will happen
+        for the {param query}, and for some SQL queries used to update the
+        table.
+    }
+    {details
+        Parameters match {docref SQLConnection.create-sql-record-set}
+        plus {param query-parameters} and {param base-where-clause-parameters}.
+    }
+    {notes
+        In order for {ctext request-modifiable? = true} to be honored,
+        {param table-name} must be supplied.  Also some primary key
+        information must be available, either by the column names in the
+        table matching the names of columns in the {param query} or
+        by providing {param hidden-primary-key-field} or {param primary-keys}.
+    }
+  }
+  {constructor public {create
+                          connection:SQLConnection,
+                          database-name:String,
+                          query:String,
+                          request-modifiable?:bool = false,
+                          size-limit:int = -1,
+                          table-name:#String = null,
+                          base-where-clause:#String = null,
+                          hidden-primary-key-field:int = -1,
+                          || We should be able to figure out what the keys
+                          || are, and what type things are without this.
+                          || I.E. does the query look like *, or
+                          || ROWID, *, with hidden-primary-key-field = 0
+                          || This allows optimized INSERT statements to be
+                          || used.
+                          query-is-full-row?:bool = false,
+                          primary-keys:#{Array-of String} = null,
+                          load-now?:bool = true,
+                          strict-types?:bool = false,
+                          query-parameters:#Array = null,
+                          base-where-clause-parameters:#Array = null,
+                          ...:EventHandler
+                      }
+    {construct-super.create
+        connection,
+        database-name,
+        query,
+        request-modifiable? = request-modifiable?,
+        size-limit = size-limit,
+        table-name = table-name,
+        base-where-clause = base-where-clause,
+        hidden-primary-key-field = hidden-primary-key-field,
+        query-is-full-row? = query-is-full-row?,
+        primary-keys = primary-keys,
+        strict-types? = strict-types?,
+        ...
+    }
+    set self.query-parameters = query-parameters
+    set self.base-where-clause-parameters = base-where-clause-parameters
+    {if load-now? then
+        set self.load-state = RecordSetLoadState.unloaded
+        {self.load}
+    }
+  }
+
+  {getter public {connection}:SQLiteConnection
+    {return super.connection asa SQLiteConnection}
+  }
+
+  || SQLConnectedRecordSet APIs
+
+
+  field private load-range-clear-modifiable?:bool
+  {method public {load-range start-record:int, size-limit:int}:void
+    set self.load-range-clear-modifiable? = false
+    {super.load-range start-record, size-limit}
+    {if self.load-range-clear-modifiable? then
+        set self.modifiable? = false
+    }
+  }
+  || Basically the same as SQLConnectedRecordSet except for the
+  || query-parameters support.
+  {method protected {load-range-internal
+                        start-record:int = 0,
+                        size-limit:int = -1
+                    }:void
+    let connection:SQLiteConnection =
+        self.connection asa SQLiteConnection
+    {self.init}
+    {connection.execute-sqlite
+        self.query,
+        start-record = start-record,
+        size-limit = size-limit,
+        args-callback =
+            {proc {statement:SQLiteStatement}:void
+                let start:int = 0
+                {if-non-null query-parameters = self.query-parameters then
+                    {statement.bind {splice query-parameters}}
+                    {inc start, query-parameters.size}
+                }
+                {if-non-null base-where-clause-parameters =
+                    self.base-where-clause-parameters
+                 then
+                    {for bwcp key i in base-where-clause-parameters do
+                        {statement.bind-any start + i + 1, bwcp}
+                    }
+                }
+            },
+        callback =
+            {proc {row:Array}:bool
+                || use (faster) internal-store-record
+                || NOTE: no need for domain conversion here
+                let r:BasicRecord = {self.allocate-record}
+                let record-index:int = 0
+                {for col key i in row do
+                    {if i == self.hidden-primary-key-field then
+                        {if col == null then
+                            set col = min-int64
+                            set self.load-range-clear-modifiable? = true
+                        }
+                        set (r asa SQLHiddenIndexRecord).row-id = col asa int64
+                     else
+                        {r.internal-set-value record-index, col, for-init? = true}
+                        {inc record-index}
+                    }
+                }
+                {self.internal-store-record r, RecordState.original}
+                {self.trigger-record-set-event {RecordAdded r}}
+                {return true}
+            }
+    }
+    {super.commit}
+  }
+
+  {method protected {generate-prefix-values-sql
+                     buf:StringBuf,
+                     record:BasicRecord,
+                     check-if-modified?:bool = false,
+                     primary-keys?:bool = false
+                }:void
+    || for SQLite this will generate nothing.
+  }
+
+  {method protected {generate-values-list-sql
+                        buf:StringBuf,
+                        record:BasicRecord
+                    }:void
+    || for SQLite this will generate a string with ?s in it.
+    {for fi = 0 below self.fields.size do
+        {if fi != 0 then
+            {buf.append ','}
+        }
+        || And the caller will need to call bind-values to fill these in.
+        {buf.append '?'}
+    }
+  }
+
+  {method public {generate-field-value-sql
+                     buf:StringBuf,
+                     f:#RecordField,
+                     record-value:any
+                 }:void
+    {buf.append '?'}
+  }
+
+  {method public {fill-from-table-name
+                     database-name:String = self.database-name,
+                     table-name:#String = self.table-name,
+                     request-modifiable?:bool = self.request-modifiable?,
+                     size-limit:int = self.size-limit,
+                     base-where-clause:#String = self.base-where-clause,
+                     strict-types?:bool = self.strict-types?
+                 }:void
+
+    let (query:String, hidden-primary-key-field:int) =
+        {SQLiteRecordSet.table-name-to-query
+            self.connection,
+            database-name,
+            {non-null table-name},
+            base-where-clause = base-where-clause
+        }
+    {self.fill-sql
+        database-name = database-name,
+        query = query,
+        request-modifiable? = request-modifiable?,
+        size-limit = size-limit,
+        table-name = table-name,
+        base-where-clause = base-where-clause,
+        hidden-primary-key-field = hidden-primary-key-field,
+        query-is-full-row? = true,
+        strict-types? = strict-types?
+    }
+  }
+
+
+
+  {method private {bind-assignments
+                      statement:SQLiteStatement, record:BasicRecord
+                  }:int
+    let column-index:int = 0
+    {for fi = 0 below self.fields.size do
+        let constant f:SQLRecordField =
+            {self.fields.get-by-index fi} asa SQLRecordField
+        let constant f-name:String = f.name
+        let constant record-value:any = record[f-name]
+        {if not {self.field-modified? f, record} then
+            {continue}
+        }
+        {statement.bind-any column-index + 1, record-value}
+        {inc column-index}
+    }
+    {return column-index}
+  }
+
+  {method private {bind-where
+                      statement:SQLiteStatement,
+                      record:BasicRecord,
+                      start:int = 0
+                  }:void
+    {if-non-null base-where-clause-parameters =
+        self.base-where-clause-parameters 
+     then
+        {for p in base-where-clause-parameters do
+            {statement.bind-any start + 1, p}
+            {inc start}
+        }
+    }
+    {type-switch record
+     case r:SQLHiddenIndexRecord do
+        {statement.bind-int64 start + 1, r.row-id}
+        {return}
+    }
+    let arg-index:int = 0
+    {for fi:int = 0 below self.fields.size do
+        let constant f:RecordField = {self.fields.get-by-index fi}
+        {if {self.field-primary-key? f} then
+            let constant f-name:String = f.name
+            let constant old-record-value:any =
+                {record.get f-name, pending? = false}
+            {if old-record-value != null then
+                {statement.bind-any arg-index + start + 1, old-record-value}
+                {inc arg-index}
+            }
+        }
+    }
+  }
+
+  {method private {bind-values
+                      statement:SQLiteStatement,
+                      record:BasicRecord
+                  }:void
+    {for fi = 0 below self.fields.size do
+        let constant f:SQLRecordField =
+            {self.fields.get-by-index fi} asa SQLRecordField
+        let constant f-name:String = f.name
+        let constant record-value:any = record[f-name]
+        || Just leave auto-increment values unbound.
+        {if not f.auto-increment? or record-value != null then
+            {statement.bind-any fi + 1, record-value}
+         else
+            {statement.bind-null fi + 1}
+        }
+    }
+  }
+
+  {method public {commit}:void
+    || confirm records changed
+    {if not self.pending-update? then
+        {return}
+    }
+    {if not self.request-modifiable? then
+        {throw
+            {CommitFailed {lmessage Cannot commit non-modifiable RecordSet.}}
+        }
+    }
+    let connection:SQLiteConnection =
+        self.connection asa SQLiteConnection
+    || TODO: Should there be a flag to allow suppressing the
+    || transaction, in case code wants to do the transaction around
+    || several commits?
+    {connection.execute-sql "", "BEGIN IMMEDIATE"} ||""
+    {try
+        let iter:{Iterator-of Record} = {self.to-Iterator}
+        || This order is important to reduce the chance of a uniqueness
+        || constraint violation.
+        let update-states:{FastArray-of RecordState} =
+            {new {FastArray-of RecordState}, 
+                RecordState.deleted, RecordState.modified,
+                RecordState.appended}
+        || FIXME: we can set the row-ids this way, but other defaulted
+        || columns aren't getting re-read.
+        let insert-records:#{Array-of Record}
+        let insert-row-ids:#{Array-of int64}
+        {for state in update-states do
+            {iter.reset}
+            {for r0 in iter do
+                {if r0.pending-update? and r0.state == state then
+                    let r:BasicRecord = r0 asa BasicRecord
+                    let buf:StringBuf = {StringBuf}
+                    {switch state
+                     case RecordState.modified do
+                        {self.generate-update-statement-sql buf, r}
+                     case RecordState.appended do
+                        || FIXME: this may not be quite right yet because
+                        || default values are getting overwritten with
+                        || bogus Domain supplied defaults.  We might need
+                        || to generate special INSERTS for each row that
+                        || skip defaulted fields, or we might need to load
+                        || default info for the table and use that in the
+                        || Domains.
+                        {self.generate-insert-statement-sql buf, r}
+                     case RecordState.deleted do
+                        {self.generate-delete-statement-sql buf, r}
+                    }
+                    {connection.execute-sqlite
+                        {buf.to-String},
+                        args-callback =
+                            {proc {statement:SQLiteStatement}:void
+                                {switch state
+                                 case RecordState.modified do
+                                    let column-index:int =
+                                        {self.bind-assignments statement, r}
+                                    {self.bind-where statement, r,
+                                        start = column-index}
+                                 case RecordState.appended do
+                                    {self.bind-values statement, r}
+                                 case RecordState.deleted do
+                                    {self.bind-where statement, r}
+                                }
+                            },
+                        restart-callback =
+                            {proc {statement:SQLiteStatement}:bool
+                                {switch state
+                                 case RecordState.modified do
+                                    || UPDATE can't be reused because it might
+                                    || need a different set of fields each time.
+                                    {return false}
+                                 case RecordState.appended do
+                                    || See if there are auto-increment fields
+                                    || that need a row-id set in them.
+                                    {if insert-row-ids == null then
+                                        set insert-row-ids =
+                                            {new {Array-of int64}}
+                                        set insert-records =
+                                            {new {Array-of Record}}
+                                    }
+                                    let connection:SQLiteConnection =
+                                        (self.connection asa SQLiteConnection)
+                                    {insert-row-ids.append
+                                        connection.database.last-insert-rowid
+                                    }
+                                    {insert-records.append r}
+                                }
+                                || Iterate over other records that need the
+                                || same operation.
+                                let eof?:bool = false
+                                {while not eof? do
+                                    set (r0, eof?) = {iter.read-one}
+                                    {if not eof? and
+                                        r0.pending-update? and r0.state == state
+                                     then
+                                        set r = r0 asa BasicRecord
+                                        {break}
+                                    }
+                                }
+                                {return not eof?}
+                            }
+                    }
+                }
+            }
+        }
+        {connection.execute-sql "", "COMMIT"} ||""
+        {if-non-null insert-records then
+            {for r key i in insert-records do
+                {self.set-insert-row-id r, insert-row-ids[i]}
+                || FIXME: we could re-fetch each inserted row here to get
+                || anything changed by defaulting/triggers.
+            }
+        }
+     catch e:Exception do
+        {connection.execute-sql "", "ROLLBACK"} ||""
+        {throw {CommitFailed e.message}}
+    }
+
+    || second phase -- internal commit
+    {with self.batch-events? = true do
+        {for r in {self.select filter = RecordFilter.pending-update} do
+            {self.commit-record (r asa BasicRecord)}
+        }
+    }
+  }
+
+  {method private {set-insert-row-id record:Record, row-id:int64}:void
+    {type-switch record
+     case shir:SQLHiddenIndexRecord do
+        set shir.row-id = row-id
+    }
+    {for fi = 0 below self.fields.size do
+        let f:SQLRecordField = {self.fields.get-by-index fi} asa SQLRecordField
+        || If there is more than one auto-increment column then this is doing
+        || to screw stuff up.
+        {if f.auto-increment? then
+            let constant f-name:String = f.name
+            let constant record-value:any = record[f-name]
+            {if record-value == null then
+                || FIXME: is this the right way to set the value after an
+                || insert?
+                {(record asa BasicRecord).internal-set-value
+                    fi, row-id, for-init? = true
+                }
+            }
+        }
+    }
+  }
+
+  field _query-parameters:#Array
+  {setter public {query-parameters parameters:#Array}:void
+    set self._query-parameters = parameters
+  }
+  {getter public {query-parameters}:#Array
+    {return self._query-parameters}
+  }
+
+  field _base-where-clause-parameters:#Array
+  {setter public {base-where-clause-parameters parameters:#Array}:void
+    set self._base-where-clause-parameters = parameters
+  }
+  {getter public {base-where-clause-parameters}:#Array
+    {return self._base-where-clause-parameters}
+  }
+
+  {method protected {table-name-for-sql table-name:String}:String
+    {return
+        {(self.connection asa SQLiteConnection).combined-table-name
+            self.database-name, table-name
+        }
+    }
+  }
+}
+
+
+|| TEMP: connectionless RecordSet
+|| --------------------
+{define-class public SQLiteBasicRecordSet {inherits SQLiteRecordSet}
+  {constructor public {default
+                          database-name:SQLiteDatabase,
+                          sql:String,
+                          request-modifiable?:bool = false,
+                          parameters:#Array = null,
+                          strict-types?:bool = false,
+                          ...:EventHandler}
+    def connection = connection-cache[database-name]
+    {construct-super.create connection, "main", sql,
+        request-modifiable? = request-modifiable?,
+        strict-types? = strict-types?,
+        {splice ...}
+    }
+    set self.query-parameters = parameters
+  }
+}
+{def connection-cache =
+    {{Memoizer-of SQLiteDatabase, SQLiteConnection}
+        {proc {db:SQLiteDatabase}:SQLiteConnection
+            {return {SQLiteConnection database = db}}}}
+}
+

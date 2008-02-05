@@ -1,0 +1,486 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.SQLITE}
+{import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
+
+{TestSuite "basics",
+    || --------------------
+    {test-case "roundtrip",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            let xs:Array = {Array "abc", 1, 12.34, {ByteArray 0x00, 0x77, 0xFF}, null, max-int64}
+            {with-statement in db
+                q = "INSERT INTO test (val) VALUES (?)"
+             do
+                {for x in xs do
+                    {q.reset}
+                    {q.bind x}
+                    {q.step}
+                }}
+            {with-statement in db
+                q = "SELECT val FROM test ORDER BY id"
+             do
+                let ys:Array = {q.data-column}
+                {TestCondition.assert
+                    {any-equal? xs, ys}}
+            }
+        }},
+    || --------------------
+    {test-case "constraint NOT NULL",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "CREATE TABLE test (val NOT NULL)"}
+            let result:SQLiteStatus =
+                {db.execute throw-on-error? = false,
+                    "INSERT INTO test VALUES (NULL)"}
+            {TestCondition.assert message = "expected CONSTRAINT",
+                result == SQLiteStatus.CONSTRAINT}
+        }},
+    || --------------------
+    {test-case "constraint UNIQUE",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "CREATE TABLE test (val UNIQUE)"}
+            {db.execute "INSERT INTO test VALUES (1)"}
+            let result:SQLiteStatus =
+                {db.execute throw-on-error? = false,
+                    "INSERT INTO test VALUES (1)"}
+            {TestCondition.assert message = "expected CONSTRAINT",
+                result == SQLiteStatus.CONSTRAINT}
+        }},
+    || --------------------
+    {test-case "create",
+        let dbloc:Url = {get-temp-database-file}
+        {with-database db = {SQLiteDatabase dbloc} do
+            {db.execute "
+DROP TABLE IF EXISTS test;
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            let xs:Array = {Array "abc", 1, 12.34, null}
+            {with-statement in db
+                q = "INSERT INTO test (val) VALUES (?)"
+             do
+                {for x in xs do
+                    {q.reset}
+                    {q.bind x}
+                    {q.step}
+                }}}
+        {delete dbloc, error-if-missing? = false}
+    },
+    || --------------------
+    {test-case "attach",
+        let dbloc:Url = {get-temp-database-file}
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            let xs:Array = {Array "abc", 1, 12.34, null}
+            {with-statement in db
+                q = "INSERT INTO test (val) VALUES (?)"
+             do
+                {for x in xs do
+                    {q.reset}
+                    {q.bind x}
+                    {q.step}
+                }}
+            let a:String =
+                {format "ATTACH DATABASE '%s' AS work",
+                    {non-null dbloc.local-filename}}
+            {db.execute a}
+            {db.execute "
+DROP TABLE IF EXISTS work.test;
+CREATE TABLE work.test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            {db.execute "INSERT INTO work.test SELECT * FROM test"}
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+        }
+        {delete dbloc, error-if-missing? = false}
+    },
+    || --------------------
+    {test-case "callbacks",
+        || TODO: use Database instead
+        let con:SQLiteConnection = {SQLiteConnection database-url = null}
+        let db:SQLiteDatabase = {non-null con.database}
+
+        || schema
+        {db.execute {read-from {url "../test-data/oe-data/define.sql"}}}
+
+        || data
+        {SQLiteStatement.import-csv db,
+            "customer", {url "../test-data/oe-data/customer.csv"}}
+        {SQLiteStatement.import-csv db, "product",
+            {url "../test-data/oe-data/product.csv"}}
+        {SQLiteStatement.import-csv db, "orders",
+            {url "../test-data/oe-data/orders.csv"}}
+        {SQLiteStatement.import-csv db, "item",
+            {url "../test-data/oe-data/item.csv"}}
+
+        let log:StringArray = {StringArray}
+
+        || == test rollback hook
+        set con.rollback-event? = true
+        {con.add-event-handler
+            {on SQLiteRollbackEvent do
+                {log.append {message Rollback}}}}
+        {do
+            {con.execute "BEGIN;"}
+            {con.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
+            {con.execute "ROLLBACK;"}
+        }
+        || == test commit hook
+        set con.commit-event? = true
+        {con.add-event-handler
+            {on e:SQLiteCommitEvent do
+||--            set e.consumed? = true
+||--            {log.append {lmessage canceling Commit}}
+                {log.append {lmessage Commit}}}}
+        {do
+            {con.execute "BEGIN;"}
+            {con.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
+            {try
+                {con.execute "COMMIT;"}
+             catch e:Exception do
+                {con.execute "ROLLBACK;"}}
+        }
+        || == test update hook
+        set con.update-event? = true
+        {con.add-event-handler
+            {on e:SQLiteUpdateEvent do
+                {log.append 
+                    {message
+                        {value e.operation.name}
+                        on '{value e.database-name}' 
+                        table '{value e.table-name}'
+                        row {value e.rowid}
+                    }}}}
+        {do
+            {con.execute "BEGIN;"}
+            {con.execute "UPDATE item SET quantity = 200 WHERE rowid = 1;"}
+            {con.execute "UPDATE item SET quantity = 166 WHERE rowid = 3;"}
+            {con.execute "DELETE FROM item WHERE rowid = 5;"}
+            {con.execute "ROLLBACK;"}
+        }
+
+        || == confirm results
+        let log-expected:StringArray = 
+            {StringArray
+                "Rollback",
+                "Commit",
+                "UPDATE on 'main' table 'item' row 1",
+                "UPDATE on 'main' table 'item' row 3",
+                "DELETE on 'main' table 'item' row 5",
+                "Rollback"}
+        {TestCondition.assert message = {lmessage log mismatch},
+            {log-expected.equal? log}}
+    },
+    || --------------------
+    {test-case "concurency",
+        let dbloc:Url = {get-temp-database-file}
+        def results = {Array}
+
+        {with-database db = {SQLiteDatabase dbloc} do
+            {db.execute "CREATE TABLE test (val);"}
+            {db.execute "PRAGMA synchronous=OFF;"}
+
+            {with-statement in db 
+                stmt = "INSERT INTO test VALUES (?);" 
+             do
+
+                {with-database db2 = {SQLiteDatabase dbloc} do
+                    {db2.execute "PRAGMA synchronous=OFF;"}
+
+                    {with-statement in db2 
+                        stmt2 = "INSERT INTO test VALUES (?);" 
+                     do
+
+                        {for i = 0 below 4 do
+                            let d1:String = {{DateTime}.info.iso-full.substr 11, 12}
+                            {sleep 2ms}
+                            let d2:String = {{DateTime}.info.iso-full.substr 11, 12}
+
+                            {with-transaction in db do
+                                || DB1 should succeed
+                                {stmt.reset}
+                                {stmt.bind d1}
+                                let result:SQLiteStatus = {stmt.step}
+                                {output {message DB1 {value d1} : {value result.name}}}
+                                {results.append result}
+
+                                || DB2 should fail because of lock
+                                {stmt2.reset}
+                                {stmt2.bind d2}
+                                let result2:SQLiteStatus = {stmt2.step throw-on-error? = false}
+                                {output {message DB2 {value d2} : {value result2.name}}}
+                                {results.append result2}
+                            }
+
+                            || now DB2 should succeed
+                            let result2:SQLiteStatus = {stmt2.step}
+                            {output {message DB2 {value d2} : {value result2.name}}}
+                            {results.append result2}
+                        }
+                        def n = {db.sql-value "SELECT count(*) FROM test"}
+                        {output {message DB2 : {value n}}}
+                        {results.append n}
+                    }}
+                def n = {db.sql-value "SELECT count(*) FROM test"}
+                {output {message DB1 : {value n}}}
+                {results.append n}
+            }}
+        {delete dbloc}
+        {TestCondition.assert
+            {any-equal? results,
+                {Array
+                    || 4 * succeed/fail/succeed
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.DONE,
+                    SQLiteStatus.BUSY,
+                    SQLiteStatus.DONE,
+                    || 8 rows added
+                    8,
+                    8}
+            }}
+    },
+    || --------------------
+    {value
+        def testsql = "
+DROP TABLE IF EXISTS products;
+CREATE TABLE products (
+ id TEXT NOT NULL PRIMARY KEY,
+ name TEXT NOT NULL,
+ price DOUBLE NOT NULL
+);
+INSERT INTO products VALUES ('0001','paper',10.00);
+INSERT INTO products VALUES ('0002','envelope',5.00);
+INSERT INTO products VALUES ('0003','pen',4.00);
+INSERT INTO products VALUES ('0004','pencil',2.00);
+INSERT INTO products VALUES ('0005','marker',7.00);
+INSERT INTO products VALUES ('0006','folder',9.00);
+INSERT INTO products VALUES ('0007','calendar',4.00);
+"
+        def testdb =
+            {proc {}:SQLiteDatabase
+                def db = {SQLiteDatabase null}
+                {db.execute testsql}
+                {return db}}
+        {TestSuite "convenience functions",
+            {test-case "sql-value",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-value "SELECT AVG(price) FROM products"},
+                            5.8571428571428568}}}},
+            {test-case "sql-row",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-row "SELECT * FROM products WHERE id = ?", "0001"},
+                            {Array "0001","paper",10}}}}},
+            {test-case "sql-rows",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal? {db.sql-rows "SELECT * FROM products"},
+                            {{Array-of Array}
+                                {Array "0001","paper",10},
+                                {Array "0002","envelope",5},
+                                {Array "0003","pen",4},
+                                {Array "0004","pencil",2},
+                                {Array "0005","marker",7},
+                                {Array "0006","folder",9},
+                                {Array "0007","calendar",4}}
+                        }}}},
+            {test-case "sql-column",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {any-equal?
+                            {db.sql-column
+                                "SELECT name FROM products WHERE price > ? ORDER BY name", 5},
+                            {Array "folder", "marker", "paper"}
+                        }}}},
+            {test-case "sql-exists?",
+                {with-database db = {testdb} do
+                    {TestCondition.assert
+                        {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}}
+        }
+    },
+    || --------------------
+    {test-case "bind, iterator, progress, authorizer",
+        {with-database db = {SQLiteDatabase null} do
+            let operations:{Array-of SQLiteOperation} =
+                {new {Array-of SQLiteOperation}}
+            let data1-array:{Array-of #String} =
+                {new {Array-of #String}}
+            let authorizer-deny?:bool
+            set db.authorizer =
+                {proc {operation:SQLiteOperation,
+                       data1:#String, data2:#String,
+                       data3:#String, data4:#String
+                      }:SQLiteAuthorizerReturnCode
+                    {if data1 != "sqlite_master" then
+                        {operations.append operation}
+                        {data1-array.append data1}
+                    }
+                    {if authorizer-deny? then
+                        {return SQLiteAuthorizerReturnCode.DENY}
+                    }
+                    {return SQLiteAuthorizerReturnCode.OK}
+                }
+            {db.execute "CREATE TABLE test (val1, val2);"}
+            let values:Array =
+                {Array "abc", 5, 1.3, {ByteArray 1, 2, 3}, null, "def"}
+            {with-statement in db 
+                q = "INSERT INTO test (val1, val2) VALUES (?, :val2)"
+             do
+                {TestCondition.assert q.bind-parameter-count == 2}
+                {for v key i in values do
+                    {q.bind v, values[(i + 1) mod values.size]}
+                    {q.step}
+                    {q.reset}
+                }
+            }
+            {with-statement in db 
+                q = "SELECT * from test LIMIT 0"
+             do
+                {TestCondition.assert q.column-count == 2}
+            }
+            {with-statement in db 
+                q = "SELECT * from test ORDER BY ROWID"
+             do
+                let total:int = 0
+                {for r in {q.rows-to-Iterator} do
+                    {TestCondition.assert r.size == 2}
+                    {TestCondition.assert {any-equal? r[0], values[total]}}
+                    {TestCondition.assert
+                        {any-equal? r[1], values[(total + 1) mod values.size]}
+                    }
+                    {inc total}
+                }
+                {TestCondition.assert total == values.size}
+            }
+            let cancel-now?:bool
+            let seen-progress-count:int = 0
+            {db.set-progress-handler
+                2,
+                {proc {}:bool
+                    {return
+                        {if cancel-now? then
+                            true
+                         else
+                            {inc seen-progress-count}
+                            false
+                        }
+                    }
+                }
+            }
+            {with-statement in db 
+                q = "SELECT * from test ORDER BY ROWID"
+             do
+                let total:int = 0
+                {try
+                    {for r in {q.rows-to-Iterator} do
+                        {inc total}
+                        set cancel-now? = true
+                    }
+                    {TestCondition.fail
+                        message = "Didn't cancel from progress."
+                    }
+                 catch e:SQLiteException do
+                }
+                {TestCondition.assert total < values.size}
+                {TestCondition.assert seen-progress-count > 0}
+            }
+            let interrupt-now?:bool
+            {db.set-progress-handler
+                2,
+                {proc {}:bool
+                    {if interrupt-now? then
+                        {db.interrupt}
+                    }
+                    {return false}
+                }
+            }
+            {with-statement in db 
+                q = "SELECT * from test ORDER BY ROWID"
+             do
+                let total:int = 0
+                {try
+                    {for r in {q.rows-to-Iterator} do
+                        {inc total}
+                        set interrupt-now? = true
+                    }
+                    {TestCondition.fail
+                        message = "Didn't interrupt from progress."
+                    }
+                 catch e:SQLiteException do
+                }
+                {TestCondition.assert total < values.size}
+            }
+            {TestCondition.assert operations[0] == SQLiteOperation.CREATE_TABLE and
+                data1-array[0] == "test"}
+            {TestCondition.assert operations[1] == SQLiteOperation.INSERT and
+                data1-array[1] == "test"}
+            {TestCondition.assert operations[2] == SQLiteOperation.SELECT and
+                data1-array[2] == null}
+            {TestCondition.assert operations[3] == SQLiteOperation.READ and
+                data1-array[3] == "test"}
+            {TestCondition.assert operations[4] == SQLiteOperation.READ and
+                data1-array[4] == "test"}
+            {TestCondition.assert operations[5] == SQLiteOperation.SELECT and
+                data1-array[5] == null}
+            {TestCondition.assert operations[6] == SQLiteOperation.READ and
+                data1-array[6] == "test"}
+            {TestCondition.assert operations[7] == SQLiteOperation.READ and
+                data1-array[7] == "test"}
+            {TestCondition.assert operations[8] == SQLiteOperation.READ and
+                data1-array[8] == "test"}
+            {TestCondition.assert operations[9] == SQLiteOperation.SELECT and
+                data1-array[9] == null}
+            {with-statement in db 
+                q = "SELECT * from test ORDER BY ROWID"
+             do
+                let total:int
+                {try
+                    {for r in {q.rows-to-Iterator} do
+                        {inc total}
+                        set authorizer-deny? = true
+                    }
+                    {TestCondition.fail
+                        message = "Didn't interrupt from progress."
+                    }
+                 catch e:SQLiteException do
+                }
+                {TestCondition.assert total < values.size}
+            }
+        }
+    }
+}

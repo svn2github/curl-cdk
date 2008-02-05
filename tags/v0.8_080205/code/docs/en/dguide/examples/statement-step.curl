@@ -1,0 +1,43 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    def db = {SQLiteDatabase null}
+    {db.execute {read-from {url "products.sql"}}}
+
+    def display = {VBox}
+    {with-statement in db
+        s = "SELECT id, name, price FROM products ORDER BY price DESC"
+     do
+        {while {s.step} == SQLiteStatus.ROW do
+            def id:String = {non-null {s.get-column-text 0}}
+            def name:String = {non-null {s.get-column-text 1}}
+            def price:double = {s.get-column-double 2}
+            {display.add
+                {text
+                    tooltip =
+                        {Tooltip style = "immediate",
+                            {text {bold {value name}} (#{value id}) ${format "%.02f", price}}},
+                    {value name}}}
+        }}
+    display
+}
+

@@ -1,0 +1,99 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from CURL.GUI.STANDARD}
+{StyleSheet
+    || panels
+    || ----------
+    {StyleRule "SkinnableFrame.title-bar",
+        font-size = 14pt,
+        height = 20pt,
+        skin =
+            {ShadedSkinSpec
+                margin-spec = {OffsetSpec 0pt},
+                "#91BFF2",
+                "#BBE9F0",
+                border-color = "#6C9AF0",
+                corner-radius = 6px,
+                upper-left-rounded? = true,
+                upper-right-rounded? = true,
+                lower-right-rounded? = false,
+                lower-left-rounded? = false}},
+    {StyleRule "SkinnableFrame.status-bar",
+        height = 14pt,
+        skin =
+            {ShadedSkinSpec
+                margin-spec = {OffsetSpec 0pt},
+                "#BBE9F0",
+                "#91BFF2",
+                border-color = "#6C9AF0",
+                corner-radius = 6px,
+                upper-left-rounded? = false,
+                upper-right-rounded? = false,
+                lower-right-rounded? = true,
+                lower-left-rounded? = true}},
+    || info
+    || ----------
+    {StyleRule "Frame.title",
+        font-weight = "bold"},
+    {StyleRule "Frame.title-file",
+        font-size = 12pt},
+    {StyleRule "Frame.title",
+        margin = 2px},
+    {StyleRule "Frame.status",
+        margin = 3px,
+        font-size = 8pt,
+        font-style = "italic"},
+    {StyleRule "Frame.sql-error",
+        color = "purple"},
+    || menu
+    || ----------
+    {StyleRule "MenuBar",
+        control-color = "#BBE9F0"},
+    {StyleRule "MenuPane",
+        || TODO: why doesn't this work
+        control-color = "#BBE9F0"},
+    || main
+    || ----------
+    {StyleRule "TabContainer.sql",
+        border-width = 1px,
+        margin = 2px,
+        border-color = "#6C9AF0"},
+    {StyleRule "RecordGrid.sql",
+        color = "black",
+        background = "#E6F3FA",
+        control-content-background = "#E6F3FA",
+        control-color = "#BBE9F0",
+        alternate-row-background = "#D0EEF5", || midway beteeen above 2
+        grid-line-color = "#A8D2F6",
+        horizontal-grid-line-width = 1px,
+        vertical-grid-line-width = 1px,
+        display-filler-column? = true},
+    {StyleRule "TextArea.sql",
+        control-content-background = "#DEF",
+        font-family = "monospace"},
+    {StyleRule "Frame.sql-schema",
+        background = "#DEF"},
+    || internal
+    || ----------
+    {StyleRule "PanedWindow",
+        sash-border-color = "white",
+||--        sash-background = "#BBE9F0",
+        || NOTE: this avoids the black line
+        background = "#BBE9F0",
+        sash-background = "transparent"
+    }
+}

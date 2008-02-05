@@ -1,0 +1,1554 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class package final FunctionSpec
+  field constant public name:String
+  field constant public number-of-args:int
+  field constant public xfunc:#SQLiteFunctionProcType
+  field constant public xfunc-ptr:SQLiteFunctionPointerType
+  field constant public final-xfunc:#SQLiteFinalFunctionProcType
+  field constant public final-xfunc-ptr:SQLiteFinalFunctionPointerType
+
+  {doc-next
+    {purpose
+        Constructs a {docref FunctionSpec} object.
+    }
+    {parameter name,
+        The name of the function.
+
+        The length of {param name} should be limited to {ctext 255} bytes, 
+        exclusive of the zero-terminator. Note that the name length 
+        limit is in bytes, not characters. Any attempt to create a 
+        function with a longer name will result in an error.
+    }
+    {parameter number-of-args,
+        The number of arguments that the SQL function takes. If this
+        parameter is negative, then the SQL function may take any
+        number of arguments.
+    }
+    {parameter xfunc,
+        A function that implements the SQL function.
+    }
+    {parameter final-xfunc,
+        A final function that implements the final part of a SQL final function.
+    }
+  }
+  {constructor package {default
+                           name:String,
+                           number-of-args:int,
+                           xfunc:#SQLiteFunctionProcType,
+                           xfunc-ptr:SQLiteFunctionPointerType,
+                           final-xfunc:#SQLiteFinalFunctionProcType = null,
+                           final-xfunc-ptr:SQLiteFinalFunctionPointerType =
+                               {uninitialized-value-for-type SQLiteFinalFunctionPointerType}
+                       }
+    set self.name = name
+    set self.number-of-args = number-of-args
+    set self.xfunc = xfunc
+    set self.xfunc-ptr = xfunc-ptr
+    set self.final-xfunc = final-xfunc
+    set self.final-xfunc-ptr = final-xfunc-ptr
+  }
+}
+
+{doc-next
+    {purpose
+        An object representing a SQLite database connection.
+    }
+    {notes
+        The connection will be closed when an applet is suspended,
+        but all state will be re-installed when the applet is
+        resumed.
+    }
+}
+{define-class public open SQLiteDatabase
+  field private _sqlite3:SQLiteDatabaseHandle
+
+  {doc-next
+    {purpose
+        A list of {docref SQLiteStatement}s created by this object that
+        are not finalized.
+    }
+    {notes
+        This list is used by {docref SQLiteDatabase} to finalize all
+        the {ctext SQLiteStatement}s when {docref
+        SQLiteDatabase.close} method is called.
+    }
+  }
+  field constant protected statements:{Array-of SQLiteStatement}
+
+  {doc-next
+    {purpose
+        If non-{ctext null}, this is the {docref Url} of the database to
+        connect to. If null then the database will be a memory
+        database.
+    }
+  }
+  field constant public url:#Url
+
+  field private _busy-timeout:int
+
+
+  || Saved and re-installed when the database is re-opened.
+  field private busy-handler-callback:#SQLiteBusyHandlerProcType
+  || This holds on to the callback that will be created in response to 
+  || setting the busy handler callback for this object. This pointer is 
+  || necessary to hold, otherwise the busy handler callback that is passed
+  || to the SQLiteInterface could be garbage collected and hence result
+  || in memory access violation.
+  field private busy-handler-callback-ptr:SQLiteBusyHandlerPointerType =
+    {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
+
+  
+  || Saved and re-installed when the database is re-opened.
+  field private update-callback:#SQLiteUpdateHookProcType
+  || This holds on to the callback that will be created in response to 
+  || setting the update callback for this object. This pointer is 
+  || necessary to hold, otherwise the update callback that is passed
+  || to the SQLiteInterface could be garbage collected and hence result
+  || in memory access violation.
+  field private update-callback-ptr:SQLiteUpdateCallbackPointerType =
+    {uninitialized-value-for-type SQLiteUpdateCallbackPointerType}
+
+  || Saved and re-installed when the database is re-opened.
+  field private progress-callback:#SQLiteProgressHandlerProcType
+  field private progress-callback-arg:int
+  field private progress-callback-ptr:SQLiteProgressHandlerPointerType =
+    {uninitialized-value-for-type SQLiteProgressHandlerPointerType}
+
+  || Saved and re-installed when the database is re-opened.
+  field private _authorizer:#SQLiteAuthorizerProcType
+  field private authorizer-ptr:SQLiteAuthorizerPointerType =
+    {uninitialized-value-for-type SQLiteAuthorizerPointerType}
+
+
+  || Saved and re-installed when the database is re-opened.
+  field private commit-callback:#SQLiteCommitHookProcType
+  || This holds on to the callback that will be created in response to 
+  || setting the commit callback for this object. This pointer is 
+  || necessary to hold, otherwise the commit callback that is passed
+  || to the SQLiteInterface could be garbage collected and hence result
+  || in memory access violation.
+  field private commit-callback-ptr:SQLiteCommitCallbackPointerType =
+    {uninitialized-value-for-type SQLiteCommitCallbackPointerType}
+
+
+  || Saved and re-installed when the database is re-opened.
+  field private rollback-callback:#SQLiteRollbackHookProcType
+
+  || This holds on to the callback that will be created in response to 
+  || setting the rollback callback for this object. This pointer is 
+  || necessary to hold, otherwise the rollback callback that is passed
+  || to the SQLiteInterface could be garbage collected and hence result
+  || in memory access violation.
+  field private rollback-callback-ptr:SQLiteRollbackCallbackPointerType =
+    {uninitialized-value-for-type SQLiteRollbackCallbackPointerType}
+
+  || Note: these is null when the database is closed.  And when
+  || the database is open, a registered proc will keep this
+  || Object alive, which is required.
+  field private suspend-proc:#{proc-type {}:void}
+  field private exit-proc:#{proc-type {}:void}
+
+  || Saved and re-installed when the database is re-opened.
+  field private constant installed-functions:{Array-of FunctionSpec} =
+    {new {Array-of FunctionSpec}}
+
+  {doc-next
+    {purpose
+        Constructs a {ctext SQLiteDatabase} object.
+    }
+    {parameter u,
+        The {docref Url} of the database to connect to.
+
+        If {param u} is {ctext null} then a memory database connection
+        is opened. If {param u} is not a local file {docref Url}, the
+        file will be downloaded and copied to a local file.  An error
+        will be thrown if {param u} is not a local file {docref Url},
+        and it does not exist.  If {param u} is a local file {docref Url},
+        but it does not exist, it will be created, however the parent
+        directory of {param u} must already exist.
+    }
+    {notes
+        The database connection will not be opened till an attempt is
+        made to use it.
+    }
+  }
+  || TODO: Should we make an implicit constructor from #Url?
+  {constructor public {default u:#Url}
+    set self.url = u
+    set self.statements = {{Array-of SQLiteStatement}}
+  }
+
+  {doc-next
+    {purpose
+        The handle of the open SQLite database object.
+    }
+    {notes
+        If the database is not open, calling this getter will attempt
+        to open the database. If the attempt fails, an error will be thrown.
+    }
+  }
+  {getter private {non-null-sqlite3}:SQLiteDatabaseHandle
+    {self.open}
+    {return self._sqlite3}
+  }
+
+  {doc-next
+    {purpose
+        The handle of the SQLite database object.
+    }
+    {notes
+        If the database is not open the returned value will be 0 and
+        no attempt will be made to open the database.
+    }
+  }
+  {getter protected {sqlite3}:SQLiteDatabaseHandle
+    {return self._sqlite3}
+  }
+
+  {doc-next
+    {purpose
+        Open the database this object represents.
+    }
+    {notes
+        If the database is open then calling this method does nothing.
+        
+        This method is called lazily by most operations to open the
+        database connection.
+        
+        If the database fails to open, an error will be thrown.
+    }
+  }
+  {method protected {open}:void
+    {if self._sqlite3 != 0 then {return}}
+    let constant filename:String = 
+        {if-non-null u = self.url then
+            {if-non-null f = u.local-filename then f
+             else
+                || must be http(s)
+                def loc = {local-data-copy-of u, "DB"}
+                {non-null loc.local-filename}}
+         else
+            ":memory:"
+        }
+    let sqlite3-pointer-pointer:{Pointer-to SQLiteDatabaseHandle} =
+        {{Pointer-to SQLiteDatabaseHandle} value = 0}
+    let constant status:SQLiteStatus = 
+        {{SQLiteInterface}.open filename, sqlite3-pointer-pointer}
+    || Note that sqlite3 is a pointer, but we do not add pointer to
+    || the suffix just to avoid long name.
+    set self._sqlite3 = sqlite3-pointer-pointer.value
+    {if status != SQLiteStatus.OK then
+        {try
+            {self.check-status}
+         catch ex:Exception do
+            {{SQLiteInterface}.close self._sqlite3}
+            set self._sqlite3 = 0
+            {throw ex}
+        }
+    }
+
+    || Register procs to release resources (by closing database).
+    || Database is opened lazily, so no need for resume proc.
+    || - File databases can be closed on suspend    
+    || - memory databases (or temp databases) would be lost
+
+    def suspend-proc =
+        {proc {}:void
+            || |#DEBUG#| {errput {message on SUSPEND in {value self} ({value {get-working-directory-url}.filename})}}
+            {if self.close-on-suspend? then
+                || |#DEBUG#| {errput {message ... can close}}
+                {self.close}}
+        }
+    set self.suspend-proc = suspend-proc
+    {register-suspend-proc suspend-proc}
+
+    def exit-proc =
+        {proc {}:void
+            || |#DEBUG#| {errput {message on EXIT in {value self} ({value {get-working-directory-url}.filename}) }}
+            {self.close}
+        }
+    set self.exit-proc = exit-proc
+    {register-exit-proc exit-proc}
+
+    {if-non-null callback = self._authorizer then
+        set self.authorizer = self._authorizer
+    }
+    
+    {if self._busy-timeout > 0 then
+        set self.busy-timeout = self._busy-timeout * 1ms
+    }
+
+    {for f in self.installed-functions do
+        let constant aggregate?:bool = (f.final-xfunc != null)
+        let constant status:SQLiteStatus =
+            {{SQLiteInterface}.create-function
+                self._sqlite3, f.name, f.number-of-args, 
+                {if not aggregate? then
+                    f.xfunc
+                 else
+                    null
+                },
+                {if aggregate? then
+                    f.xfunc
+                 else
+                    null
+                },
+                f.final-xfunc
+            }
+    
+        {if status == SQLiteStatus.OK then
+            {self.check-status}
+        }
+    }
+
+    {if-non-null callback = self.busy-handler-callback then
+        set self.busy-handler = callback
+    }
+
+    {if-non-null callback = self.update-callback then
+        set self.update-hook = callback
+    }
+    {if-non-null callback = self.commit-callback then
+        set self.commit-hook = callback
+    }
+    {if-non-null callback = self.rollback-callback then
+        set self.rollback-hook = callback
+    }
+    {if-non-null callback = self.progress-callback then
+        {self.set-progress-handler self.progress-callback-arg, callback}
+    }
+  }
+
+
+  {doc-next
+    {purpose
+        Throws a {docref SQLiteException} if the most recent SQLite
+        API call failed.
+    }
+    {notes
+        Calling this method does nothing if the database connection is
+        closed.
+    }
+  }
+  {method public open {check-status}:void
+    {if self.sqlite3 == 0 then {return}}
+        
+    let constant interface:SQLiteInterface = {SQLiteInterface}
+    let constant code:SQLiteStatus = {interface.errcode self.sqlite3}
+    {if not {SQLiteStatus-ok? code} then
+        {throw {SQLiteException code, {interface.errmsg self.sqlite3}}}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Notifies the {docref SQLiteDatabase} object that a {docref
+        SQLiteStatement} was prepared.
+    }
+    {notes
+        The default implementation appends {param stmt} in the {docref
+        SQLiteDatabase.statements} list.
+        
+        This is called by {docref SQLiteStatement.prepare} method.
+    }
+  }
+  {method private {note-statement-prepared stmt:SQLiteStatement}:void
+    let constant statements:{Array-of SQLiteStatement} = self.statements
+
+    {if {statements.find stmt} == -1 then
+        {statements.append stmt}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Notifies the {docref SQLiteDatabase} object that a {docref
+        SQLiteStatement} was finalized.
+    }
+  }
+  {method private {note-statement-finalized stmt:SQLiteStatement}:void
+    {if self.sqlite3 == 0 then {return}}
+    let constant statements:{Array-of SQLiteStatement} = self.statements
+
+    {assert stmt.stmt == 0}
+    let constant index:int = {statements.find stmt}
+    {if index != -1 then
+        {statements.remove index}
+    }
+  }
+
+
+  {doc-next
+    {purpose
+        Closes the database connection.
+    }
+    {return-vals
+        If successful, it returns {ctext SQLiteStatus.OK}. If there
+        are prepared statements that have not been finalized, it will
+        finalize them before attempting to close the
+        database. Otherwise the error code will be returned.
+
+        If the database is already closed {ctext SQLiteStatus.OK} is
+        returned.
+    }
+  }
+  {method public open {close}:void
+    {if self.sqlite3 == 0 then {return}}
+    || |#DEBUG#| {errput {message SQLITE closing {value self} ({value {get-working-directory-url}.filename}) }}
+
+    let constant statements:{Array-of SQLiteStatement} = self.statements
+    {while statements.size > 0 do
+        let constant stmt:SQLiteStatement = {statements.pop}
+        || Ignore finalize errors.
+        {stmt.finalize}
+        || |#DEBUG#| {errput {message SQLITE finalized {value stmt.sql}}}
+        }
+    let constant status:SQLiteStatus = {{SQLiteInterface}.close self.sqlite3}
+    {if status == SQLiteStatus.OK then
+        set self._sqlite3 = 0
+        {unregister-suspend-proc {non-null self.suspend-proc}}
+        set self.suspend-proc = null
+        {unregister-exit-proc {non-null self.exit-proc}}
+        set self.exit-proc = null
+     else
+        {self.check-status}
+    }
+  }
+  
+  {getter private {close-on-suspend?}:bool
+    || TODO: check also for TEMP tables
+    {return
+        || don't want to lose in-memory databases
+        self.url != null
+    }
+  }
+
+  {doc-next
+    {purpose
+        Executes one or more SQL statements.
+    }
+    {parameter sql,
+        The SQL statement or statements to be executed.
+    }
+    {parameter callback,
+        The callback function that will be called once for each row of
+        the query result.
+
+        The {param callback} should normally return {ctext false}. If it
+        returns {ctext true} then the query is aborted and all
+        subsequent SQL statements are skipped and then this function
+        will then return {ctext SQLiteStatus.ABORT}.
+
+        The first argument is the values of the row and the second
+        argument is the names the columns.
+    }
+    {parameter throw-on-error?,
+        If {ctext true} and executing the {ctext sql} statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the {param sql} statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
+    }
+    {return-vals
+        If all the SQL commands, {param sql} succeed, the return value
+        is {ctext SQLiteStatus.OK}, otherwise it is an error
+        code. The particular return value depends on the type of
+        error. If the query could not be executed because a table
+        is locked, then this function returns {ctext
+        SQLiteStatus.BUSY}.
+    }
+    {notes
+        Calling this method will open the database connection if it is
+        not open.
+    }
+  }
+  {method public open {execute
+                          sql:StringInterface,
+                          callback:#{proc-type
+                                        {data:StringArray,
+                                         column-names:StringArray
+                                        }:bool
+                                    } = null,
+                          throw-on-error?:bool = true
+                      }:SQLiteStatus
+
+    let constant (status:SQLiteStatus, errmsg:String) =
+        {{SQLiteInterface}.exec
+            self.non-null-sqlite3,
+            {sql.to-String},
+            callback
+        }
+
+    {if throw-on-error? and status != SQLiteStatus.OK then
+        {throw {SQLiteException status, errmsg}}
+    }
+
+    {return status}
+  }
+
+  {doc-next
+    {purpose
+        Registers a callback function that may be invoked whenever an
+        attempt is made to open a table that another thread
+        or process has locked.
+    }
+    {parameter callback,
+        The callback procedure.
+        
+        It has one argument, which is
+        the number of prior calls to the {param callback} for the same
+        lock.
+
+        If the callback returns {ctext false}, then no additional attempts are
+        made to access the table, and the blocked API call will
+        return {ctext SQLiteStatus.BUSY}. If it returns {ctext true} then
+        another attempt is made by the API function to access the table,
+        and the cycle repeats itself.
+
+        If the {param callback} argument is set to {ctext null}, then
+        this will effectively remove the callback function, if one was
+        previously registered.
+    }
+    {return-vals
+        On success it returns {ctext SQLiteStatus.OK} otherwise it
+        will return an error {docref SQLiteStatus} code.
+    }
+    {details
+        If a callback function is registered, SQLite may call it
+        rather than the SQLite methods returning {ctext
+        SQLiteStatus.BUSY}.
+
+        The presence of a busy handler does not guarantee that it will
+        be invoked whenever there is a lock contention. If SQLite
+        determines that invoking the busy handler could result in a
+        deadlock, it will return {ctext SQLiteStatus.BUSY} instead.
+
+        Since SQLite is re-entrant, the busy handler could in theory
+        start a new query. However, the busy handler will delete data
+        structures out from under the executing query and will
+        probably result in crashing the program.
+    }
+    {notes
+        Calling this method will open the database connection if it is
+        not open.
+
+        This replaces the implicit busy handler set with
+        {docref SQLiteDatabase.busy-timeout}.
+    }
+  }
+  {getter public open {busy-handler}:#SQLiteBusyHandlerProcType
+    {return self.busy-handler-callback}
+  }
+  {setter public open {busy-handler
+                          callback:#SQLiteBusyHandlerProcType
+                      }:void
+
+    set self.busy-handler-callback = null
+    let status:SQLiteStatus
+    set (status, self.busy-handler-callback-ptr) =
+        {{SQLiteInterface}.busy-handler
+            self.non-null-sqlite3,
+            callback
+        }
+    set self.busy-handler-callback = callback
+    {if status != SQLiteStatus.OK then
+        {self.check-status}
+     else
+        set self._busy-timeout = 0
+    }
+  }
+
+  {doc-next
+    {purpose
+        Sets the busy time out.
+    }
+    {parameter ms,
+        The least time that will cause calls that can not complete due
+        to competing table locks to fail with {ctext SQLiteStatus.BUSY}.
+
+        If {param ms} is non-positive it will turn off all the busy
+        handlers.
+    }
+    {return-vals
+        On success it returns {ctext SQLiteStatus.OK} otherwise it
+        will return an error {docref SQLiteStatus} code.
+    }
+    {notes
+        Calling this method will open the database connection if it is
+        not open.
+
+        Setting this replaces any busy handler set with
+        {docref SQLiteDatabase.busy-handler}.
+    }
+  }
+  {getter public {busy-timeout}:Time
+    {return self._busy-timeout * 1ms}
+  }
+  {setter public {busy-timeout t:Time}:void
+    let timeout:int = (t / 1ms) asa int 
+    let constant status:SQLiteStatus =
+        {{SQLiteInterface}.busy-timeout self.non-null-sqlite3, timeout}
+
+    {if status == SQLiteStatus.OK then
+        set self._busy-timeout = timeout
+        set self.busy-handler-callback = null
+        set self.busy-handler-callback-ptr = 
+            {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
+     else
+        {self.check-status}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Registers a callback function on the database connection that
+        will be invoked whenever a row is updated, inserted, or deleted.
+    }
+    {parameter callback,
+        The callback procedure.
+
+        The first argument is {ctext SQLiteOperation.INSERT},
+        {ctext SQLiteOperation.DELETE} or {ctext
+        SQLiteOperation.UPDATE}, depending on the operation that
+        caused the callback to be invoked.
+
+        The second and third arguments identify the database and the
+        table name containing the effected row and the final callback
+        argument is the {ctext ROWID} of the row. In case of an
+        update, this is the {ctext ROWID} after the update takes
+        place.
+    }
+    {notes
+        Calling this method will open the database connection if it is
+        not open.
+    }
+    {details
+        The {param callback} is not invoked when internal system
+        tables are modified.
+
+        See also {docref SQLiteDatabase.commit-hook} and {docref
+        SQLiteDatabase.rollback-hook}.
+    }
+  }
+  {setter public open {update-hook
+                          callback:#SQLiteUpdateHookProcType
+                      }:void
+
+    set self.update-callback = null
+    set self.update-callback-ptr =
+        {{SQLiteInterface}.update-hook self.non-null-sqlite3, callback}
+    set self.update-callback = callback
+  }
+
+  {getter public open {update-hook}:#SQLiteUpdateHookProcType
+    {return self.update-callback}
+  }
+
+  {doc-next
+    {purpose
+        Registers a callback function with the database connection that
+        will be invoked whenever a new transaction is completed.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        Calling this method will open the database connection if it is
+        not open.
+
+        If {param callback} returns {ctext true} then the commit is
+        converted into a rollback.
+    }
+  }
+  {setter public open {commit-hook
+                          callback:#SQLiteCommitHookProcType
+                      }:void
+    set self.commit-callback = null
+    set self.commit-callback-ptr =
+        {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
+    set self.commit-callback = callback
+
+  }
+
+  {getter public open {commit-hook}:#SQLiteCommitHookProcType
+    {return self.commit-callback}
+  }
+
+  {doc-next
+    {purpose
+        Registers a callback function with the database connection that
+        will be invoked whenever a transaction is rolled back.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        The {param callback} will be invoked if an explicit {ctext
+        ROLLBACK} statement is executed, or an error or constraint
+        causes an implicit rollback to occur. It will not be invoked
+        if a transaction is automatically rolled back because the
+        database connection is closed.
+
+        Calling this method will open the database connection if it is
+        not open.
+    }
+  }
+  {setter public open {rollback-hook
+                          callback:#SQLiteRollbackHookProcType
+                     }:void
+
+    set self.rollback-callback = null
+    set self.rollback-callback-ptr =
+        {{SQLiteInterface}.rollback-hook
+            self.non-null-sqlite3,
+            callback
+        }
+    set self.rollback-callback = callback
+  }
+
+  {getter public open {rollback-hook}:#SQLiteRollbackHookProcType
+    {return self.rollback-callback}
+  }
+
+  {doc-next
+    {purpose
+        Set the progress handler that will get called periodically
+        when executing a statement takes more than {param instruction-count}
+        instructions.
+    }
+    {parameter instruction-count,
+        Number of instructions that must be executed before calling
+        {param callback}.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        The {param callback} may not be invoked for all statements, if
+        the statement takes less than {param instruction-count} instructions
+        to complete.  If the {param callback} returns {ctext true}
+        then the executing statement will be terminated.
+
+        Providing a {ctext null} {param callback} will uninstall the
+        progress handler.
+    }
+  }
+  {method public {set-progress-handler
+                     instruction-count:int,
+                     callback:#SQLiteProgressHandlerProcType
+                 }:void
+    set self.progress-callback = null
+    set self.progress-callback-ptr =
+        {{SQLiteInterface}.progress-handler
+            self.non-null-sqlite3, instruction-count, callback}
+    set self.progress-callback-arg = instruction-count
+    set self.progress-callback = callback
+  }
+
+  {doc-next
+    {purpose
+        Registers a callback function with the database connection that
+        will be invoked whenever a statement is prepared.
+    }
+    {parameter callback,
+        The callback procedure.
+    }
+    {notes
+        The {param callback} can return {ctext SQLiteAuthorizerReturnCode.OK}
+        to allow an statement to proceed,
+        {ctext SQLiteAuthorizerReturnCode.DENY} to fail a statement,
+        or when the operation is {ctext SQLiteOperation.READ},
+        it can return {ctext SQLiteAuthorizerReturnCode.IGNORE} to
+        disallow access to a particular table column.
+
+        The first parameter to {param callback} is the {docref SQLiteOperation}         describing the operation being considered, and the next 4 arguments
+        provide various information depending on the operation.
+        The second argument is usually the name of the entity being operated
+        on, and the third argument is the name of the other entity being
+        operated on, if appropriate.  The fourth argument is usually the
+        database name, and the fifth argument is the name of the inner-most
+        trigger or view if there is one.
+
+        Setting {param callback} to {ctext null} will uninstall any
+        authorizer callback.
+    }
+  }
+  {setter public {authorizer
+                     callback:#SQLiteAuthorizerProcType
+                 }:void
+    set self._authorizer = null
+    let status:SQLiteStatus
+    set (status, self.authorizer-ptr) =
+        {{SQLiteInterface}.set-authorizer
+            self.non-null-sqlite3, callback}
+    {if status != SQLiteStatus.OK then
+        {self.check-status}
+     else
+        set self._authorizer = callback
+    }
+  }
+
+  {getter public {authorizer}:#SQLiteAuthorizerProcType
+    {return self._authorizer}
+  }
+
+  {doc-next
+    {purpose
+        Interrupt an executing operation.
+    }
+    {notes
+        Normally called from a callback of some sort.
+    }
+  }
+  {method public {interrupt}:void
+    {if self._sqlite3 != 0 then
+        {{SQLiteInterface}.interrupt self._sqlite3}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Returns the number of database rows that were updated,
+        inserted or deleted, by the most recently completed {ctext
+        UPDATE}, {ctext INSERT} or a {ctext DELETE} statement.
+    }
+    {notes
+        Only changes that are directly specified by the {ctext
+        UPDATE}, {ctext INSERT} or {ctext DELETE} statement are
+        counted. Auxiliary changes caused by the triggers are not
+        counted.
+
+        If it is called within a trigger, it reports the number of
+        rows that where changed for the most recently completed {ctext
+        UPDATE}, {ctext INSERT} or {ctext DELETE} statement within
+        that trigger.
+
+        SQLite implements the command {ctext DELETE FROM table},
+        without a where clause, by dropping and recreating the
+        table. Because of this optimization, the change count for
+        {ctext DELETE FROM table} will be zero regardless of the
+        number of records that were originally in the table. To obtain
+        the actual number of rows deleted, use {ctext DELETE FROM
+        table WHERE 1} instead, which disables the optimization.
+
+        If the database connection is not open, this method will
+        return 0.
+
+        See also: {docref SQLiteDatabase.total-changes}.
+    }
+  }
+  {getter public open {changes}:int
+    {if self.sqlite3 == 0 then {return 0}}
+
+    {return {{SQLiteInterface}.changes self.sqlite3}}
+  }
+
+  {doc-next
+    {purpose
+        Returns the total number of database rows that were modified,
+        inserted or deleted, since the database connection was created.
+    }
+    {notes
+        All changes are counted, including changes by triggers and
+        changes to temp and auxiliary databases. Changes on
+        internal tables, caused by statements
+        such as {ctext CREATE TABLE} are not counted. Changes counted
+        when an entire table is deleted using {ctext DROP TABLE} are
+        not counted either.
+
+        SQLite implements the command {ctext DELETE FROM table},
+        without a where clause, by dropping and recreating the
+        table. Because of this optimization, the change count for
+        {ctext DELETE FROM table} will be zero regardless of the
+        number of records that were originally in the table. To obtain
+        the actual number of rows deleted, use {ctext DELETE FROM
+        table WHERE 1} instead, which disables the optimization.
+
+        If the database connection is not open, this method will
+        return 0.
+
+        See also: {docref SQLiteDatabase.changes}.
+    }
+  }
+  {getter public open {total-changes}:int
+    {if self.sqlite3 == 0 then {return 0}}
+    {return {{SQLiteInterface}.total-changes self.sqlite3}}
+  }
+
+  {doc-next
+    {purpose
+        Returns the auto-increment primary key value generated from the
+        last successful {ctext INSERT} statement.
+    }
+    {return-vals
+        The primary key value.
+    }
+    {notes
+        Each entry in a SQLite table has a unique integer key. The key
+        is the value of the {ctext INTEGER PRIMARY KEY} column if
+        there is such a column, otherwise the key is generated at
+        random. The unique key is always available as the {ctext
+        ROWID}, {ctext OID}, OR {ctext _ROWID_}.
+
+        It is an error to call this method on a closed database
+        connection.
+    }
+  }
+  {getter public open {last-insert-rowid}:int64
+    {return {{SQLiteInterface}.last-insert-rowid self.sqlite3}}
+  }
+
+  {doc-next
+    {purpose
+        Returns the error code for the most recently failed SQLite API
+        call with respect to this database.
+    }
+    {return-vals
+        The error code from the most recently failed API call
+        associated with object.
+    }
+    {notes
+        If a prior API call fails but the most recent API call
+        succeeds, the return value from this function is undefined.
+
+        It the database connection is not open, this method will
+        return {ctext SQLiteStatus.OK}.
+    }
+  }
+  {getter public open {errcode}:SQLiteStatus
+    {if self.sqlite3 == 0 then {return SQLiteStatus.OK}}
+
+    {return {{SQLiteInterface}.errcode self.sqlite3}}
+  }
+
+  {doc-next
+    {purpose
+        Returns the error message as a {docref String} for the most
+        recently failed SQLite API call with respect to this database.
+    }
+    {return-vals
+        Error message in {ctext English} for the most recently failed
+        API call associated with this object.
+    }
+    {notes
+        The message {ctext not an error} is returned when the most
+        recent API call is successful.
+
+        It is an error to call this method on a closed database
+        connection.
+    }
+  }
+  {getter public open {errmsg}:String
+    {return {{SQLiteInterface}.errmsg self.sqlite3}}
+  }
+  
+  || info
+  || -----------
+  {doc-next
+    {purpose
+        The version of the SQLite library as a number.
+    }
+    {details
+        If a version number looks like X.Y.Z then this number will be
+        X*1000000 + Y*1000 + Z.
+    }
+  }
+  {getter public {version}:int
+    {return {{SQLiteInterface}.libversion-number}}
+  }
+
+  {doc-next
+    {purpose
+        The version of the SQLite library as a {docref String}.
+    }
+  }
+  {getter public {version-string}:String
+    {return {{SQLiteInterface}.libversion}}
+  }
+
+
+  || Extend SQL functionality.
+  {method private {find-installed-function
+                     name:String,
+                     number-of-args:int
+                  }:int
+    {for f key i in self.installed-functions do
+        {if f.name == name and f.number-of-args == number-of-args then
+            {return i}
+        }
+    }
+    {return -1}
+  }
+
+  {doc-next
+    {purpose
+        Adds SQL function or redefines the behavior of an existing
+        SQL function or an aggregate.
+    }
+    {parameter name,
+        Name to use in SQL for the function.
+    }
+    {parameter number-of-args,
+        Number of arguments that the function will take.
+        If negative, then the the function can take any number of arguments.
+        You can have multiple functions registered with the same name if
+        they are installed with a different {param number-of-args}.
+    }
+    {parameter xfunc,
+        For a scalar function this will be called with the appropriate
+        number of arguments, of the types supplied by SQLite, and it
+        should return the value to be used as the result in SQLite.
+
+        For an aggregate function this will get a 'context' value as
+        the first argument, and the first time that the aggregate
+        function is called, it will be the {ctext initialized-value}
+        of the type of the first argument to this function.  And the
+        function should return a value for the 'context' that will be
+        saved and passed in for the next item.
+    }
+    {parameter xfunc-final,
+        If {param xfunc} is an aggregate function, then this parameter
+        must be supplied to produce the final value.  The only parameter
+        will be the 'context' value, and it should return the value to
+        be used as the result in SQLite.
+    }
+  }
+  || TODO: should this take a default aggregate-context value instead
+  || of us just using {uninitialized-value-for-type}?
+  {method public {install-function
+                     name:String,
+                     number-of-args:int,
+                     xfunc:any,
+                     final-xfunc:any = null
+                 }:void
+    let constant type-of-xfunc:ProcType =
+        {type-switch {type-of xfunc}
+         case p:ProcType do
+            p
+         else
+            {error {lmessage You must provide a function to 'install-function'}}
+        }
+    let constant aggregate?:bool = final-xfunc != null
+    {if aggregate? then
+        let constant type-of-final-xfunc:ProcType =
+            {type-switch {type-of final-xfunc}
+             case p:ProcType do
+                p
+             else
+                {error {lmessage You must provide a function to 'install-function'}}
+            }
+        {if not (type-of-xfunc.num-args > 0 or
+                 type-of-xfunc.takes-rest-args?) or
+            not (type-of-final-xfunc.num-args > 0 or
+                 type-of-final-xfunc.takes-rest-args?)
+         then
+            {error
+                {lmessage You must provide a function that can take the
+                    aggregate context value as the first argument to
+                    'install-function'}}
+        }
+    }
+    let aggregate-arg:int = {if aggregate? then 1 else 0}
+    {if not ((number-of-args >= 0 and 
+              (type-of-xfunc.num-args == number-of-args + aggregate-arg) or
+              (type-of-xfunc.num-args < number-of-args + aggregate-arg and
+               type-of-xfunc.takes-rest-args?)) or
+             (number-of-args < 0 and type-of-xfunc.takes-rest-args?))
+     then
+        {error
+            {lmessage You must provide a function that can take the right
+                number of arguments to 'install-function'}}
+    }
+    let constant function:SQLiteFunctionProcType =
+        {proc {context:SQLiteContextHandle,
+               args:{Array-of SQLiteValueHandle}
+              }:void
+            {self.call-registered-function xfunc, context, args,
+                aggregate? = aggregate?
+            }
+        }
+    let constant final-function:#SQLiteFinalFunctionProcType =
+        {if final-xfunc != null then
+            {proc {context:SQLiteContextHandle}:void
+                {try
+                    let func-type:ProcType = {type-of final-xfunc} asa ProcType
+                    let retval:any =
+                        {with-compiler-directives allow-any-calls? = true do
+                            {final-xfunc
+                                {self.get-aggregate-context-value
+                                    context,
+                                    default-value =
+                                        {uninitialized-value-for-type
+                                            {SQLiteDatabase.type-for-function-arg func-type, 0}
+                                        }
+                                }
+                            }
+                        }
+                    {SQLiteDatabase.set-result context, retval}
+                 catch e:Exception do
+                    {{SQLiteInterface}.result-error context, e.message}
+                 finally
+                     {self.set-aggregate-context-value context, null}
+                 }
+            }
+         else
+            null
+        }
+
+    let constant (status:SQLiteStatus, cdecl-f:SQLiteFunctionPointerType,
+         cdecl-s:SQLiteFunctionPointerType,
+         cdecl-ff:SQLiteFinalFunctionPointerType) =
+        {{SQLiteInterface}.create-function
+            self.non-null-sqlite3, name, number-of-args, 
+            {if not aggregate? then
+                function
+             else
+                null
+            },
+            {if aggregate? then
+                function
+             else
+                null
+            },
+            final-function
+        }
+    
+    {if status == SQLiteStatus.OK then
+        let index:int =
+            {self.find-installed-function name, number-of-args}
+        let spec:FunctionSpec =
+            {FunctionSpec
+                name, number-of-args, function,
+                {if aggregate? then cdecl-s else cdecl-f},
+                final-xfunc = final-function,
+                final-xfunc-ptr = cdecl-ff
+            }
+        {if index >= 0 then
+            set self.installed-functions[index] = spec
+         else
+            {self.installed-functions.append spec}
+        }
+     else
+        {self.check-status}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Uninstalls a previously installed function, installed with the
+        same {param name} and {param number-of-args}, if any.
+    }
+    {parameter name,
+        Name of the function to uninstall.
+    }
+    {parameter number-of-args,
+        Number of arguments that function took.
+    }
+  }
+  {method public {uninstall-function
+                     name:String,
+                     number-of-args:int
+                 }:void
+    let constant index:int =
+        {self.find-installed-function name, number-of-args}
+    {if index == -1 or self._sqlite3 == 0 then
+        {return}
+    }
+
+    let constant status:SQLiteStatus =
+        {{SQLiteInterface}.create-function
+            self.sqlite3, name, number-of-args,
+            null, null, null
+        }
+
+    {if status == SQLiteStatus.OK then
+        {self.installed-functions.remove index}
+     else
+        {self.check-status}
+    }
+  }
+
+  {define-proc private {curl-type-to-desired-type t:Type}:Type
+    {return
+        {switch t
+         case String, StringInterface do
+            String
+         case float, double do
+            double asa Type
+         case int8, uint8, int16, uint16, int do
+            int asa Type
+         case uint32, uint64, int64 do
+            int64 asa Type
+         case ByteArray do
+            ByteArray
+         else
+            NullType
+        }
+    }
+  }
+
+  {define-proc private {set-result context:SQLiteContextHandle, retval:any}:void
+    let interface:SQLiteInterface = {SQLiteInterface}
+    let ret-desired-type:Type =
+        {SQLiteDatabase.curl-type-to-desired-type {type-of retval}}
+    {switch ret-desired-type
+     case String do
+        {interface.result-text context, retval asa String}
+     case double do
+        {interface.result-double context, retval asa double}
+     case int do
+        {interface.result-int context, retval asa int}
+     case int64 do
+        {interface.result-int64 context, retval asa int64}
+     case ByteArray do
+        {interface.result-blob context, retval asa ByteArray}
+     else
+        {interface.result-null context}
+    }
+  }
+
+  {define-proc private {type-for-function-arg
+                           function-type:ProcType, arg-index:int
+                       }:Type
+    {return
+        || If the function has a positional argument for that slot,
+        || see if it wants a particular type.
+        {if function-type.num-args > arg-index then
+            {function-type.arg-type arg-index}
+         || If rest args, see if that wants a particular type.
+         elseif function-type.takes-rest-args? then
+            {if-non-null rest-args-type = function-type.rest-args-type then
+                rest-args-type
+            else
+                any
+            }
+         else
+            NullType
+        }
+    }
+  }
+
+  {method private {call-registered-function
+                      xfunc:any,
+                      context:SQLiteContextHandle,
+                      args:{Array-of SQLiteValueHandle},
+                      aggregate?:bool = false
+                  }:void
+    let constant type-of-xfunc:ProcType =
+        {type-switch {type-of xfunc}
+         case p:ProcType do
+            p
+         else
+            {error {lmessage You must provide a function to 'install-function'}}
+        }
+    let constant xfunc-args:Arguments = {Arguments}
+    {if aggregate? then
+        {xfunc-args.append
+            {self.get-aggregate-context-value
+                context,
+                default-value =
+                    {uninitialized-value-for-type
+                        {SQLiteDatabase.type-for-function-arg type-of-xfunc, 0}
+                    }
+            }
+        }
+    }
+    let constant interface:SQLiteInterface = {SQLiteInterface}
+    {for arg key arg-index in args do
+        let desired-type:Type = NullType
+        let real-type:Type = NullType
+        let constant arg-type:Type =
+            {SQLiteDatabase.type-for-function-arg type-of-xfunc, arg-index}
+        set desired-type =
+            {SQLiteDatabase.curl-type-to-desired-type arg-type}
+        {if desired-type != NullType then
+            set real-type = arg-type
+        }
+        || Ask the value what type it is.
+        {if desired-type == NullType then
+            set desired-type =
+                {switch {interface.value-type arg}
+                 case SQLiteDatatype.INTEGER do
+                    let v:int64 = {interface.value-int64 arg}
+                    {if v <= max-int and v >= min-int then
+                        int asa Type
+                     else
+                        int64 asa Type
+                    }
+                 case SQLiteDatatype.REAL do
+                    double asa Type
+                 case SQLiteDatatype.TEXT do
+                    String
+                 case SQLiteDatatype.BLOB do
+                    ByteArray
+                 else
+                    NullType
+                }
+        }
+        {if real-type == NullType then
+            set real-type = desired-type
+        }
+        || Get the value as desired type.
+        {xfunc-args.append
+            {switch desired-type
+             case String do
+                {interface.value-text arg} asa real-type
+             case double do
+                {interface.value-double arg} asa real-type
+             case int do
+                {interface.value-int arg} asa real-type
+             case int64 do
+                {interface.value-int64 arg} asa real-type
+             case ByteArray do
+                {interface.value-blob arg}
+             else
+                null
+            }
+        }
+    }
+    {try
+        let retval:any =
+            {with-compiler-directives allow-any-calls? = true do
+                {xfunc {splice xfunc-args}}
+            }
+        {if aggregate? then
+            {self.set-aggregate-context-value context, retval}
+         else
+            {SQLiteDatabase.set-result context, retval}
+        }
+     catch e:Exception do
+        {interface.result-error context, e.message}
+    }
+  }
+
+  field constant private
+    _aggregate-context-table:{HashTable-of int, any} =
+    {new {HashTable-of int, any}}
+  field private next-context-int:int = 0
+
+  {method private {context-to-int context:SQLiteContextHandle}:int
+    let constant interface:SQLiteInterface = {SQLiteInterface}
+    let ret:int = {interface.get-aggregate-context-int context}
+    {if ret == 0 then
+        {inc self.next-context-int}
+        set ret = self.next-context-int
+        {interface.set-aggregate-context-int context, ret}
+    }
+    {return ret}
+  }
+
+  {method private {get-aggregate-context-value
+                      context:SQLiteContextHandle,
+                      default-value:any = null
+                  }:any
+    let (a:any, found?:bool) =
+        {self._aggregate-context-table.get-if-exists
+            {self.context-to-int context}
+        }
+    {return
+        {if found? then a else default-value}
+    }
+  }
+
+  {method private {set-aggregate-context-value
+                      context:SQLiteContextHandle,
+                      a:any
+                  }:void
+    {if a != null then
+        set self._aggregate-context-table[{self.context-to-int context}] = a
+     else
+        {self._aggregate-context-table.remove
+            {self.context-to-int context}, error-if-missing? = false
+        }
+    }
+  }
+
+  {method package {prepare-statement stmt:SQLiteStatement}:#String
+    let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
+        {{Pointer-to SQLiteStatementHandle} value = 0}
+    || FIXME: Convert or hide tail-ptr in SQLiteInterface.
+    || TODO: Should either return tail-ptr info, or make it an error
+    || to pass in more than one SQL statement.
+    let (status:SQLiteStatus, tail:#String) =
+        {{SQLiteInterface}.prepare 
+            self.non-null-sqlite3, stmt.sql, stmt-ptr
+        }
+    
+    {if status != SQLiteStatus.OK then
+        {self.check-status}
+    }
+    {if tail == "" then set tail = null}
+
+    || If we are here, the SQLiteInterface successfully compiled the
+    || sql statement.
+    set stmt.stmt = stmt-ptr.value
+    {self.note-statement-prepared stmt}
+    {return tail}
+  }
+
+  {method package {finalize-statement
+                      stmt:SQLiteStatement
+                  }:SQLiteStatus
+    let constant status:SQLiteStatus = {{SQLiteInterface}.finalize stmt.stmt}
+    set stmt.stmt = 0
+    {self.note-statement-finalized stmt}
+    {return status}
+  }
+
+  || statement convenience functions
+  || --------------------
+  
+  {doc-next
+    {purpose
+        Create a prepared SQLite statement.
+    }
+  }
+  {method public {create-statement sql:StringInterface}:SQLiteStatement
+    {return {SQLiteStatement self, sql}}
+  }
+
+  || SQL convenience functions
+  || --------------------
+
+  {doc-next
+    {purpose
+        Return whether specified SQL query returns any data.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        If any rows are selected by the query, returns {ctext true}.
+    }
+  }
+  {method public {sql-exists?
+                     sql:StringInterface,
+                     ...:any
+                 }:bool
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.data-exists?}
+        }}
+  }
+
+  {doc-next
+    {purpose
+        Return one value from the first row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter index, specifies which column.}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        The value of the specified column for the first row,
+        or null if no rows are selected by the query.
+    }
+  }
+  
+  {method public {sql-value
+                     sql:StringInterface,
+                     index:int = 0,
+                     ...:any
+                 }:any
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.data-value index = index}
+        }}
+  }  
+
+  {doc-next
+    {purpose
+        Return the values in a column 
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter index, specifies which column.}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of values.
+    }
+  }
+
+  {method public {sql-column
+                     sql:StringInterface,
+                     index:int = 0,
+                     ...:any
+                 }:Array
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.data-column index = index}
+        }}
+  }
+
+  {doc-next
+    {purpose
+        Return the values in the first row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of values.
+        These will be undefined if there is no data.
+    }
+  }
+
+  {method public {sql-row
+                     sql:StringInterface,
+                     ...:any
+                 }:Array
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.data-row}
+        }}
+  }
+
+  {doc-next
+    {purpose
+        Return the values in each row
+        returned by the specified SQL query.
+    }
+    {parameter sql, the SQL query}
+    {parameter ..., rest args are used as parameters for the query
+        (using {docref SQLiteStatement.bind}).}
+    {return-vals
+        An array of rows.
+    }
+  }
+  
+  {method public {sql-rows
+                     sql:StringInterface,
+                     ...:any
+                 }:{Array-of Array}
+    {return
+        {with-statement in self s = sql do
+            {s.bind {splice ...}}
+            {s.data-rows}
+        }}
+  }
+  
+}
