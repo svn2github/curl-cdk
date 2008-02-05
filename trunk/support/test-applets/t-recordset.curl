@@ -819,6 +819,9 @@
     }
 }
 
+{define-proc package {localfile-pragma db:SQLiteDatabase}:void
+    {db.execute "PRAGMA synchronous = OFF"}
+}
 {define-proc package {do-databases}:void
     {with-database
         db = {SQLiteDatabase null}
@@ -828,11 +831,13 @@
     {with-database
         db = {SQLiteDatabase {url "curl://temp/xyz"}}
      do
+        {localfile-pragma db}
         {do-recordsets-for-all-tables db, "main"}
     }
     {with-database
         db = {SQLiteDatabase {url "curl://temp/xyz2"}}
      do
+        {localfile-pragma db}
         {db.execute "ATTACH '" & {url "curl://temp/xyz"}.local-filename & "' AS
 xyz"}
         {do-recordsets-for-all-tables db, "xyz", database-count = 2}
