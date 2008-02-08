@@ -185,8 +185,8 @@
         {if-non-null database-url then
             database-url
          else
-            || FIXME: is there a better url for in memory databases?
-            {url "curl://temp/"}
+            || TODO: is there a better url for in memory databases?
+            {url "curl://string/"}
         }
     }
     
@@ -275,13 +275,15 @@
     let fs:{Array-of RecordField} = {new {Array-of RecordField}}
     let hidden-primary-key-field-name:#String
     let primary-key-is-auto-increment?:bool = false
-    || FIXME: should we skip this if not request-modifiable?
+    let defaults:#StringStringTable, not-nulls:#{Set-of String}
+    || FIXME: could we skip this if not request-modifiable?
     || Use table-name, if available to get additional meta-data.
     {if-non-null table-name then
         || FIXME: There is no way to get if a column is auto-increment, so
         || we check for a row about this table in sqlite_sequence, but
         || that row may not be created until at least one row has been
-        || added to the table.
+        || added to the table.  Maybe if we compile with metadata APIs
+        || we can find this out reliably.
         {try
             {self.execute-sqlite
                 "SELECT seq from " & ||""
@@ -304,25 +306,25 @@
          catch ex:SQLiteException do
             || Ignore failures like the table not existing.
         }
+        set (defaults, not-nulls) =
+            {self.get-defaults-and-not-nulls-for-table database-name, table-name}
     }
     {with-statement in self.database
         statement = query
      do
         let nval:int = statement.column-count
         || HACK: avoid duplicate names
-        || FIXME: This allocates a bunch of objects, maybe it could just
-        || save the number of copies of a given name, it never uses the
-        || contents of the value Arrays.
-        let names:{HashTable-of String, Array} = {{HashTable-of String, Array}}
+        let names:{HashTable-of String, int} = {{HashTable-of String, int}}
         {for i = 0 below nval do
             let real-name:String = {statement.get-column-name i}
             let name:String = real-name
-            {if-non-null xs = {names.get-if-exists name} asa #Array then
-                {xs.append i}
-                set name = {format "%s_%02d", name, xs.size}
-             else
-                set names[name] = {Array i}
+            let (duplicates:int, found?:bool) =
+                {names.get-if-exists name}
+            {if duplicates > 0 then
+                set name = {format "%s_%02d", name, duplicates}
             }
+            set names[name] = duplicates + 1
+
             {if i == hidden-primary-key-field then
                 set hidden-primary-key-field-name = real-name
                 {continue}
@@ -341,18 +343,51 @@
                  else
                     false
                 }
+            let (default-value:any, default-found?:bool) =
+                {if-non-null defaults then
+                    let (default-string:String, default-found?:bool) =
+                        {defaults.get-if-exists real-name}
+                    let default-value:any
+                    {if default-found? then
+                        set default-value =
+                            {decode-literal default-string, affinity}
+                    }
+                    (default-value, default-found?)
+                 else
+                    (null, false)
+                }
+            let auto-increment?:bool =
+                primary-key? and primary-key-is-auto-increment? and
+                    (affinity == SQLiteDatatypeAffinity.INTEGER)
+            let not-null?:bool =
+                auto-increment? or
+                (not-nulls != null and {not-nulls.member? real-name})
             let f:SQLRecordField = 
-                {SQLRecordField
-                    name, 
-                    domain = domain,
-                    || NOTE: needs to be nullable to defeat Curl check
-                    nullable? = true, ||nullable?,
-                    modifiable? = true,
-                    primary-key? = primary-key?,
-                    auto-increment? = 
-                        primary-key? and primary-key-is-auto-increment? and
-                        (affinity == SQLiteDatatypeAffinity.INTEGER),
-                    type
+                {if default-found? then
+                    {SQLRecordField
+                        name, 
+                        domain = domain,
+                        || NOTE: needs to be nullable to defeat Curl check
+                        nullable? = true,
+                        not-null? = not-null?,
+                        modifiable? = true,
+                        primary-key? = primary-key?,
+                        auto-increment? = auto-increment?,
+                        default-value = default-value,
+                        type
+                    }
+                 else
+                    {SQLRecordField
+                        name, 
+                        domain = domain,
+                        || NOTE: needs to be nullable to defeat Curl check
+                        nullable? = true, ||nullable?,
+                        not-null? = not-null?,
+                        modifiable? = true,
+                        primary-key? = primary-key?,
+                        auto-increment? = auto-increment?,
+                        type
+                    }
                 }
             {fs.append f}
         }
@@ -376,8 +411,8 @@
         Get primary key information for a given table.
     }
   }
-  || FIXME: We could also get default values, which would be
-  || used when we make the Domain.
+  || FIXME: We could try to combine this with get-defaults-and-not-nulls
+  || somehow.
   {method package {get-primary-keys-for-table
                       database-name:String,
                       table-name:String
@@ -407,6 +442,40 @@
             }
     }
     {return primary-keys}
+  }
+  {method package {get-defaults-and-not-nulls-for-table
+                      database-name:String,
+                      table-name:String
+                  }:(defaults:StringStringTable, not-nulls:{Set-of String})
+    let defaults:StringStringTable = {new StringStringTable}
+    let not-nulls:{Set-of String} = {new {Set-of String}}
+    || Couldn't get bind-text to work with this query...
+    {self.execute-sqlite
+        "PRAGMA " &
+        {self.combined-table-name database-name, "table_info"} & ||""
+        "(" & table-name & ")", ||""
+|#
+         args-callback =
+            {proc {statement:SQLiteStatement}:void
+                {statement.bind-text 1,
+                    {self.combined-table-name database-name, table-name}
+                }
+            },
+#|
+         callback =
+            {proc {row:Array}:bool
+                || Check the primary key column
+                {if row[4] != null and row[4] != "" then
+                    || Save the column names
+                    set defaults[row[1] asa String] = row[4] asa String
+                }
+                {if row[3] != 0 then
+                    {not-nulls.insert row[1] asa String}
+                }
+                {return true}
+            }
+    }
+    {return defaults, not-nulls}
   }
 
   {method public {get-fields database-name:String, query:String}:RecordFields

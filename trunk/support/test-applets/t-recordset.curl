@@ -89,7 +89,12 @@
             {inc column-index}
             {base-columns.append
                 {format "t%d %s %s DEFAULT %s",
-                    column-index, i.value, j.value, defaults[i.index]
+                    column-index, i.value, j.value,
+                    {if column-index == 1 then
+                        "NULL" ||""
+                     else
+                        defaults[i.index]
+                    }
                 }
             }
             {inc column-index}
@@ -203,14 +208,14 @@
                          database-name:String,
                          table-name:String
                      }:void
-            {database.execute
-                "DROP TABLE " & {make-table-name database-name, table-name},
-                throw-on-error? = false
-            }
-            {database.execute
-                "DROP VIEW " & {make-table-name database-name, table-name & "view"},
-                throw-on-error? = false
-            }
+    {database.execute
+        "DROP TABLE " & {make-table-name database-name, table-name},
+        throw-on-error? = false
+    }
+    {database.execute
+        "DROP VIEW " & {make-table-name database-name, table-name & "view"},
+        throw-on-error? = false
+    }
 }
 
 {define-proc package {generate-value
@@ -276,7 +281,13 @@
                 {inc column-index}
                 || defaulted
                 {if include-defaults? then
-                    {column-values.append defaults-as-values[i.index]}
+                    {column-values.append 
+                        {if column-index == 1 then
+                            null
+                         else
+                            defaults-as-values[i.index]
+                        }
+                    }
                 }
                 {inc column-index}
              else
@@ -471,6 +482,51 @@
             skip-columns = skip-columns
         }
 
+        || Clear the recordset...
+        {for r in {rs.to-Iterator} do
+            {r.delete}
+        }
+        {rs.commit}
+        {rs.load}
+        {assert rs.size == 0}
+        {if skip-columns == null then
+            {rs.append {rs.new-record}}
+            {for r in {rs.to-Iterator} do
+                let data:Array = {data-for-row 0, include-defaults? = true}
+                let column-index:int
+                {for i in SQLiteDecltype do
+                    {for j in SQLiteNullness do
+                        || non-defaulted
+                        let field-name:String = {format "t%d", column-index}
+                        let (rf:RecordField, found?:bool) =
+                            {rs.fields.get-if-exists field-name}
+                        {if found? then
+                            set r[field-name] = data[column-index]
+                        }
+                        {inc column-index}
+                        || Skip defaulted if maybe-null
+                        {if j != SQLiteNullness.maybe-null then
+                            let field-name:String = {format "t%d", column-index}
+                            let (rf:RecordField, found?:bool) =
+                                {rs.fields.get-if-exists field-name}
+                            {if found? then
+                                set r[field-name] = data[column-index]
+                            }
+                        }
+                        {inc column-index}
+                    }
+                }
+                {break}
+            }
+            {rs.commit}
+            {rs.load}
+            {assert rs.size == 1}
+            {check-normal-rows rs,
+                skip-rows = {{Array-of int} 1, 2, 3, 4, 5, 6, 7, 8, 9},
+                skip-columns = skip-columns
+            }
+        }
+
         let database:SQLiteDatabase = (rs.connection asa SQLiteConnection).database
         let database-name:String = rs.database-name
         let table-name:String = {non-null rs.table-name}
@@ -485,8 +541,10 @@
                          skip-rows:#{Array-of int} = null,
                          skip-columns:#{Array-of int} = null
                      }:void
+
     {assert rs.fields.size ==
-        number-of-columns - {if-non-null skip-columns then skip-columns.size else 0}}
+        number-of-columns -
+        {if-non-null skip-columns then skip-columns.size else 0}}
     {if not pre-loaded? then
         {assert rs.size == 0}
         {rs.load}
@@ -836,6 +894,8 @@
         || attached databases need prefix
         {db.execute "PRAGMA " & name & ".synchronous = OFF"}
     }
+    {db.execute "PRAGMA temp_store = MEMORY"}
+
 }
 {define-proc package {do-databases}:void
     {with-database
@@ -862,6 +922,7 @@
     {with-database
         db = {SQLiteDatabase null}
      do
+        {localfile-pragma db, name = "temp"}
         {do-recordsets-for-all-tables db, "temp", database-count = 2}
     }
 
@@ -873,24 +934,16 @@
 {do-databases}
 
 |#
+FIXME: missing test cases
 *
-RecordSets for each table, by table, by partial table
-    (including all keys, missing some keys, but with a base-where-clause, 
-    and with no keys, if has lots of keys, do with and without rowid.)
 Also do RecordSet with join of two tables (not modifiable)
-Also do RecordSet with view
-Also do RecordSet with PRAGMA
-Also do RecordSet with non-existant table
-Also do RecordSet with bad SQL
-Also do RecordSet with no table (just values)
 *
-Test each RecordSet for normal read, size-limit read, range read, modifiability, and try with strict? = true (but that may need twiddling to avoid rows where
-strict isn't true).  Test fill* with various sorts of changes (although fill* is
-a strange API...)
-For modifiable ones, try insert with no values, insert with values,
-insert with wrong type/value values, modify with good values,
-modify with bad values, delete.
+Test each RecordSet for with strict? = true where it will fail due to
+some bogus type data.
+Test fill* with various sorts of changes (although fill* is a strange API...)
+For modifiable ones, insert with wrong type/value values,
+modify with bad values.
 
-Test events sequence somehow.
-
+Test events sequence some how.
+Add test to test NULL/CURRENT_DATE/CURRENT_TIME/CURRENT_TIMESTAMP defaulting.
 #|

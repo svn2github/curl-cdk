@@ -2053,6 +2053,9 @@
                           nval:int
                       }:void
   }
+  || FIXME: add support for sqlite3_result_error_code() when we upgrade to
+  || 3.5.6, and use it to set the code when a SQLiteException is thrown
+  || from a funtion registered with install-function.
 
   || deallocation
   || ----------
@@ -2423,5 +2426,8 @@
                           userdata:CPointer
                       }:int
   }
+
+  || FIXME: no support for sqlite3_create_module(), but it requires lots
+  || of structs and such.
 }
 

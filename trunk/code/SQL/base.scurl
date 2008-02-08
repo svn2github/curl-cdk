@@ -484,13 +484,13 @@
                         record:BasicRecord
                     }:void
     {self.generate-prefix-values-sql buf, record}
-    {buf.concat "INSERT INTO "}
+    {buf.concat "INSERT INTO "} ||""
     {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
     {buf.concat " "}
     {if not self.query-is-full-row? then
         {self.generate-field-names-list-sql buf}
     }
-    {buf.concat " VALUES("}
+    {buf.concat "VALUES("} ||""
     {self.generate-values-list-sql buf, record}
     {buf.concat ")"}
   }
@@ -600,9 +600,9 @@
     }
   }
   {method public {generate-where-sql buf:StringBuf, record:BasicRecord}:void
-    {buf.concat " WHERE "} ||""
+    {buf.concat "WHERE "} ||""
     {if-non-null base-where-clause = self.base-where-clause then
-        {buf.concat " ("} ||""
+        {buf.concat "("} ||""
         {buf.concat base-where-clause}
         {buf.concat ") AND "} ||""
     }
@@ -636,7 +636,11 @@
         }
     }
     {if key-count == 0 then
-        {error {lmessage Can not generate valid WHERE clause with no known primary keys.}}
+        {error
+            {lmessage
+                Can not generate valid WHERE clause with no known primary keys.
+            }
+        }
     }
   }
 
@@ -656,6 +660,7 @@
     {buf.concat {self.table-name-for-sql {non-null self.table-name}}}
     {buf.concat " SET "}
     {self.generate-assignments-sql buf, record}
+    {buf.concat " "}
     {self.generate-where-sql buf, record}
   }
 
@@ -830,6 +835,13 @@
   }
   field public constant auto-increment?:bool
 
+  {doc-next
+    {purpose
+        Is this field marked as NOT NULL in the database.
+    }
+  }
+  field public constant not-null?:bool
+
   field public constant type-name:String
 
   {getter public {default-value}:any
@@ -844,20 +856,18 @@
                           caption:String = field-name,
                           domain:Domain = {StandardAnyDomain},
                           modifiable?:bool = true,
-                          nullable?:bool=false,
-                          default-value:any = {if nullable? then
-                                                  null
-                                               else 
-                                                  domain.default-value
-                                              },
+                          nullable?:bool = false,
+                          default-value:any = domain.default-value,
                           index-type:RecordFieldIndexType = 
                               RecordFieldIndexType.none,
                           type-name:String,
                           primary-key?:bool = false,
+                          not-null?:bool = false,
                           auto-increment?:bool = false
                       }
     set self.primary-key? = primary-key?
     set self.auto-increment? = auto-increment?
+    set self.not-null? = not-null?
     set self.type-name = type-name
     {construct-super 
         field-name, 

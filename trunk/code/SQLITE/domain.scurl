@@ -24,7 +24,6 @@
   field public-get constant affinity:SQLiteDatatypeAffinity
   field public-get constant strict?:bool
   field constant _type:Type
-  field constant _default-value:any
   {constructor public {default 
                           affinity:SQLiteDatatypeAffinity = 
                               SQLiteDatatypeAffinity.NONE,
@@ -38,7 +37,6 @@
          else
             || allow any type, as does SQLite
             any}
-    set self._default-value = {uninitialized-value-for-type self.type}
   }
   {factory public {from-affinity
                       affinity:SQLiteDatatypeAffinity,
@@ -104,7 +102,7 @@
     {return self._type}
   }
   {getter public {default-value}:any
-    {return self._default-value}
+    {return null}
   }
   {method public {compare x:any, y:any}:int
     let tx:SQLiteDatatype = {self.storage-class-for {type-of x}}
@@ -298,4 +296,82 @@
             {error {lmessage Unexpected format in 'hex-decode'}}}
         {bs.append b asa byte}}
     {return bs}
+}
+
+{define-proc package {decode-literal
+                         s:String, affinity:SQLiteDatatypeAffinity
+                     }:any
+    {if ({s.prefix? "'"} and {s.suffix? "'"}) or 
+        {s.prefix? "\""} and {s.suffix? "\""}
+     then
+        let buf:StringBuf = {StringBuf}
+        let last-was-quote?:bool
+        {for i = 1 below (s.size - 1) do
+            let c:char = s[i]
+            || We assume that the next char will be a single-quote
+            {if not last-was-quote? and c == '\'' then
+                set last-was-quote? = true
+                {continue}
+            }
+            {buf.append c}
+            set last-was-quote? = false
+        }
+        {return {buf.to-String}}
+    }
+    {if {s.equal? "CURRENT_TIMESTAMP", ignore-case? = true} then
+        {return
+            {proc {rf:RecordField, rs:RecordSet}:any
+                let d:DateTimeInfo = {DateTime zone = DateTimeZone.utc}.info
+                {return
+                    {format "%04d-%02d-%02d %02d:%02d:%02d",
+                        d.year, d.month, d.day,
+                        d.hour, d.minute, d.second
+                    }
+                }
+            }
+        }
+     elseif {s.equal? "CURRENT_TIME", ignore-case? = true} then
+        {return
+            {proc {rf:RecordField, rs:RecordSet}:any
+                let d:DateTimeInfo = {DateTime zone = DateTimeZone.utc}.info
+                {return {format "%02d:%02d:%02d", d.hour, d.minute, d.second}}
+            }
+        }
+     elseif {s.equal? "CURRENT_DATE", ignore-case? = true} then
+        {return
+            {proc {rf:RecordField, rs:RecordSet}:any
+                let d:DateTimeInfo = {DateTime zone = DateTimeZone.utc}.info
+                {return
+                    {format "%04d-%02d-%02d",
+                        d.year, d.month, d.day
+                    }
+                }
+            }
+        }
+     elseif {s.equal? "NULL", ignore-case? = true} then
+        {return null}
+     elseif {s.prefix? "x'", ignore-case? = true} and {s.suffix? "'"} then
+        {return {hex-decode s}}
+    }
+    {if affinity == SQLiteDatatypeAffinity.INTEGER or
+        affinity == SQLiteDatatypeAffinity.NUMERIC or
+        affinity == SQLiteDatatypeAffinity.NONE
+     then
+        let (xi:int64, xin:int) = {s.to-int64}
+        {if xin == s.size then
+            {return
+                {if xi > max-int32 or xi < min-int32 then
+                    xi asa int
+                else xi}}}
+    }
+
+    {if affinity == SQLiteDatatypeAffinity.REAL or
+        affinity == SQLiteDatatypeAffinity.NUMERIC or
+        affinity == SQLiteDatatypeAffinity.NONE
+     then
+        let (xd:double, xdn:int) = {s.to-double}
+        {if xdn == s.size then
+            {return xd}}
+    }
+    {return s}
 }

@@ -466,6 +466,30 @@
     }
   }
 
+  {method private {where-is-reusable?
+                      record:BasicRecord
+                  }:bool
+    {type-switch record
+     case r:SQLHiddenIndexRecord do
+        {return true}
+    }
+    let arg-index:int = 0
+    {for fi:int = 0 below self.fields.size do
+        let constant f:RecordField = {self.fields.get-by-index fi}
+        let not-null?:bool =
+            {type-switch f
+            case f:SQLRecordField do
+                f.not-null?
+            else
+                false
+            }
+        {if {self.field-primary-key? f} and not not-null? then
+            {return false}
+        }
+    }
+    {return true}
+  }
+
   {method private {bind-values
                       statement:SQLiteStatement,
                       record:BasicRecord
@@ -508,8 +532,9 @@
             {new {FastArray-of RecordState}, 
                 RecordState.deleted, RecordState.modified,
                 RecordState.appended}
-        || FIXME: we can set the row-ids this way, but other defaulted
-        || columns aren't getting re-read.
+        || FIXME: we can set the row-ids with this, but other
+        || defaulted/triggered columns aren't getting re-read.  Should
+        || we re-read the whole row each time.
         let insert-records:#{Array-of Record}
         let insert-row-ids:#{Array-of int64}
         {for state in update-states do
@@ -523,18 +548,21 @@
                         {self.generate-update-statement-sql buf, r}
                      case RecordState.appended do
                         || FIXME: this may not be quite right yet because
-                        || default values are getting overwritten with
-                        || bogus Domain supplied defaults.  We might need
-                        || to generate special INSERTS for each row that
-                        || skip defaulted fields, or we might need to load
-                        || default info for the table and use that in the
-                        || Domains.
+                        || default values are being supplied from the
+                        || RecordField that are based on the SQL defaults,
+                        || but that isn't the same as letting SQLite do
+                        || the defaults and triggers.
+                        || We might want to generate special INSERTS for
+                        || each row that skip defaulted or unsupplied
+                        || columns.
                         {self.generate-insert-statement-sql buf, r}
                      case RecordState.deleted do
                         {self.generate-delete-statement-sql buf, r}
                     }
+
+                    let query:String = {buf.to-String}
                     {connection.execute-sqlite
-                        {buf.to-String},
+                        query,
                         args-callback =
                             {proc {statement:SQLiteStatement}:void
                                 {switch state
@@ -555,6 +583,8 @@
                                  case RecordState.modified do
                                     || UPDATE can't be reused because it might
                                     || need a different set of fields each time.
+                                    || FIXME: maybe we could re-use it if the
+                                    || next UPDATE was for the same columns.
                                     {return false}
                                  case RecordState.appended do
                                     || See if there are auto-increment fields
@@ -571,6 +601,13 @@
                                         connection.database.last-insert-rowid
                                     }
                                     {insert-records.append r}
+                                 case RecordState.deleted do
+                                    || Note: delete statements can't be
+                                    || recycled if the primary-key in the
+                                    || where-clause might have ISNULL in it.
+                                    {if not {self.where-is-reusable? r} then
+                                        {return false}
+                                    }
                                 }
                                 || Iterate over other records that need the
                                 || same operation.

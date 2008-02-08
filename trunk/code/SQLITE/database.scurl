@@ -255,11 +255,11 @@
     {if status != SQLiteStatus.OK then
         {try
             {self.check-status}
-         catch ex:Exception do
+         finally
             {{SQLiteInterface}.close self._sqlite3}
             set self._sqlite3 = 0
-            {throw ex}
         }
+        {unreachable}
     }
 
     || Register procs to release resources (by closing database).
@@ -285,7 +285,7 @@
     set self.exit-proc = exit-proc
     {register-exit-proc exit-proc}
 
-    {if-non-null callback = self._authorizer then
+    {if self._authorizer != null then
         set self.authorizer = self._authorizer
     }
     
@@ -1383,9 +1383,6 @@
   {method package {prepare-statement stmt:SQLiteStatement}:#String
     let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
         {{Pointer-to SQLiteStatementHandle} value = 0}
-    || FIXME: Convert or hide tail-ptr in SQLiteInterface.
-    || TODO: Should either return tail-ptr info, or make it an error
-    || to pass in more than one SQL statement.
     let (status:SQLiteStatus, tail:#String) =
         {{SQLiteInterface}.prepare 
             self.non-null-sqlite3, stmt.sql, stmt-ptr

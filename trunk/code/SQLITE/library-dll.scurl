@@ -82,9 +82,11 @@
             {manifest-url "file", name,
                 platform = "win32"}
          case "linux" do
+            || FIXME: need to build shared libraries to enable thread safety.
             {manifest-url "file", name,
                 platform = "linux"}
          case "mac" do
+            || FIXME: need to build shared libraries to enable thread safety.
             || Note: to build the shared libraries for OSX, you have to
             || do configure --disable-tcl and then edit the Makefile
             || to add -no-undefined to libtool command line used to make
