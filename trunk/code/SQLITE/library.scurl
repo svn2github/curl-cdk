@@ -52,7 +52,14 @@
   let private interface:#SQLiteInterface
 
   {constructor private {create}
-   {construct-super {local-SharedLibrary "libsqlite"}}
+    {construct-super {local-SharedLibrary "libsqlite"}}
+  }
+
+  {method protected {reclaim-resources}:void
+    || close up SharedLibrary and other clean up on exit.
+    set SQLiteInterface.interface = null
+    || This could recurse, but deactivate won't do anything if not {active?}.
+    {self.deactivate}
   }
 
   {doc-next

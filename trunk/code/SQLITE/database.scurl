@@ -1102,9 +1102,9 @@
                             }
                         }
                     {SQLiteDatabase.set-result context, retval}
-                 catch e:Exception do
+                  catch e:Exception do
                     {{SQLiteInterface}.result-error context, e.message}
-                 finally
+                  finally
                      {self.set-aggregate-context-value context, null}
                  }
             }
