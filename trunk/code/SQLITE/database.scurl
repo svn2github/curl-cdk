@@ -1102,11 +1102,14 @@
                             }
                         }
                     {SQLiteDatabase.set-result context, retval}
-                  catch e:Exception do
-                    {{SQLiteInterface}.result-error context, e.message}
-                  finally
-                     {self.set-aggregate-context-value context, null}
-                 }
+                 catch ex:SQLiteException
+                    {{SQLiteInterface}.result-error-code context, ex.code}
+                    {{SQLiteInterface}.result-error context, ex.message}
+                 catch ex:Exception do
+                    {{SQLiteInterface}.result-error context, ex.message}
+                 finally
+                    {self.set-aggregate-context-value context, null}
+                }
             }
          else
             null
@@ -1333,8 +1336,11 @@
          else
             {SQLiteDatabase.set-result context, retval}
         }
-     catch e:Exception do
-        {interface.result-error context, e.message}
+     catch ex:SQLiteException
+        {{SQLiteInterface}.result-error-code context, ex.code}
+        {{SQLiteInterface}.result-error context, ex.message}
+     catch ex:Exception do
+        {{SQLiteInterface}.result-error context, ex.message}
     }
   }
 
@@ -1468,7 +1474,7 @@
                  }:any
     {return
         {with-statement in self s = sql do
-            {s.bind {splice ...}}
+            {s.bind ...}
             {s.data-value index = index}
         }}
   }  

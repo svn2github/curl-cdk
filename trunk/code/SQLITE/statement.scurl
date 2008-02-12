@@ -244,6 +244,11 @@
     {if throw-on-error? and
         not {SQLiteStatus-ok? status}
      then
+        || Note: as of SQLite 3.5.6, you must reset in order to get
+        || appropriate error messages (and maybe error codes), even
+        || though the docs imply otherwise.  See SQLite ticket 2940:
+        || http://www.sqlite.org/cvstrac/tktview?tn=2940,2
+        {self.reset}
         || will throw, with error message
         {self.database.check-status}}
     {return status}

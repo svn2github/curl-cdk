@@ -508,6 +508,21 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Control if SQLite transactions are used when commiting changes
+        to the database in {docref SQLiteRecordSet.commit}.
+    }
+    {details
+        If you set this to {ctext false} you should use
+        {docref with-transaction} or something similar to do a transaction
+        around commiting several {docref SQLiteRecordSet.commit} calls
+        or other database writes related to commiting this {docref
+        SQLiteRecordSet}.
+    }
+  }
+  field public use-transaction?:bool = true
+
   {method public {commit}:void
     || confirm records changed
     {if not self.pending-update? then
@@ -523,7 +538,14 @@
     || TODO: Should there be a flag to allow suppressing the
     || transaction, in case code wants to do the transaction around
     || several commits?
-    {connection.execute-sql "", "BEGIN IMMEDIATE"} ||""
+    {if self.use-transaction? then
+        {connection.execute-sql "", "BEGIN IMMEDIATE"} ||""
+    }
+    || FIXME: we can set the row-ids with this, but other
+    || defaulted/triggered columns aren't getting re-read.  Should
+    || we re-read the whole row each time.
+    let insert-records:#{Array-of Record}
+    let insert-row-ids:#{Array-of int64}
     {try
         let iter:{Iterator-of Record} = {self.to-Iterator}
         || This order is important to reduce the chance of a uniqueness
@@ -532,11 +554,6 @@
             {new {FastArray-of RecordState}, 
                 RecordState.deleted, RecordState.modified,
                 RecordState.appended}
-        || FIXME: we can set the row-ids with this, but other
-        || defaulted/triggered columns aren't getting re-read.  Should
-        || we re-read the whole row each time.
-        let insert-records:#{Array-of Record}
-        let insert-row-ids:#{Array-of int64}
         {for state in update-states do
             {iter.reset}
             {for r0 in iter do
@@ -627,17 +644,23 @@
                 }
             }
         }
-        {connection.execute-sql "", "COMMIT"} ||""
-        {if-non-null insert-records then
-            {for r key i in insert-records do
-                {self.set-insert-row-id r, insert-row-ids[i]}
-                || FIXME: we could re-fetch each inserted row here to get
-                || anything changed by defaulting/triggers.
-            }
+        {if self.use-transaction? then
+            {connection.execute-sql "", "COMMIT"} ||""
         }
      catch e:Exception do
-        {connection.execute-sql "", "ROLLBACK"} ||""
+        {if self.use-transaction? then
+            {connection.execute-sql "", "ROLLBACK"} ||""
+        }
         {throw {CommitFailed e.message}}
+    }
+    {if-non-null insert-records then
+        {for r key i in insert-records do
+            || FIXME: is it ok to change values here where it might not
+            || send any sort of event, and we do a commit-record afterwards
+            {self.set-insert-row-id r, insert-row-ids[i]}
+            || FIXME: we could re-fetch each inserted row here to get
+            || anything changed by defaulting/triggers.
+        }
     }
 
     || second phase -- internal commit
