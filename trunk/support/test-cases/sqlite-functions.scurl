@@ -553,5 +553,50 @@
                 {TestCondition.assert ys.size == 1 and ys[0] == null}
             }
         }
+    },
+    {test-case "error message",
+        {with-database db = {SQLiteDatabase null} do
+            {db.install-function
+                "foo",
+                1,
+                {proc {s:String}:int
+                    {error "Rooty-Tooty"}
+                }
+            }
+            let errmsg:#String
+            let status:SQLiteStatus = SQLiteStatus.OK
+            {try
+                {db.sql-value "SELECT foo('')"}
+             catch ex:SQLiteException do
+                set errmsg = ex.message
+                set status = ex.code
+            }
+            {TestCondition.assert {errmsg.find-string "Rooty-Tooty"} >= 0 and
+                status == SQLiteStatus.ERROR
+            }
+        }
+    } |#
+    , {test-case "error code",
+        {with-database db = {SQLiteDatabase null} do
+            {db.install-function
+                "foo",
+                1,
+                {proc {s:String}:int
+                    {throw {SQLiteException SQLiteStatus.ABORT, "Rooty-Tooty"}}
+                }
+            }
+            let errmsg:#String
+            let status:SQLiteStatus = SQLiteStatus.OK
+            {try
+                {db.sql-value "SELECT foo('')"}
+             catch ex:SQLiteException do
+                set errmsg = ex.message
+                set status = SQLiteStatus.ABORT
+            }
+            {TestCondition.assert {errmsg.find-string "Rooty-Tooty"} >= 0 and
+                status == SQLiteStatus.ABORT
+            }
+        }
     }
+    #|
 }
