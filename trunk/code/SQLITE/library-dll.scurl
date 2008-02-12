@@ -55,6 +55,7 @@
     def cloc = {{url uloc}.canonicalize}
     {return {local-copy-of loc, cloc}}
 }
+
 {define-proc package {local-copy-of
                         loc:Url,
                         dir:Url
@@ -63,7 +64,9 @@
         {return loc}}
     {assert dir.local-filename !=  null}
     def file = {dir.concat loc.filename}
-    || TODO: check validators: timestamp and content-hash
+    || FIXME: check validators: timestamp, content-size, maybe content-hash
+    || Should there be a file next to this file on the HTTP server to help 
+    || with this, similar to what OCC stuff does?
     {if not {local-file-exists? file} then
         {create-Directory dir,
             create-missing-parents? = true,
@@ -73,6 +76,7 @@
     }
     {return file}
 }
+
 {define-proc package {local-SharedLibrary name:String}:SharedLibrary
     || manifest specifies library location
     || - qualified by platform
@@ -82,18 +86,23 @@
             {manifest-url "file", name,
                 platform = "win32"}
          case "linux" do
-            || FIXME: need to build shared libraries to enable thread safety.
+            || Built with configure --disable-tcl --enable-threadsafe 
+            || and stripped with:
+            || strip S -x --strip-unneeded .libs/libsqlite3.so.0.8.6 
+            || Also added -DSQLITE_OMIT_UTF16=1 to one of the TCC lines
+            || in Makefile.
             {manifest-url "file", name,
                 platform = "linux"}
          case "mac" do
-            || FIXME: need to build shared libraries to enable thread safety.
             || Note: to build the shared libraries for OSX, you have to
-            || do configure --disable-tcl and then edit the Makefile
-            || to add -no-undefined to libtool command line used to make
-            || shared libraries called LTLINK.  Then copy the dylib from
-            || the .libs directory.
+            || do configure --disable-tcl --enable-threadsafe and then edit
+            || the Makefile to add -no-undefined to libtool command line used
+            || to make shared libraries called LTLINK.  Then copy the dylib
+            || from the .libs directory.
             || The libraries were stripped with "strip -x -u -r".
             || Note: "strip -S" might work just as well (or better/same).
+            || Also added -DSQLITE_OMIT_UTF16=1 to one of the TCC lines
+            || in Makefile.
             {platform-switch
              case "x86" do
                 {manifest-url "file", name,
