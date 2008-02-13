@@ -1103,8 +1103,8 @@
                         }
                     {SQLiteDatabase.set-result context, retval}
                  catch ex:SQLiteException do
-                    {{SQLiteInterface}.result-error-code context, ex.code}
                     {{SQLiteInterface}.result-error context, ex.message}
+                    {{SQLiteInterface}.result-error-code context, ex.code}
                  catch ex:Exception do
                     {{SQLiteInterface}.result-error context, ex.message}
                  finally
@@ -1337,8 +1337,8 @@
             {SQLiteDatabase.set-result context, retval}
         }
      catch ex:SQLiteException do
-        {{SQLiteInterface}.result-error-code context, ex.code}
         {{SQLiteInterface}.result-error context, ex.message}
+        {{SQLiteInterface}.result-error-code context, ex.code}
      catch ex:Exception do
         {{SQLiteInterface}.result-error context, ex.message}
     }

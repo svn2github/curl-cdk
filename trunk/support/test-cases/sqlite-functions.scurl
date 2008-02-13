@@ -575,8 +575,8 @@
                 status == SQLiteStatus.ERROR
             }
         }
-    } |#
-    , {test-case "error code",
+    },
+    {test-case "error code",
         {with-database db = {SQLiteDatabase null} do
             {db.install-function
                 "foo",
@@ -598,5 +598,4 @@
             }
         }
     }
-    #|
 }
