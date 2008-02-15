@@ -2061,13 +2061,27 @@
                       }:void
   }
 
+  {doc-next
+    {purpose
+        Sets the return value to an error code for a function
+        created with {docref SQLiteInterface.create-function}.
+    }
+    {parameter context,
+        Context passed to a function
+        created with {docref SQLiteInterface.create-function}.
+    }
+    {parameter val,
+        The value to set.
+    }
+  }
   || Added in SQLite 3.5.6
   {method public {result-error-code
-                          context:SQLiteContextHandle,
-                          error:SQLiteStatus
+                     context:SQLiteContextHandle,
+                     val:SQLiteStatus
                  }:void
-    {self.result-error-code-internal context, error.index}
+    {self.result-error-code-internal context, val.index}
   }
+
   {dll-method private {result-error-code-internal ("sqlite3_result_error_code")
                           context:SQLiteContextHandle,
                           error-code:int

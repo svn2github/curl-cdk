@@ -1029,6 +1029,15 @@
         will be the 'context' value, and it should return the value to
         be used as the result in SQLite.
     }
+    {notes
+        If one of the functions throws an {docref Exception} then the
+        {docref Exception.message} will be set as the error message, and
+        the function will be marked as failing.  If the {docref Exception}
+        is a {docref SQLiteException} then {docref SQLiteException.code}
+        will be set as the error code, if the exception is not a 
+        {docref SQLiteException}, then the error code will be
+        {docref SQLiteStatus.ERROR}.
+    }
   }
   || TODO: should this take a default aggregate-context value instead
   || of us just using {uninitialized-value-for-type}?
