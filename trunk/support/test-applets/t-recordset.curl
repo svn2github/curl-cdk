@@ -458,12 +458,15 @@
         {for r in {rs.to-Iterator} do
             {if row-index == base-row-index then
                 let data:Array = {data-for-row 8}
-                {for d key i in data do
-                    let field-name:String = {format "t%d", i}
-                    let (rf:RecordField, found?:bool) =
-                        {rs.fields.get-if-exists field-name}
-                    {if found? then
-                        set r[field-name] = d
+                || batch events to make them easier to check
+                {with rs.batch-events? = true do
+                    {for d key i in data do
+                        let field-name:String = {format "t%d", i}
+                        let (rf:RecordField, found?:bool) =
+                            {rs.fields.get-if-exists field-name}
+                        {if found? then
+                            set r[field-name] = d
+                        }
                     }
                 }
             }
@@ -494,31 +497,37 @@
             {for r in {rs.to-Iterator} do
                 let data:Array = {data-for-row 0, include-defaults? = true}
                 let column-index:int
-                {for i in SQLiteDecltype do
-                    {for j in SQLiteNullness do
-                        || non-defaulted
-                        let field-name:String = {format "t%d", column-index}
-                        let (rf:RecordField, found?:bool) =
-                            {rs.fields.get-if-exists field-name}
-                        {if found? then
-                            set r[field-name] = data[column-index]
-                        }
-                        {inc column-index}
-                        || Skip defaulted if maybe-null
-                        {if j != SQLiteNullness.maybe-null then
+                || batch events to make them easier to check
+                {with rs.batch-events? = true do
+                    {for i in SQLiteDecltype do
+                        {for j in SQLiteNullness do
+                            || non-defaulted
                             let field-name:String = {format "t%d", column-index}
                             let (rf:RecordField, found?:bool) =
                                 {rs.fields.get-if-exists field-name}
                             {if found? then
                                 set r[field-name] = data[column-index]
                             }
+                            {inc column-index}
+                            || Skip defaulted if maybe-null
+                            {if j != SQLiteNullness.maybe-null then
+                                let field-name:String =
+                                    {format "t%d", column-index}
+                                let (rf:RecordField, found?:bool) =
+                                    {rs.fields.get-if-exists field-name}
+                                {if found? then
+                                    set r[field-name] = data[column-index]
+                                }
+                            }
+                            {inc column-index}
                         }
-                        {inc column-index}
                     }
+                    {break}
                 }
-                {break}
             }
             {rs.commit}
+            {rs.load}
+            {assert rs.size == 1}
             {rs.load}
             {assert rs.size == 1}
             {check-normal-rows rs,
@@ -594,47 +603,210 @@
     }
 }
 
+{define-proc package {check-events
+                         ra1:{Array-of RecordSetEvent},
+                         ra2:{Array-of ClassType},
+                         check-length:int = ra2.size
+                     }:void
+    {assert ra1.size == check-length}
+    {for i = 0 below check-length do
+        let ra:RecordSetEvent = ra1[i]
+        {assert {type-of ra} == ra2[i]}
+    }
+}
+{let package constant event-types:{Array-of ClassType} =
+    {new {Array-of ClassType},
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordAdded,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordAdded,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordAdded,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordAdded,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged
+    }
+}
+{let package constant skip-columns-event-types:{Array-of ClassType} =
+    {new {Array-of ClassType},
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordModified,
+        RecordsBulkChanges,
+        RecordSetLoadStateChanged
+    }
+}
+
 {define-proc package {do-recordsets-read
                          con:SQLiteConnection,
                          database:SQLiteDatabase,
                          database-name:String,
                          table-name:String
                      }:void
+    let r:{Array-of RecordSetEvent} = {new {Array-of RecordSetEvent}}
     let rs:SQLiteRecordSet =
         {con.create-sql-record-set-from-table-name
             database-name,
             table-name,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
+    {check-events r, event-types}
+    {r.clear}
+
     set rs =
         {con.create-sql-record-set-from-table-name
             database-name,
             table-name,
-            load-now? = false
+            load-now? = false,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs, pre-loaded? = false}
     {assert not rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
+
     set rs =
         {con.create-sql-record-set-from-table-name
             database-name,
             table-name,
             strict-types? = true,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
+    {check-events r, event-types}
+    {r.clear}
+
     set rs =
         {con.create-sql-record-set-from-table-name
             database-name,
             table-name,
             || Should we also test a base-where-clause that does something?
             base-where-clause = |"t0 <> 'xxx' OR t0 ISNULL"|,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
+    {check-events r, event-types}
+    {r.clear}
 
     set rs =
         {SQLiteRecordSet.create-from-table-name
@@ -643,10 +815,15 @@
             table-name,
             || Should we also test a base-where-clause that does something?
             base-where-clause = |"t2 <> ?"|,
-            base-where-clause-parameters = {Array "yyy"}
+            base-where-clause-parameters = {Array "yyy"},
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         }
     {test-load-record-set rs}
     {assert not rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
 
     set rs =
         {SQLiteRecordSet.create-from-table-name
@@ -656,7 +833,10 @@
             || Should we also test a base-where-clause that does something?
             base-where-clause = |"t2 == ?"|,
             base-where-clause-parameters = {Array "Bc"},
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         }
     {test-load-record-set
         rs,
@@ -666,18 +846,35 @@
             }
     }
     {assert rs.modifiable?}
+    {check-events r,
+        {{Array-of ClassType}
+            RecordAdded,
+            RecordSetLoadStateChanged,
+            RecordsBulkChanges,
+            RecordSetLoadStateChanged
+        }
+    }
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
             database-name,
             "SELECT * from " & {make-table-name database-name, table-name},
             table-name = table-name,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     || table0 has no declared primary-key, so it can only be modifiable
     || when primary keys are in the query (since ROWID is not part of query.)
     {assert rs.modifiable? == (table-name != "table0")}
+    {check-events r, event-types,
+        check-length =
+            {if (table-name == "table0") then 10 else event-types.size}
+    }
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
@@ -688,10 +885,15 @@
             table-name = table-name,
             request-modifiable? = true,
             hidden-primary-key-field = 0,
-            strict-types? = true
+            strict-types? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {test-load-record-set rs}
     {assert rs.modifiable?}
+    {check-events r, event-types}
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
@@ -699,7 +901,10 @@
             "SELECT t0 from " &
                 {make-table-name database-name, table-name},
             table-name = table-name,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     || table1 is all primary-keys.
     || This would not actually work unless it had a narrowing base-where-clause
@@ -713,6 +918,12 @@
                 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
             }
     }
+    {check-events r, skip-columns-event-types,
+        check-length =
+            {if (table-name == "table1") then skip-columns-event-types.size else 10}
+    }
+    {r.clear}
+
     set rs =
         {con.create-sql-record-set
             database-name,
@@ -721,7 +932,10 @@
             table-name = table-name,
             request-modifiable? = true,
             strict-types? = true,
-            hidden-primary-key-field = 0
+            hidden-primary-key-field = 0,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     || table1 is all primary-keys.
     || This would not actually work unless it had a narrowing base-where-clause
@@ -735,6 +949,8 @@
                 13, 14, 15, 16, 17, 18, 19, 20, 21, 23
             }
     }
+    {check-events r, skip-columns-event-types}
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
@@ -742,7 +958,10 @@
             "PRAGMA " & {make-table-name database-name, "table_info"} &
             "(" & table-name & ")",
             table-name = null,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {assert rs.size == number-of-columns}
     {assert rs.fields.size == 6}
@@ -758,6 +977,8 @@
     {assert rs.size ==
         (number-of-columns - 8)}
     {assert not rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
@@ -765,11 +986,16 @@
             "SELECT count(*) from " &
                 {make-table-name database-name, table-name},
             table-name = table-name,
-            request-modifiable? = true
+            request-modifiable? = true,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     {assert not rs.modifiable?}
     {assert rs.size == 1}
     {assert rs.fields.size == 1}
+    {check-events r, {{Array-of ClassType} RecordAdded, RecordSetLoadStateChanged}}
+    {r.clear}
 
     set rs =
         {SQLiteRecordSet.create-from-table-name
@@ -777,11 +1003,16 @@
             database-name,
             table-name & "view",
             request-modifiable? = true,
-            load-now? = false
+            load-now? = false,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         }
     {assert not rs.modifiable?}
     {test-load-record-set rs, pre-loaded? = false}
     {assert not rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
@@ -793,28 +1024,37 @@
             request-modifiable? = true,
             hidden-primary-key-field = 0,
             strict-types? = true,
-            load-now? = false
+            load-now? = false,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     || Can't tell that it isn't modifiable? until we load.
     {assert rs.modifiable?}
     {test-load-record-set rs, pre-loaded? = false}
     {assert not rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
 
     set rs =
         {con.create-sql-record-set
             database-name,
-            || Without "as ROWID", t14 gets renamed for table3
             "SELECT * from " &
                 {make-table-name database-name, table-name & "view"},
             table-name = table-name & "view",
             request-modifiable? = true,
             primary-keys = {StringArray "t14"},
-            load-now? = false
+            load-now? = false,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
         } asa SQLiteRecordSet
     || modifiable because we are providing a primary-key
     {assert rs.modifiable?}
     {test-load-record-set rs, pre-loaded? = false}
     {assert rs.modifiable?}
+    {check-events r, event-types, check-length = 10}
+    {r.clear}
 
 }
 {define-proc package {do-once-per-database-tests
