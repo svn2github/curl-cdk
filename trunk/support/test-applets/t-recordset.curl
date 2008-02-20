@@ -955,6 +955,29 @@
     set rs =
         {con.create-sql-record-set
             database-name,
+            "SeLeCt tb0.t0, tb1.t8, tb0.t22 FROM " &
+                {make-table-name database-name, "table0"} & " AS tb0, " &
+                {make-table-name database-name, table-name} & " AS tb1" &
+                " WHERE tb0.t2 == tb1.t2"
+            ,
+            {on e:RecordSetEvent do
+                {r.append e}
+            }
+        } asa SQLiteRecordSet
+    {test-load-record-set
+        rs,
+        skip-columns =
+            {new {Array-of int},
+                1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12,
+                13, 14, 15, 16, 17, 18, 19, 20, 21, 23
+            }
+    }
+    {check-events r, skip-columns-event-types, check-length = 10}
+    {r.clear}
+
+    set rs =
+        {con.create-sql-record-set
+            database-name,
             "PRAGMA " & {make-table-name database-name, "table_info"} &
             "(" & table-name & ")",
             table-name = null,
@@ -1184,6 +1207,5 @@ Test fill* with various sorts of changes (although fill* is a strange API...)
 For modifiable ones, insert with wrong type/value values,
 modify with bad values.
 
-Test events sequence some how.
 Add test to test NULL/CURRENT_DATE/CURRENT_TIME/CURRENT_TIMESTAMP defaulting.
 #|
