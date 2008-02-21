@@ -28,12 +28,17 @@
     real = "REAL",
     numeric = "NUMERIC"
 }
-{let constant package defaults:FastArray = {FastArray |"'a'"|, "x'01'", |"'b'"|, 1, 1.1, 2}}
-{let constant package defaults-as-values:FastArray = {FastArray "a", {ByteArray 1}, "b", 1, 1.1, 2}}
+
+{let constant package defaults:FastArray =
+    {FastArray |"'a'"|, "x'01'", |"'b'"|, 1, 1.1, 2}}
+{let constant package defaults-as-values:FastArray =
+    {FastArray "a", {ByteArray 1}, "b", 1, 1.1, 2}}
+
 {define-enum package SQLiteNullness
     maybe-null = "",
     non-null = "NOT NULL"
 }
+
 {define-proc public {any-equal? x:any, y:any}:bool
     def array-equal? =
         {proc {xs:any, ys:any}:bool
@@ -72,10 +77,12 @@
     }
     {return false}
 }
+
 {let number-of-columns:int =
     ({enum-size SQLiteDecltype} * {enum-size SQLiteNullness} * 2)
 }
 {let number-of-rows:int = 10}
+
 || Should we add a strict column?  How much non-strict data are we going to
 || put in?
 {define-proc package {make-base-columns}:StringArray
@@ -203,6 +210,7 @@
         {make-table-name database-name, table-name}
     }
 }
+
 {define-proc package {drop-table
                          database:SQLiteDatabase,
                          database-name:String,
@@ -322,6 +330,7 @@
     }
     {return column-values, sql-column-values-buf, sql-column-names-buf}
 }
+
 {define-proc package {make-table-name
                          database-name:String,
                          table-name:String
@@ -361,6 +370,7 @@
         }
     }
 }
+
 {define-proc package {check-normal-rows
                          rs:SQLiteRecordSet,
                          start-row:int = 0,
@@ -391,6 +401,7 @@
         {inc row-index}
     }
 }
+
 {define-proc package {test-write-record-set
                          rs:SQLiteRecordSet,
                          skip-rows:#{Array-of int} = null,
@@ -614,6 +625,7 @@
         {assert {type-of ra} == ra2[i]}
     }
 }
+
 {let package constant event-types:{Array-of ClassType} =
     {new {Array-of ClassType},
         RecordsBulkChanges,
@@ -1080,6 +1092,7 @@
     {r.clear}
 
 }
+
 {define-proc package {do-once-per-database-tests
                          con:SQLiteConnection,
                          database:SQLiteDatabase,
@@ -1143,8 +1156,6 @@
     }
 }
 
-
-
 {define-proc package {localfile-pragma
                          db:SQLiteDatabase,
                          name:String = ""
@@ -1160,6 +1171,7 @@
     {db.execute "PRAGMA temp_store = MEMORY"}
 
 }
+
 {define-proc package {do-databases}:void
     {with-database
         db = {SQLiteDatabase null}
@@ -1198,8 +1210,6 @@
 
 |#
 FIXME: missing test cases
-*
-Also do RecordSet with join of two tables (not modifiable)
 *
 Test each RecordSet for with strict? = true where it will fail due to
 some bogus type data.

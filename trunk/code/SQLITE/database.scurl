@@ -191,6 +191,7 @@
   {constructor public {default u:#Url}
     set self.url = u
     set self.statements = {{Array-of SQLiteStatement}}
+    set self._busy-timeout = (5s / 1ms) asa int
   }
 
   {doc-next
@@ -596,6 +597,9 @@
 
         Setting this replaces any busy handler set with
         {docref SQLiteDatabase.busy-handler}.
+
+        By default a {docref SQLiteDatabase} has
+        {docref SQLiteDatabase.busy-timeout} set to {ctext 5s}.
     }
   }
   {getter public {busy-timeout}:Time
