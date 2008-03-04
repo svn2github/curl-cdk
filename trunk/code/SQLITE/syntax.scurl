@@ -102,21 +102,22 @@
         {syntax-switch lock
          case {pattern} do "deferred"
          else {{lock.get-text}.to-String}}
+    let body-succeeded:CurlSource = {Identifier.unique prefix="body-succeeded"}
+    let database:CurlSource = {Identifier.unique prefix="db"}
     {return
         {expand-template
             {value
-                let db:{compile-time-type-of ?db} = ?db
-                let body-failed?:bool
-                {db.execute "BEGIN " & ?{Literal lock-type}}
+                let ?database:{compile-time-type-of ?db} = ?db
+                let ?body-succeeded:bool
+                {?database.execute "BEGIN " & ?{Literal lock-type}}
                 {try
                     ?body
-                 catch e:Exception do
-                    set body-failed? = true
-                    {db.execute "ROLLBACK"}
-                    {throw e}
+                    set ?body-succeeded = true
                  finally
-                    {if not body-failed? then
-                        {db.execute "COMMIT"}
+                    {if ?body-succeeded then
+                        {?database.execute "COMMIT"}
+                     else
+                        {?database.execute "ROLLBACK"}
                     }
                 }
             }

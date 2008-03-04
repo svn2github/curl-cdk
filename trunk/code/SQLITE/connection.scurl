@@ -157,20 +157,11 @@
     {assert database-url == null or database == null}
 
     || open database
-    {if-non-null database-url then
-        {if error-if-missing? and not {local-file-exists? database-url} then
-            {throw 
-                {MissingFileException
-                    {lmessage No such file: {value database-url}}
-                }
-            }
-        }
-    }
     set self.database =
         {if-non-null database then
             database 
          else
-            {SQLiteDatabase database-url}
+            {SQLiteDatabase database-url, error-if-missing? = error-if-missing?}
         }
 
     || Notification

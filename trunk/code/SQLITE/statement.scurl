@@ -591,8 +591,9 @@
             {self.get-column-blob index}
          else
             {throw
-                {Exception ||SQLiteException 
-                    {lmessage Unexpected SQLite datatype {value t}}
+                {SQLiteException 
+                    SQLiteStatus.MISMATCH,
+                    {lmessage Unexpected SQLite datatype {value t}.}
                 }
             }
         }
@@ -1161,12 +1162,51 @@
          case x:ByteArray do
             {interface.bind-blob stmt, index, x}
          else
-            {error {lmessage Unexpected type: {type-of val}}}
+            {throw
+                {SQLiteException 
+                    SQLiteStatus.MISMATCH,
+                    {lmessage Unexpected type {type-of val}.}
+                }
+            }
         }
 
     {if status != SQLiteStatus.OK then
         {self.database.check-status}
     }
+  }
+
+  {doc-next
+    {purpose
+        Assigns (or binds) a value to a parameter in this prepared SQL
+        statement.
+    }
+    {parameter name,
+        Name of the parameter to be set. 
+
+        The name should be of the form {ctext :<alpha-numeric-name>},
+        {ctext @<alpha-numeric-name>}, or
+        {ctext $<alpha-numeric-name>}.
+    }
+    {parameter val,
+        The value to bind to the parameter named {param name}.
+    }
+    {notes
+        Unbound parameters are interpreted as NULL.
+
+        If {docref SQLiteStatement.sql} is not compiled or was
+        finalized, it will be compiled to get the byte code.
+        
+        If the binding operation is successful, the {docref
+        SQLiteStatement.bind-table} will be updated to reflect this
+        binding so that this binding can be re-applied if this
+        statement is recompiled in the future.
+    }
+  }
+  {method public {bind-any-by-name name:String, val:any}:void
+    let constant stmt:SQLiteStatementHandle = self.non-null-stmt
+    || Just let the underlying bind call fail if bind-parameter-index returns
+    || 0 for name not found.
+    {self.bind-any {{SQLiteInterface}.bind-parameter-index stmt, name}, val}
   }
   
   {doc-next
@@ -1174,21 +1214,56 @@
         Binds statement parameters to supplied arguments.
     }
     {parameter ...,
-        The values will be bound to the index (starting at 1) that
-        they appear at in the argument list.
-    }
+        Keyword arguments will be bound to a parameter of the same name,
+        see {docref SQLiteStatement.bind-any-by-name} for details.  
+        Positional arguments will be bound to the next unnamed parameter
+        in they appear at in the argument list.
+   }
   }
-  {method public {bind ...:any}:void
+  {method public {bind ...}:void
     let constant database:SQLiteDatabase = self.database
-    let i:int = 1
-    {for value in ... do
-        {self.bind-any i, value}
-        {inc i}
-    }
-    let nval:int = self.bind-parameter-count
-    {while i <= nval do
-        {self.bind-null i}
-        {inc i}
+    let constant count:int = self.bind-parameter-count
+    let unnamed-index:int = 1
+    let last-named:int = 0
+    let constant stmt:SQLiteStatementHandle = self.non-null-stmt
+    let constant interface:SQLiteInterface = {SQLiteInterface}
+    {for (v, k) in ... do
+        {if-non-null k then
+            let named-index:int = (last-named mod count) + 1
+            {while named-index != last-named do
+                {if-non-null
+                    name = {interface.bind-parameter-name stmt, named-index} 
+                 then
+                    {if {name.suffix? k} and
+                        name.size == (k.size + 1)
+                     then
+                        {self.bind-any named-index, v}
+                        {break}
+                    }
+                }
+                set named-index = (named-index mod count) + 1
+            }
+            {if named-index == last-named then
+                {throw
+                    {SQLiteException
+                        SQLiteStatus.ERROR,
+                        {lmessage Named parameter not found.}
+                    }
+                }
+            }
+            set last-named = named-index
+         else
+            || Search for the next unnamed parameter, but be willing to
+            || go too high to induce an error from the SQLite code if there
+            || are too many unnamed parameters.
+            {while unnamed-index <= (count + 1) and
+                {interface.bind-parameter-name stmt, unnamed-index} != null
+             do
+                {inc unnamed-index}
+            }
+            {self.bind-any unnamed-index, v}
+            {inc unnamed-index}
+        }
     }
   }
   
@@ -1252,7 +1327,7 @@
         {SQLiteStatement.insert-statement-for database, table-name}
     {return
         {proc {...:any}:SQLiteStatus
-            {statement.bind ...}
+            {statement.bind {splice ...}}
             || execute
             def status:SQLiteStatus =
                 {statement.step throw-on-error? = throw-on-error?}
@@ -1306,15 +1381,15 @@
                     {if-non-null xs = {in.read-record} then
                         let constant status:SQLiteStatus = {f {splice xs}}
                         {switch status
-                         case SQLiteStatus.OK,
-                             SQLiteStatus.DONE do
+                         case SQLiteStatus.OK, SQLiteStatus.DONE do
                             || success
                          else 
                             || NOTE: consider collect and return failed records
                             || BETTER: use ON CONFLICT clause, per keyword arg
                             {database.check-status}
                         }
-                     else {break}
+                     else
+                        {break}
                     }
                 }
             }

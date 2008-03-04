@@ -55,7 +55,7 @@ GROUP BY month
                 def rs =
                     {SQLiteRecordSet.create con, "main", 
                         "SELECT day,min,mean,max FROM temp WHERE month = ?",    
-                        query-parameters = {Array month},
+                        query-parameters = {Arguments month},
                         strict-types? = true}
 
                 {popup-message title = {message Month {value month}}, 

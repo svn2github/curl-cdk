@@ -116,7 +116,7 @@
                       size-limit:int=-1,
                       base-where-clause:#String = null,
                       strict-types?:bool = false,
-                      base-where-clause-parameters:#Array = null,
+                      base-where-clause-parameters:#Arguments = null,
                       load-now?:bool = true,
                       ...:EventHandler
                   }:SQLiteRecordSet
@@ -216,16 +216,16 @@
         Create a {docref SQLiteRecordSet}.
     }
     {parameter query-parameters,
-        An array of values to be bound to the {param query} when it is
-        executed.  {docref SQLiteStatement.bind-any} will be used,
-        so the {param query} must use the positional marker '?'.
+        An {docref Arguments} with values to be bound to the {param query}
+        when it is executed.  {docref SQLiteStatement.bind} will be used to
+        set the parameters.
     }
     {parameter base-where-clause-parameters,
-        An array of values to be bound to the {param base-where-clause}
-        when it is executed.  {docref SQLiteStatement.bind-any} will be used,
-        so the query must use the positional marker '?'.  This will happen
-        for the {param query}, and for some SQL queries used to update the
-        table.
+        An {docref Arguments} with values to be bound to the
+        {param base-where-clause} when it is executed.
+        {docref SQLiteStatement.bind} will be used to set the parameters.
+        This will happen for the {param query}, and for some SQL queries
+        used to update the table.
     }
     {details
         Parameters match {docref SQLConnection.create-sql-record-set}
@@ -258,8 +258,8 @@
                           primary-keys:#{Array-of String} = null,
                           load-now?:bool = true,
                           strict-types?:bool = false,
-                          query-parameters:#Array = null,
-                          base-where-clause-parameters:#Array = null,
+                          query-parameters:#Arguments = null,
+                          base-where-clause-parameters:#Arguments = null,
                           ...:EventHandler
                       }
     {construct-super.create
@@ -315,15 +315,22 @@
         args-callback =
             {proc {statement:SQLiteStatement}:void
                 let start:int = 0
-                {if-non-null query-parameters = self.query-parameters then
-                    {statement.bind {splice query-parameters}}
-                    {inc start, query-parameters.size}
-                }
-                {if-non-null base-where-clause-parameters =
-                    self.base-where-clause-parameters
-                 then
-                    {for bwcp key i in base-where-clause-parameters do
-                        {statement.bind-any start + i + 1, bwcp}
+                {if-non-null q-p = self.query-parameters then
+                    {if-non-null base-where-clause-parameters =
+                        self.base-where-clause-parameters
+                     then
+                        {statement.bind
+                            {splice q-p}, {splice base-where-clause-parameters}}
+                     else
+                        {statement.bind
+                            {splice q-p}}
+                    }
+                 else
+                    {if-non-null base-where-clause-parameters =
+                        self.base-where-clause-parameters
+                     then
+                        {statement.bind
+                            {splice base-where-clause-parameters}}
                     }
                 }
             },
@@ -372,16 +379,24 @@
             {buf.append ','}
         }
         || And the caller will need to call bind-values to fill these in.
-        {buf.append '?'}
+        {format out = buf, ":CurlInternalValues0%d", fi}
     }
   }
 
   {method public {generate-field-value-sql
                      buf:StringBuf,
                      f:#RecordField,
-                     record-value:any
+                     record-value:any,
+                     part-of-statement:String = ""
                  }:void
-    {buf.append '?'}
+    {if-non-null f then
+        {format out = buf, ":CurlInternalValue0%s0%s", part-of-statement,
+            f.name}
+     else
+        || This had better only be called once with no RecordField per query
+        || and part-of-statement
+        {format out = buf, ":CurlInternalValue0%s", part-of-statement}
+    }
   }
 
   {method public {fill-from-table-name
@@ -417,8 +432,7 @@
 
   {method private {bind-assignments
                       statement:SQLiteStatement, record:BasicRecord
-                  }:int
-    let column-index:int = 0
+                  }:void
     {for fi = 0 below self.fields.size do
         let constant f:SQLRecordField =
             {self.fields.get-by-index fi} asa SQLRecordField
@@ -427,31 +441,29 @@
         {if not {self.field-modified? f, record} then
             {continue}
         }
-        {statement.bind-any column-index + 1, record-value}
-        {inc column-index}
+        {statement.bind-any-by-name
+            ":CurlInternalValue0set0" & f-name, record-value
+        }
     }
-    {return column-index}
   }
 
   {method private {bind-where
                       statement:SQLiteStatement,
-                      record:BasicRecord,
-                      start:int = 0
+                      record:BasicRecord
                   }:void
     {if-non-null base-where-clause-parameters =
         self.base-where-clause-parameters 
      then
-        {for p in base-where-clause-parameters do
-            {statement.bind-any start + 1, p}
-            {inc start}
-        }
+        {statement.bind {splice base-where-clause-parameters}}
     }
     {type-switch record
      case r:SQLHiddenIndexRecord do
-        {statement.bind-int64 start + 1, r.row-id}
+        {statement.bind-any-by-name
+            ":CurlInternalValue0whererowid",
+            r.row-id
+        }
         {return}
     }
-    let arg-index:int = 0
     {for fi:int = 0 below self.fields.size do
         let constant f:RecordField = {self.fields.get-by-index fi}
         {if {self.field-primary-key? f} then
@@ -459,8 +471,10 @@
             let constant old-record-value:any =
                 {record.get f-name, pending? = false}
             {if old-record-value != null then
-                {statement.bind-any arg-index + start + 1, old-record-value}
-                {inc arg-index}
+                {statement.bind-any-by-name
+                    ":CurlInternalValue0where0" & f-name,
+                    old-record-value
+                }
             }
         }
     }
@@ -500,10 +514,13 @@
         let constant f-name:String = f.name
         let constant record-value:any = record[f-name]
         || Just leave auto-increment values unbound.
-        {if not f.auto-increment? or record-value != null then
-            {statement.bind-any fi + 1, record-value}
-         else
-            {statement.bind-null fi + 1}
+        {statement.bind-any-by-name
+            {format ":CurlInternalValues0%d", fi},
+            {if not f.auto-increment? or record-value != null then
+                record-value
+             else
+                null
+            }
         }
     }
   }
@@ -584,10 +601,8 @@
                             {proc {statement:SQLiteStatement}:void
                                 {switch state
                                  case RecordState.modified do
-                                    let column-index:int =
-                                        {self.bind-assignments statement, r}
-                                    {self.bind-where statement, r,
-                                        start = column-index}
+                                    {self.bind-assignments statement, r}
+                                    {self.bind-where statement, r}
                                  case RecordState.appended do
                                     {self.bind-values statement, r}
                                  case RecordState.deleted do
@@ -694,19 +709,19 @@
     }
   }
 
-  field _query-parameters:#Array
-  {setter public {query-parameters parameters:#Array}:void
+  field _query-parameters:#Arguments
+  {setter public {query-parameters parameters:#Arguments}:void
     set self._query-parameters = parameters
   }
-  {getter public {query-parameters}:#Array
+  {getter public {query-parameters}:#Arguments
     {return self._query-parameters}
   }
 
-  field _base-where-clause-parameters:#Array
-  {setter public {base-where-clause-parameters parameters:#Array}:void
+  field _base-where-clause-parameters:#Arguments
+  {setter public {base-where-clause-parameters parameters:#Arguments}:void
     set self._base-where-clause-parameters = parameters
   }
-  {getter public {base-where-clause-parameters}:#Array
+  {getter public {base-where-clause-parameters}:#Arguments
     {return self._base-where-clause-parameters}
   }
 
@@ -727,7 +742,7 @@
                           database-name:SQLiteDatabase,
                           sql:String,
                           request-modifiable?:bool = false,
-                          parameters:#Array = null,
+                          parameters:#Arguments = null,
                           strict-types?:bool = false,
                           ...:EventHandler}
     def connection = connection-cache[database-name]

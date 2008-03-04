@@ -99,6 +99,9 @@
   }
   field constant public url:#Url
 
+  field constant private error-if-missing?:bool
+  field constant private read-only?:bool
+
   field private _busy-timeout:int
 
 
@@ -182,16 +185,30 @@
         but it does not exist, it will be created, however the parent
         directory of {param u} must already exist.
     }
+    {parameter read-only?,
+        If {ctext true} open the database for reading only.
+    }
+    {parameter error-if-missing?,
+        If {ctext true} fail to open if the file does not already exist,
+        if {ctext false} create the file if it does not already exist.
+        This is implicitly {ctext true} if {param read-only?} is {ctext true}.
+    }
     {notes
         The database connection will not be opened till an attempt is
         made to use it.
     }
   }
   || TODO: Should we make an implicit constructor from #Url?
-  {constructor public {default u:#Url}
+  {constructor public {default
+                          u:#Url,
+                          error-if-missing?:bool = false,
+                          read-only?:bool = false
+                      }
     set self.url = u
     set self.statements = {{Array-of SQLiteStatement}}
     set self._busy-timeout = (5s / 1ms) asa int
+    set self.error-if-missing? = error-if-missing?
+    set self.read-only? = read-only?
   }
 
   {doc-next
@@ -249,7 +266,10 @@
     let sqlite3-pointer-pointer:{Pointer-to SQLiteDatabaseHandle} =
         {{Pointer-to SQLiteDatabaseHandle} value = 0}
     let constant status:SQLiteStatus = 
-        {{SQLiteInterface}.open filename, sqlite3-pointer-pointer}
+        {{SQLiteInterface}.open filename, sqlite3-pointer-pointer,
+            fail-if-missing? = self.error-if-missing?,
+            read-only? = self.read-only?
+        }
     || Note that sqlite3 is a pointer, but we do not add pointer to
     || the suffix just to avoid long name.
     set self._sqlite3 = sqlite3-pointer-pointer.value
@@ -1483,7 +1503,7 @@
   {method public {sql-value
                      sql:StringInterface,
                      index:int = 0,
-                     ...:any
+                     ...
                  }:any
     {return
         {with-statement in self s = sql do

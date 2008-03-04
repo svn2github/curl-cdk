@@ -98,6 +98,14 @@
     {parameter sqlite3,
         SQLite database handle.
     }
+    {parameter read-only?,
+        If {ctext true} open the database for reading only.
+    }
+    {parameter fail-if-missing?,
+        If {ctext true} fail to open if the file does not already exist,
+        if {ctext false} create the file if it does not already exist.
+        This is implicitly {ctext true} if {param read-only?} is {ctext true}.
+    }
     {return-vals
         On success it returns {ctext SQLiteStatus.OK} otherwise it
         will return an error {docref SQLiteStatus} code.
@@ -116,14 +124,28 @@
   }
   {method public {open
                      filename:String,
-                     sqlite3:{Pointer-to SQLiteDatabaseHandle}
+                     sqlite3:{Pointer-to SQLiteDatabaseHandle},
+                     fail-if-missing?:bool = false,
+                     read-only?:bool = false
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.open-internal filename, sqlite3}}}
+    let constant SQLITE_OPEN_READONLY:int = 0x1
+    let constant SQLITE_OPEN_READWRITE:int = 0x2
+    let constant SQLITE_OPEN_CREATE:int = 0x4
+    let constant flags:int =
+        {if fail-if-missing? then 0 else SQLITE_OPEN_CREATE} +
+        {if read-only? then SQLITE_OPEN_READONLY else SQLITE_OPEN_READWRITE}
+    {return
+        {SQLiteStatus
+            index = {self.open-internal filename, sqlite3, flags, null}
+        }
+    }
   }
 
-  {dll-method private {open-internal ("sqlite3_open")
+  {dll-method private {open-internal ("sqlite3_open_v2")
                           filename:String,
-                          sqlite3:{Pointer-to SQLiteDatabaseHandle}
+                          sqlite3:{Pointer-to SQLiteDatabaseHandle},
+                          flags:int,
+                          vfs-module:#String
                       }:int
   }
 

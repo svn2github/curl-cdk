@@ -503,7 +503,8 @@
   {method protected abstract {generate-field-value-sql
                                  buf:StringBuf,
                                  f:#RecordField,
-                                 record-value:any
+                                 record-value:any,
+                                 part-of-statement:String = ""
                              }:void
   }
 
@@ -548,7 +549,9 @@
         {buf.concat " "}
         {buf.concat f-name}
         {buf.concat "="}
-        {self.generate-field-value-sql buf, f, record-value}
+        {self.generate-field-value-sql buf, f, record-value,
+            part-of-statement = "set"
+        }
     }
   }
 
@@ -612,7 +615,8 @@
         {buf.concat "="}
         || Should this go through some indirection, or should there be a
         || row-id RecordField somewhere?
-        {self.generate-field-value-sql buf, null, r.row-id}
+        {self.generate-field-value-sql buf, null, r.row-id,
+            part-of-statement = "whererowid"}
         {return}
     }
     let key-count:int = 0
@@ -630,7 +634,8 @@
                 {buf.concat " IS NULL"} ||""
              else
                 {buf.concat "="}
-                {self.generate-field-value-sql buf, f, old-record-value}
+                {self.generate-field-value-sql buf, f, old-record-value,
+                    part-of-statement = "where"}
             }
             {inc key-count}
         }
