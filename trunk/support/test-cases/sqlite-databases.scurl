@@ -18,8 +18,21 @@
 {import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
 
 {TestSuite "databases",
-    {SQLiteDatabaseTestSuite {url "../test-data/cbi-data.db"}},
+    {SQLiteDatabaseTestSuite {url "../test-data/cbi-data.db"}, error-if-missing? = true},
     {SQLiteDatabaseTestSuite {url "../test-data/census.db"}},
+    {SQLiteDatabaseTestSuite {url "../test-data/census.db"},
+        read-only? = true,
+        init-proc = 
+            {proc {db:SQLiteDatabase}:void
+                {try
+                    {db.execute "DELETE * FROM census"}
+                    {TestCondition.terminate
+                        message = "Write to read-only database should have failed."}
+                 catch ex:SQLiteException do
+                    || expected failure
+                }
+            }
+    },
     {SQLiteDatabaseTestSuite null,
         init-proc =
             {proc {db:SQLiteDatabase}:void

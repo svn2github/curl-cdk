@@ -81,6 +81,8 @@
   field public-get constant database:SQLiteDatabase
   {constructor public {default 
                           location:#Url,
+                          error-if-missing?:bool = false,
+                          read-only?:bool = false,
                           init-proc:#{proc-type {SQLiteDatabase}:void} = null
                       }
     set self.location = location
@@ -88,7 +90,12 @@
         {if-non-null location 
          then location.filename 
          else ":memory:"}}
-    set self.database = {SQLiteDatabase self.location}
+    set self.database =
+        {SQLiteDatabase
+            self.location,
+            error-if-missing? = error-if-missing?,
+            read-only? = read-only?
+        }
     {if-non-null init-proc then
         {init-proc self.database}}
     {self.generate-tests}

@@ -827,7 +827,7 @@
             table-name,
             || Should we also test a base-where-clause that does something?
             base-where-clause = |"t2 <> ?"|,
-            base-where-clause-parameters = {Array "yyy"},
+            base-where-clause-parameters = {Arguments "yyy"},
             {on e:RecordSetEvent do
                 {r.append e}
             }
@@ -843,8 +843,8 @@
             database-name,
             table-name,
             || Should we also test a base-where-clause that does something?
-            base-where-clause = |"t2 == ?"|,
-            base-where-clause-parameters = {Array "Bc"},
+            base-where-clause = |"t2 == @abc"|,
+            base-where-clause-parameters = {Arguments abc = "Bc"},
             request-modifiable? = true,
             {on e:RecordSetEvent do
                 {r.append e}

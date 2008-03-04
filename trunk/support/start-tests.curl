@@ -51,14 +51,16 @@
 ||--                || PIM
 ||--                {AppletTestCase {url "../samples/PIM/start.dcurl"}},
                 || explorer
-                {AppletTestCase {url "../samples/DBExplorer/start.curl"}}
+                {AppletTestCase {url "../samples/DBExplorer/start.curl"},
+                    timeout = 60s}
             },
             || applets
             {TestSuite "applets",
                 || lifecycle
-                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"}},
+                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"},
+                    timeout = 60s},
                 {AppletTestCase {url "test-applets/t-recordset.curl"},
-                    timeout = 60s}
+                    timeout = 120s}
             }
         }
     

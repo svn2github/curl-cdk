@@ -359,7 +359,7 @@ INSERT INTO products VALUES ('0007','calendar',4.00);
             let values:Array =
                 {Array "abc", 5, 1.3, {ByteArray 1, 2, 3}, null, "def"}
             {with-statement in db 
-                q = "INSERT INTO test (val1, val2) VALUES (?, :val2)"
+                q = "INSERT INTO test (val1, val2) VALUES (?, ?)"
              do
                 {TestCondition.assert q.bind-parameter-count == 2}
                 {for v key i in values do
@@ -482,5 +482,147 @@ INSERT INTO products VALUES ('0007','calendar',4.00);
                 {TestCondition.assert total < values.size}
             }
         }
-    }
+    },
+    {test-case "bind non-keyword",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val, val2, val3, val4);"}
+            let xs:Array =
+                {Array "abc", "def", 1, 4,
+                    12.34, 56.78, {ByteArray 0x00, 0x77, 0xFF},
+                    {ByteArray 0x01, 0x78, 0xFE, 0xFF},
+                    null, max-int64, min-int, -1}
+            {with-statement in db
+                q = "INSERT INTO test (val, val2, val3, val4) " &
+                "VALUES (?, ?, ?, ?)"
+             do
+                {for i = 0 below xs.size step 4 do
+                    {q.reset}
+                    {q.bind xs[i], xs[i + 1], xs[i + 2], xs[i + 3]}
+                    {q.step}
+                }
+            }
+            {with-statement in db
+                q = "SELECT val, val2, val3, val4 FROM test ORDER BY id"
+             do
+                let ys:{Array-of Array} = {q.data-rows}
+                {for i = 0 below xs.size do
+                    {TestCondition.assert
+                        {any-equal? ys[i div 4][i mod 4], xs[i]}}
+                }
+            }
+        }},
+        {test-case "bind keyword",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val, val2, val3, val4);"}
+            let xs:Array =
+                {Array "abc", "def", 1, 4,
+                    12.34, 56.78, {ByteArray 0x00, 0x77, 0xFF},
+                    {ByteArray 0x01, 0x78, 0xFE, 0xFF},
+                    null, max-int64, min-int, -1}
+            {with-statement in db
+                q = "INSERT INTO test (val, val2, val3, val4) VALUES " &
+                    "($val, @val2, :val3, $val4)"
+             do
+                {for i = 0 below xs.size step 4 do
+                    {q.reset}
+                    {q.bind
+                        val3 = xs[i + 2], val4 = xs[i + 3],
+                        val = xs[i], val2 = xs[i + 1]}
+                    {q.step}
+                }
+            }
+            {with-statement in db
+                q = "SELECT val, val2, val3, val4 FROM test ORDER BY id"
+             do
+                let ys:{Array-of Array} = {q.data-rows}
+                {for i = 0 below xs.size do
+                    {TestCondition.assert
+                        {any-equal? ys[i div 4][i mod 4], xs[i]}}
+                }
+            }
+        }},
+        {test-case "bind keyword and non-keyword",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val, val2, val3, val4);"}
+            let xs:Array =
+                {Array "abc", "def", 1, 4,
+                    12.34, 56.78, {ByteArray 0x00, 0x77, 0xFF},
+                    {ByteArray 0x01, 0x78, 0xFE, 0xFF},
+                    null, max-int64, min-int, -1}
+            {with-statement in db
+                q = "INSERT INTO test (val, val2, val3, val4) " &
+                    "VALUES ($val, ?, @val3, ?)"
+             do
+                {for i = 0 below xs.size step 4 do
+                    {q.reset}
+                    {q.bind xs[i + 1], xs[i + 3], val = xs[i], val3 = xs[i + 2]}
+                    {q.step}
+                }
+            }
+            {with-statement in db
+                q = "SELECT val, val2, val3, val4 FROM test ORDER BY id"
+             do
+                let ys:{Array-of Array} = {q.data-rows}
+                {for i = 0 below xs.size do
+                    {TestCondition.assert
+                        {any-equal? ys[i div 4][i mod 4], xs[i]}}
+                }
+            }
+        }},
+        {test-case "bind non-keyword and keyword",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val, val2, val3, val4);"}
+            let xs:Array =
+                {Array "abc", "def", 1, 4,
+                    12.34, 56.78, {ByteArray 0x00, 0x77, 0xFF},
+                    {ByteArray 0x01, 0x78, 0xFE, 0xFF},
+                    null, max-int64, min-int, -1}
+            {with-statement in db
+                q = "INSERT INTO test (val, val2, val3, val4) VALUES (?, @val2, ?, ?)"
+             do
+                {for i = 0 below xs.size step 4 do
+                    {q.reset}
+                    {q.bind xs[i], xs[i + 2], val2 = xs[i + 1], xs[i + 3]}
+                    {q.step}
+                }
+            }
+            {with-statement in db
+                q = "SELECT val, val2, val3, val4 FROM test ORDER BY id"
+             do
+                let ys:{Array-of Array} = {q.data-rows}
+                {for i = 0 below xs.size do
+                    {TestCondition.assert
+                        {any-equal? ys[i div 4][i mod 4], xs[i]}}
+                }
+            }
+        }},
+        {test-case "database error-if-missing",
+            let u:Url = {url "curl://temp/does-not-exist-db"}
+            {try
+
+                {with-database
+                    db = {SQLiteDatabase u, error-if-missing? = true}
+                 do
+                    {db.execute "SELECT 1 FROM hi"}
+                }
+                {delete u, error-if-missing? = false}
+                {TestCondition.terminate
+                    message = "Non-existant database file should have failed."
+                }
+             catch ex:SQLiteException do
+                || expected
+            }
+        }
 }
