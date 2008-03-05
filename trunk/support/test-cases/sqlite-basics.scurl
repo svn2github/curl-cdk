@@ -496,7 +496,7 @@ CREATE TABLE test (
                     null, max-int64, min-int, -1}
             {with-statement in db
                 q = "INSERT INTO test (val, val2, val3, val4) " &
-                "VALUES (?, ?, ?, ?)"
+                "VALUES (?, ?, ?3, ?)"
              do
                 {for i = 0 below xs.size step 4 do
                     {q.reset}
@@ -560,7 +560,7 @@ CREATE TABLE test (
                     null, max-int64, min-int, -1}
             {with-statement in db
                 q = "INSERT INTO test (val, val2, val3, val4) " &
-                    "VALUES ($val, ?, @val3, ?)"
+                    "VALUES ($val, ?2, @val3, ?)"
              do
                 {for i = 0 below xs.size step 4 do
                     {q.reset}

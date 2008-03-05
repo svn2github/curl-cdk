@@ -1214,10 +1214,11 @@
         Binds statement parameters to supplied arguments.
     }
     {parameter ...,
-        Keyword arguments will be bound to a parameter of the same name,
-        see {docref SQLiteStatement.bind-any-by-name} for details.  
+        Keyword arguments will be bound to a parameter of the same name with
+        any of the allowed punctionation prefixes;
+        see {docref SQLiteStatement.bind-any-by-name} for details.
         Positional arguments will be bound to the next unnamed parameter
-        in they appear at in the argument list.
+        in the order that they appear at in the argument list.
    }
   }
   {method public {bind ...}:void
@@ -1235,7 +1236,8 @@
                     name = {interface.bind-parameter-name stmt, named-index} 
                  then
                     {if {name.suffix? k} and
-                        name.size == (k.size + 1)
+                        name.size == (k.size + 1) and
+                        name[0] != '?'
                      then
                         {self.bind-any named-index, v}
                         {break}
@@ -1256,9 +1258,15 @@
             || Search for the next unnamed parameter, but be willing to
             || go too high to induce an error from the SQLite code if there
             || are too many unnamed parameters.
-            {while unnamed-index <= (count + 1) and
-                {interface.bind-parameter-name stmt, unnamed-index} != null
-             do
+            {while unnamed-index <= (count + 1) do
+                let name:#String =
+                    {interface.bind-parameter-name stmt, unnamed-index}
+                || sqlite.org bug 2975 has been filed about the fact that
+                || ?NNN returns a non-null name which is not what their docs
+                || say will happen.
+                {if name == null or {name.prefix? "?"} then
+                    {break}
+                }
                 {inc unnamed-index}
             }
             {self.bind-any unnamed-index, v}
