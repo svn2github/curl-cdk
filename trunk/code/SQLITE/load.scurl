@@ -38,26 +38,20 @@
     }
 }
 
-{import * from CURL.DATA-ACCESS.BASE}
-{import * from CURL.DATA-ACCESS.CONNECTED}
-{import * from CURL.LANGUAGE.REGEXP}
-{import * from CURL.LANGUAGE.DLL-INTERFACE}
-{import public * from COM.CURL.CDK.SQLITE.SYNTAX}
-
-{import * from COM.CURL.CDK.SQLITE-LIBRARY}
+{import public * from COM.CURL.CDK.SQLITE-SYNTAX}
 
 {import public
     SQLiteStatus,
     SQLiteOperation,
     SQLiteAuthorizerReturnCode,
-    SQLiteDatatype
+    SQLiteDatatype,
+    SQLiteCommitHookProcType,
+    SQLiteRollbackHookProcType,
+    SQLiteBusyHandlerProcType,
+    SQLiteUpdateHookProcType,
+    SQLiteAuthorizerProcType,
+    SQLiteProgressHandlerProcType
  from COM.CURL.CDK.SQLITE-LIBRARY}
 
-{include 
-    "defs.scurl",
-    "connection.scurl",
-    "database.scurl",
-    "statement.scurl",
-    "recordset.scurl",
-    "domain.scurl"
-}
+{import public * from COM.CURL.CDK.SQLITE-BASE}
+{import public * from COM.CURL.CDK.SQLITE-RECORDSET}

@@ -24,16 +24,24 @@
     location = "SQLITE/load.scurl"
 }
 
+{component package COM.CURL.CDK.SQLITE-BASE,
+    location = "SQLITE/base-load.scurl"
+}
+
 {component package COM.CURL.CDK.SQLITE-LIBRARY,
     location = "SQLITE/library-load.scurl"
 }
 
-{component package COM.CURL.CDK.SQLITE.SYNTAX,
+{component package COM.CURL.CDK.SQLITE-SYNTAX,
     location = "SQLITE/syntax.scurl"
 }
 
 {component package COM.CURL.CDK.SQL-BASE,
     location = "SQL/load.scurl"
+}
+
+{component package COM.CURL.CDK.SQLITE-RECORDSET,
+    location = "SQLITE/recordset-load.scurl"
 }
 
 || foreign libraries
