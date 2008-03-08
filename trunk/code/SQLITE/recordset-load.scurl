@@ -45,12 +45,6 @@
 {import * from COM.CURL.CDK.SQLITE-BASE}
 {import * from COM.CURL.CDK.SQL-BASE}
 {import SQLiteDatatype, SQLiteStatus from COM.CURL.CDK.SQLITE-LIBRARY}
-{import
-    SQLiteCommitHookProcType,
-    SQLiteRollbackHookProcType,
-    SQLiteUpdateHookProcType,
-    SQLiteOperation
- from COM.CURL.CDK.SQLITE-LIBRARY}
 
 {include "connection.scurl"}
 {include "domain.scurl"}

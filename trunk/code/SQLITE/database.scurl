@@ -64,6 +64,7 @@
   }
 }
 
+
 {doc-next
     {purpose
         An object representing a SQLite database connection.
@@ -74,7 +75,8 @@
         resumed.
     }
 }
-{define-class public open SQLiteDatabase
+{define-class public open SQLiteDatabase {inherits EventTarget}
+
   field private _sqlite3:SQLiteDatabaseHandle
 
   {doc-next
@@ -101,6 +103,8 @@
 
   field constant private error-if-missing?:bool
   field constant private read-only?:bool
+  field constant private auto-vacuum?:bool
+  field constant private page-size:int
 
   field private _busy-timeout:int
 
@@ -193,22 +197,84 @@
         if {ctext false} create the file if it does not already exist.
         This is implicitly {ctext true} if {param read-only?} is {ctext true}.
     }
+    {parameter auto-vacuum?,
+        Should the database remove unused space when ever an operation
+        that writes to the database occurs.
+        This only effects newly created database files.
+    }
+    {parameter page-size,
+        The size of pages for the database to use, this should be a
+        power of 2, and there is an upper limit compiled into the SQLite
+        engine.  This only effects newly created database files.  If
+        this is -1, then the default built into SQLite will be used.
+    }
+    {parameter commit-event?,
+        Should {docref SQLiteCommitEvent}s get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?  If {ctext true} a handler will be
+        installed for {docref SQLiteDatabase.commit-hook} which
+        will be overwritten if {docref SQLiteDatabase.commit-hook}
+        is changed.
+    }
+    {parameter rollback-event?,
+        Should {docref SQLiteRollbackEvent}s get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?  If {ctext true} a handler will be
+        installed for {docref SQLiteDatabase.rollback-hook} which
+        will be overwritten if {docref SQLiteDatabase.rollback-hook}
+        is changed.
+    }
+    {parameter update-event?,
+        Should {docref SQLiteUpdateEvent}s get sent to any
+        event handlers that are supplied in {param ...} that
+        subscribe to those?  If {ctext true} a handler will be
+        installed for {docref SQLiteDatabase.update-hook} which
+        will be overwritten if {docref SQLiteDatabase.update-hook}
+        is changed.
+    }
+    {parameter ...,
+        Event handlers to receive various subclasses of {docref SQLiteEvent}
+        as indicated by the values supplied in {param commit-event?},
+        {param rollback-event?} and {param update-event?}.
+    }
     {notes
         The database connection will not be opened till an attempt is
         made to use it.
+    }
+    {details
+        The following PRAGMAs are run on each database connection which
+        will change the defaults from what SQLite normally does.
+        {ctext "PRAGMA encoding='UTF-8'; PRAGMA synchronous=NORMAL"}
     }
   }
   || TODO: Should we make an implicit constructor from #Url?
   {constructor public {default
                           u:#Url,
                           error-if-missing?:bool = false,
-                          read-only?:bool = false
+                          read-only?:bool = false,
+                          auto-vacuum?:bool = false,
+                          page-size:int = -1,
+                          commit-event?:bool = false,
+                          rollback-event?:bool = false,
+                          update-event?:bool = false,
+                          ...:EventHandler
                       }
     set self.url = u
     set self.statements = {{Array-of SQLiteStatement}}
     set self._busy-timeout = (5s / 1ms) asa int
     set self.error-if-missing? = error-if-missing?
     set self.read-only? = read-only?
+    set self.auto-vacuum? = auto-vacuum?
+    set self.page-size = page-size
+
+    || Notification
+    set self.commit-event? = commit-event?
+    set self.rollback-event? = rollback-event?
+    set self.update-event? = update-event?
+    
+    {for eh in ... do
+        {self.add-event-handler eh}
+    }
   }
 
   {doc-next
@@ -281,6 +347,20 @@
             set self._sqlite3 = 0
         }
         {unreachable}
+    }
+    {if not self.read-only? then
+        {self.execute
+            "PRAGMA encoding='UTF-8';" &
+            "PRAGMA synchronous=NORMAL"
+        }
+        {if self.page-size != -1 then
+            {self.execute
+                "PRAGMA page_size=" & self.page-size
+            }
+        }
+        {if self.auto-vacuum? then
+            {self.execute "PRAGMA auto_vacuum=1"}
+        }
     }
 
     || Register procs to release resources (by closing database).
@@ -567,9 +647,6 @@
         probably result in crashing the program.
     }
     {notes
-        Calling this method will open the database connection if it is
-        not open.
-
         This replaces the implicit busy handler set with
         {docref SQLiteDatabase.busy-timeout}.
     }
@@ -581,19 +658,19 @@
                           callback:#SQLiteBusyHandlerProcType
                       }:void
 
-    set self.busy-handler-callback = null
-    let status:SQLiteStatus
-    set (status, self.busy-handler-callback-ptr) =
-        {{SQLiteInterface}.busy-handler
-            self.non-null-sqlite3,
-            callback
+    {if self.sqlite3 != 0 then
+        let status:SQLiteStatus
+        set (status, self.busy-handler-callback-ptr) =
+            {{SQLiteInterface}.busy-handler
+                self.non-null-sqlite3,
+                callback
+            }
+        {if status != SQLiteStatus.OK then
+            {self.check-status}
         }
-    set self.busy-handler-callback = callback
-    {if status != SQLiteStatus.OK then
-        {self.check-status}
-     else
-        set self._busy-timeout = 0
     }
+    set self.busy-handler-callback = callback
+    set self._busy-timeout = 0
   }
 
   {doc-next
@@ -612,9 +689,6 @@
         will return an error {docref SQLiteStatus} code.
     }
     {notes
-        Calling this method will open the database connection if it is
-        not open.
-
         Setting this replaces any busy handler set with
         {docref SQLiteDatabase.busy-handler}.
 
@@ -627,17 +701,17 @@
   }
   {setter public {busy-timeout t:Time}:void
     let timeout:int = (t / 1ms) asa int 
-    let constant status:SQLiteStatus =
-        {{SQLiteInterface}.busy-timeout self.non-null-sqlite3, timeout}
-
-    {if status == SQLiteStatus.OK then
-        set self._busy-timeout = timeout
-        set self.busy-handler-callback = null
-        set self.busy-handler-callback-ptr = 
-            {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
-     else
-        {self.check-status}
+        {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
+    {if self.sqlite3 != 0 then
+        let constant status:SQLiteStatus =
+            {{SQLiteInterface}.busy-timeout self.non-null-sqlite3, timeout}
+        {if status != SQLiteStatus.OK then
+            {self.check-status}
+        }
     }
+    set self._busy-timeout = timeout
+    set self.busy-handler-callback = null
+    set self.busy-handler-callback-ptr = 
   }
 
   {doc-next
@@ -659,10 +733,6 @@
         update, this is the {ctext ROWID} after the update takes
         place.
     }
-    {notes
-        Calling this method will open the database connection if it is
-        not open.
-    }
     {details
         The {param callback} is not invoked when internal system
         tables are modified.
@@ -675,10 +745,11 @@
                           callback:#SQLiteUpdateHookProcType
                       }:void
 
-    set self.update-callback = null
-    set self.update-callback-ptr =
-        {{SQLiteInterface}.update-hook self.non-null-sqlite3, callback}
     set self.update-callback = callback
+    {if self.sqlite3 != 0 then
+        set self.update-callback-ptr =
+            {{SQLiteInterface}.update-hook self.non-null-sqlite3, callback}
+    }
   }
 
   {getter public open {update-hook}:#SQLiteUpdateHookProcType
@@ -694,9 +765,6 @@
         The callback procedure.
     }
     {notes
-        Calling this method will open the database connection if it is
-        not open.
-
         If {param callback} returns {ctext true} then the commit is
         converted into a rollback.
     }
@@ -704,11 +772,11 @@
   {setter public open {commit-hook
                           callback:#SQLiteCommitHookProcType
                       }:void
-    set self.commit-callback = null
-    set self.commit-callback-ptr =
-        {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
     set self.commit-callback = callback
-
+    {if self.sqlite3 != 0 then
+        set self.commit-callback-ptr =
+            {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
+    }
   }
 
   {getter public open {commit-hook}:#SQLiteCommitHookProcType
@@ -729,22 +797,20 @@
         causes an implicit rollback to occur. It will not be invoked
         if a transaction is automatically rolled back because the
         database connection is closed.
-
-        Calling this method will open the database connection if it is
-        not open.
     }
   }
   {setter public open {rollback-hook
                           callback:#SQLiteRollbackHookProcType
                      }:void
 
-    set self.rollback-callback = null
-    set self.rollback-callback-ptr =
-        {{SQLiteInterface}.rollback-hook
-            self.non-null-sqlite3,
-            callback
-        }
     set self.rollback-callback = callback
+    {if self.sqlite3 != 0 then
+        set self.rollback-callback-ptr =
+            {{SQLiteInterface}.rollback-hook
+                self.non-null-sqlite3,
+                callback
+            }
+    }
   }
 
   {getter public open {rollback-hook}:#SQLiteRollbackHookProcType
@@ -778,12 +844,13 @@
                      instruction-count:int,
                      callback:#SQLiteProgressHandlerProcType
                  }:void
-    set self.progress-callback = null
-    set self.progress-callback-ptr =
-        {{SQLiteInterface}.progress-handler
-            self.non-null-sqlite3, instruction-count, callback}
     set self.progress-callback-arg = instruction-count
     set self.progress-callback = callback
+    {if self.sqlite3 != 0 then
+        set self.progress-callback-ptr =
+            {{SQLiteInterface}.progress-handler
+                self.non-null-sqlite3, instruction-count, callback}
+    }
   }
 
   {doc-next
@@ -817,16 +884,16 @@
   {setter public {authorizer
                      callback:#SQLiteAuthorizerProcType
                  }:void
-    set self._authorizer = null
-    let status:SQLiteStatus
-    set (status, self.authorizer-ptr) =
-        {{SQLiteInterface}.set-authorizer
-            self.non-null-sqlite3, callback}
-    {if status != SQLiteStatus.OK then
-        {self.check-status}
-     else
-        set self._authorizer = callback
+    {if self.sqlite3 != 0 then
+        let status:SQLiteStatus
+        set (status, self.authorizer-ptr) =
+            {{SQLiteInterface}.set-authorizer
+                self.non-null-sqlite3, callback}
+        {if status != SQLiteStatus.OK then
+            {self.check-status}
+        }
     }
+    set self._authorizer = callback
   }
 
   {getter public {authorizer}:#SQLiteAuthorizerProcType
@@ -1065,6 +1132,8 @@
   }
   || TODO: should this take a default aggregate-context value instead
   || of us just using {uninitialized-value-for-type}?
+  || FIXME: add support for sqlite3_get_auxdata()?  You can do that sort of
+  || caching yourself fairly easily.
   {method public {install-function
                      name:String,
                      number-of-args:int,
@@ -1587,4 +1656,73 @@
         }}
   }
   
+  || Internal implementation stuff, copied from old SQLiteConnection
+  || Notification
+  || FIXME: These will result in event handling in the middle of other code,
+  || at possibly illegal points in time, or unusual times anyway.
+  || These should probably be queued up instead of handled inline, but that
+  || doesn't let you control return values.
+
+  field private _commit-event?:bool
+  {getter public {commit-event?}:bool
+    {return self._commit-event?}
+  }
+  {setter public {commit-event? val:bool}:void
+    {if val != self._commit-event? then
+        set self._commit-event? = val
+        set self.commit-hook =
+            {if val then 
+                {proc {}:bool
+                    let e:SQLiteCommitEvent = {SQLiteCommitEvent}
+                    {self.handle-event e}
+                    {return e.consumed?}
+                }
+             else 
+                null
+            }
+    }
+  }
+
+  field private _rollback-event?:bool
+  {getter public {rollback-event?}:bool
+    {return self._rollback-event?}
+  }
+  {setter public {rollback-event? val:bool}:void
+    {if val != self._rollback-event? then
+        set self._rollback-event? = val
+        set self.rollback-hook = 
+            {if val then 
+                {proc {}:void
+                    {self.handle-event {SQLiteRollbackEvent}}
+                }
+             else 
+                null
+            }
+    }
+  }
+
+  field private _update-event?:bool
+  {getter public {update-event?}:bool
+    {return self._update-event?}
+  }
+  {setter public {update-event? val:bool}:void
+    {if val != self._update-event? then
+        set self._update-event? = val
+        set self.update-hook =
+            {if val then 
+                {proc {operation:SQLiteOperation,
+                       database-name:String,
+                       table-name:String,
+                       rowid:int64
+                       }:void
+                    {self.handle-event 
+                        {SQLiteUpdateEvent
+                            database-name, table-name, operation, rowid}
+                    }
+                }
+             else 
+                null
+            }
+    }
+  }
 }

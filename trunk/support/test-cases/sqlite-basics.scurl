@@ -142,8 +142,8 @@ CREATE TABLE work.test (
         let log:StringArray = {StringArray}
 
         || == test rollback hook
-        set con.rollback-event? = true
-        {con.add-event-handler
+        set db.rollback-event? = true
+        {db.add-event-handler
             {on SQLiteRollbackEvent do
                 {log.append {message Rollback}}}}
         {do
@@ -152,8 +152,8 @@ CREATE TABLE work.test (
             {con.execute "ROLLBACK;"}
         }
         || == test commit hook
-        set con.commit-event? = true
-        {con.add-event-handler
+        set db.commit-event? = true
+        {db.add-event-handler
             {on e:SQLiteCommitEvent do
 ||--            set e.consumed? = true
 ||--            {log.append {lmessage canceling Commit}}
@@ -167,8 +167,8 @@ CREATE TABLE work.test (
                 {con.execute "ROLLBACK;"}}
         }
         || == test update hook
-        set con.update-event? = true
-        {con.add-event-handler
+        set db.update-event? = true
+        {db.add-event-handler
             {on e:SQLiteUpdateEvent do
                 {log.append 
                     {message
@@ -514,7 +514,7 @@ CREATE TABLE test (
                 }
             }
         }},
-        {test-case "bind keyword",
+    {test-case "bind keyword",
         {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
@@ -547,7 +547,7 @@ CREATE TABLE test (
                 }
             }
         }},
-        {test-case "bind keyword and non-keyword",
+    {test-case "bind keyword and non-keyword",
         {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
@@ -578,7 +578,7 @@ CREATE TABLE test (
                 }
             }
         }},
-        {test-case "bind non-keyword and keyword",
+    {test-case "bind non-keyword and keyword",
         {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
@@ -608,21 +608,35 @@ CREATE TABLE test (
                 }
             }
         }},
-        {test-case "database error-if-missing",
-            let u:Url = {url "curl://temp/does-not-exist-db"}
-            {try
+    {test-case "database error-if-missing",
+        let u:Url = {url "curl://temp/does-not-exist-db"}
+        {try
 
-                {with-database
-                    db = {SQLiteDatabase u, error-if-missing? = true}
-                 do
-                    {db.execute "SELECT 1 FROM hi"}
-                }
-                {delete u, error-if-missing? = false}
-                {TestCondition.terminate
-                    message = "Non-existant database file should have failed."
-                }
-             catch ex:SQLiteException do
-                || expected
+            {with-database
+                db = {SQLiteDatabase u, error-if-missing? = true}
+             do
+                {db.execute "SELECT 1 FROM hi"}
             }
+            {delete u, error-if-missing? = false}
+            {TestCondition.terminate
+                message = "Non-existant database file should have failed."
+            }
+         catch ex:SQLiteException do
+            || expected
         }
+    },
+    {test-case "database page-size and auto-vacuum?",
+        let u:Url = {url "curl://temp/sqlite-basics-test-db.db"}
+        {try
+            {with-database
+                db = {SQLiteDatabase u, page-size = 2048, auto-vacuum? = true}
+             do
+                {db.execute "CREATE TABLE test (val1, val2)"}
+                {db.execute "INSERT INTO test VALUES ('a', 'b')"}
+                {db.execute "DROP TABLE test"}
+            }
+         finally
+            {delete u, error-if-missing? = false}
+        }
+    }
 }

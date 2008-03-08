@@ -15,87 +15,13 @@
 ||| limitations under the License.
 
 
-{doc-next
-    {purpose
-        Parent class for various SQLite events.
-    }
-}
-{define-class public abstract SQLiteEvent {inherits Event}
-}
-
-{doc-next
-    {purpose
-        {docref Event} sent if {param rollback-event?} {ctext = true}
-        is provided to {docref SQLiteConnection.default}.
-    }
-}
-{define-class public SQLiteRollbackEvent {inherits SQLiteEvent}
-}
-
-{doc-next
-    {purpose
-        {docref Event} sent if {param commit-event?} {ctext = true}
-        is provided to {docref SQLiteConnection.default}.
-    }
-}
-{define-class public SQLiteCommitEvent {inherits SQLiteEvent}
-  {doc-next
-    {purpose
-        If set to {ctext true} then commit will be canceled, and
-        the transaction will be rolled back.
-    }
-  }
-  field public consumed?:bool = false
-}
-
-{doc-next
-    {purpose
-        {docref Event} sent if {param update-event?} {ctext = true}
-        is provided to {docref SQLiteConnection.default}.
-    }
-}
-{define-class public SQLiteUpdateEvent {inherits SQLiteEvent}
-
-  field public constant database-name:String
-
-  field public constant table-name:String
-  {doc-next
-    {purpose
-        Will be {ctext SQLiteOperation.INSERT},
-        {ctext SQLiteOperation.DELETE}, or
-        {ctext SQLiteOperation.UPDATE}.
-    }
-  }
-  field public constant operation:SQLiteOperation
-  {doc-next
-    {purpose
-        Rowid of the affected row, for an update, this is the rowid after
-        the update.
-    }
-  }
-  field public constant rowid:int64
-
-  {constructor public {default
-                          database-name:String,
-                          table-name:String,
-                          operation:SQLiteOperation,
-                          rowid:int64
-                      }
-    set self.database-name = database-name
-    set self.table-name = table-name
-    set self.operation = operation
-    set self.rowid = rowid
-  }
-}
-
-
 
 {doc-next
     {purpose
         Class implementing the {docref SQLConnection} API for SQLite.
     }
 }
-{define-class public SQLiteConnection {inherits SQLConnection, EventTarget}
+{define-class public SQLiteConnection {inherits SQLConnection}
 
   {doc-next
     {purpose
@@ -122,35 +48,11 @@
         file does not exist, fail.  If {ctext false}, then
         {param database-url} will be created if needed.
     }
-    {parameter commit-event?,
-        Should {docref SQLiteCommitEvent}s get sent to any
-        event handlers that are supplied in {param ...} that
-        subscribe to those?
-    }
-    {parameter rollback-event?,
-        Should {docref SQLiteRollbackEvent}s get sent to any
-        event handlers that are supplied in {param ...} that
-        subscribe to those?
-    }
-    {parameter update-event?,
-        Should {docref SQLiteUpdateEvent}s get sent to any
-        event handlers that are supplied in {param ...} that
-        subscribe to those?
-    }
-    {parameter ...,
-        Event handlers to receive various subclasses of {docref SQLiteEvent}
-        as indicated by the values supplied in {param commit-event?},
-        {param rollback-event?} and {param update-event?}.
-    }
   }
   {constructor public {default 
                           database-url:#Url = null,
                           database:#SQLiteDatabase = null,
-                          error-if-missing?:bool = false,
-                          commit-event?:bool = false,
-                          rollback-event?:bool = false,
-                          update-event?:bool = false,
-                          ...:EventHandler
+                          error-if-missing?:bool = false
                       }
     || Only supply the url or the database or neither (for in memory database)
     {assert database-url == null or database == null}
@@ -163,13 +65,6 @@
             {SQLiteDatabase database-url, error-if-missing? = error-if-missing?}
         }
 
-    || Notification
-    set (self.update-callback, self.rollback-callback, self.commit-callback) =
-        {self.define-callbacks}
-    set self.commit-event? = commit-event?
-    set self.rollback-event? = rollback-event?
-    set self.update-event? = update-event?
-    
     || superclasses
     {construct-super.SQLConnection 
         {if-non-null database-url then
@@ -180,9 +75,6 @@
         }
     }
     
-    {for eh in ... do
-        {self.add-event-handler eh}
-    }
   }
 
   || Connection protocol
@@ -724,106 +616,6 @@
     {self.execute-sqlite {splice ...}}
   }
   
-  || Internal implementation stuff, copied from old SQLiteConnection
-  || Notification
-  {method private {define-callbacks
-                  }:(SQLiteUpdateHookProcType,
-                     SQLiteRollbackHookProcType,
-                     SQLiteCommitHookProcType)
-    || FIXME: This will result in event handling in the middle of other code,
-    || at possibly illegal points in time, or unusual times anyway.
-    {return
-        {proc {operation:SQLiteOperation,
-               database-name:String,
-               table-name:String,
-               rowid:int64
-              }:void
-            {self.handle-event 
-                {SQLiteUpdateEvent database-name, table-name, operation, rowid}
-            }
-        },
-        {proc {}:void
-            {self.handle-event {SQLiteRollbackEvent}}
-        },
-        {proc {}:bool
-            let e:SQLiteCommitEvent = {SQLiteCommitEvent}
-            {self.handle-event e}
-            {return e.consumed?}
-        }
-    }
-  }
-
-  field private _commit-event?:bool
-  {getter public {commit-event?}:bool
-    {return self._commit-event?}
-  }
-  {setter public {commit-event? val:bool}:void
-    {if val != self._commit-event? then
-        set self._commit-event? = val
-        {self.register-commit-hook
-            {if val then 
-                self.commit-callback
-             else 
-                null
-            }
-        }
-    }
-  }
-
-  field constant private commit-callback:SQLiteCommitHookProcType
-  {method private {register-commit-hook
-                        callback:#SQLiteCommitHookProcType
-                    }:void
-    set self.database.commit-hook = callback
-  }
-
-  field private _rollback-event?:bool
-  {getter public {rollback-event?}:bool
-    {return self._rollback-event?}
-  }
-  {setter public {rollback-event? val:bool}:void
-    {if val != self._rollback-event? then
-        set self._rollback-event? = val
-        {self.register-rollback-hook
-            {if val then 
-                self.rollback-callback
-             else 
-                null
-            }
-        }
-    }
-  }
-
-  field constant private rollback-callback:SQLiteRollbackHookProcType
-  {method private {register-rollback-hook
-                        callback:#SQLiteRollbackHookProcType
-                 }:void
-    set self.database.rollback-hook = callback
-  }
-
-  field private _update-event?:bool
-  {getter public {update-event?}:bool
-    {return self._update-event?}
-  }
-  {setter public {update-event? val:bool}:void
-    {if val != self._update-event? then
-        set self._update-event? = val
-        {self.register-update-hook
-            {if val then 
-                self.update-callback
-             else 
-                null
-            }
-        }
-    }
-  }
-
-  field constant private update-callback:SQLiteUpdateHookProcType
-  {method private {register-update-hook
-                        callback:#SQLiteUpdateHookProcType
-                 }:void
-    set self.database.update-hook = callback
-  }
 
   || inherited from Connection
   {method public {reset}:void
