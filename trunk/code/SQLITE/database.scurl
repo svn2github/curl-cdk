@@ -701,7 +701,6 @@
   }
   {setter public {busy-timeout t:Time}:void
     let timeout:int = (t / 1ms) asa int 
-        {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
     {if self.sqlite3 != 0 then
         let constant status:SQLiteStatus =
             {{SQLiteInterface}.busy-timeout self.non-null-sqlite3, timeout}
@@ -712,6 +711,7 @@
     set self._busy-timeout = timeout
     set self.busy-handler-callback = null
     set self.busy-handler-callback-ptr = 
+        {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
   }
 
   {doc-next
