@@ -208,7 +208,7 @@
         engine.  This only effects newly created database files.  If
         this is -1, then the default built into SQLite will be used.
     }
-    {parameter commit-event?,
+    {parameter commit-events?,
         Should {docref SQLiteCommitEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?  If {ctext true} a handler will be
@@ -216,7 +216,7 @@
         will be overwritten if {docref SQLiteDatabase.commit-hook}
         is changed.
     }
-    {parameter rollback-event?,
+    {parameter rollback-events?,
         Should {docref SQLiteRollbackEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?  If {ctext true} a handler will be
@@ -224,7 +224,7 @@
         will be overwritten if {docref SQLiteDatabase.rollback-hook}
         is changed.
     }
-    {parameter update-event?,
+    {parameter update-events?,
         Should {docref SQLiteUpdateEvent}s get sent to any
         event handlers that are supplied in {param ...} that
         subscribe to those?  If {ctext true} a handler will be
@@ -234,8 +234,8 @@
     }
     {parameter ...,
         Event handlers to receive various subclasses of {docref SQLiteEvent}
-        as indicated by the values supplied in {param commit-event?},
-        {param rollback-event?} and {param update-event?}.
+        as indicated by the values supplied in {param commit-events?},
+        {param rollback-events?} and {param update-events?}.
     }
     {notes
         The database connection will not be opened till an attempt is
@@ -254,9 +254,9 @@
                           read-only?:bool = false,
                           auto-vacuum?:bool = false,
                           page-size:int = -1,
-                          commit-event?:bool = false,
-                          rollback-event?:bool = false,
-                          update-event?:bool = false,
+                          commit-events?:bool = false,
+                          rollback-events?:bool = false,
+                          update-events?:bool = false,
                           ...:EventHandler
                       }
     set self.url = u
@@ -268,9 +268,9 @@
     set self.page-size = page-size
 
     || Notification
-    set self.commit-event? = commit-event?
-    set self.rollback-event? = rollback-event?
-    set self.update-event? = update-event?
+    set self.commit-events? = commit-events?
+    set self.rollback-events? = rollback-events?
+    set self.update-events? = update-events?
     
     {for eh in ... do
         {self.add-event-handler eh}
@@ -710,7 +710,7 @@
     }
     set self._busy-timeout = timeout
     set self.busy-handler-callback = null
-    set self.busy-handler-callback-ptr = 
+    set self.busy-handler-callback-ptr =
         {uninitialized-value-for-type SQLiteBusyHandlerPointerType}
   }
 
@@ -1662,19 +1662,26 @@
   || at possibly illegal points in time, or unusual times anyway.
   || These should probably be queued up instead of handled inline, but that
   || doesn't let you control return values.
-
-  field private _commit-event?:bool
-  {getter public {commit-event?}:bool
-    {return self._commit-event?}
+  {method private {handle-event-protected e:Event}:void
+    {try
+        {self.handle-event e}
+     catch ex:Exception do
+        {after 0s do {throw ex}}
+    }
   }
-  {setter public {commit-event? val:bool}:void
-    {if val != self._commit-event? then
-        set self._commit-event? = val
+
+  field private _commit-events?:bool
+  {getter public {commit-events?}:bool
+    {return self._commit-events?}
+  }
+  {setter public {commit-events? val:bool}:void
+    {if val != self._commit-events? then
+        set self._commit-events? = val
         set self.commit-hook =
             {if val then 
                 {proc {}:bool
                     let e:SQLiteCommitEvent = {SQLiteCommitEvent}
-                    {self.handle-event e}
+                    {self.handle-event-protected e}
                     {return e.consumed?}
                 }
              else 
@@ -1683,17 +1690,17 @@
     }
   }
 
-  field private _rollback-event?:bool
-  {getter public {rollback-event?}:bool
-    {return self._rollback-event?}
+  field private _rollback-events?:bool
+  {getter public {rollback-events?}:bool
+    {return self._rollback-events?}
   }
-  {setter public {rollback-event? val:bool}:void
-    {if val != self._rollback-event? then
-        set self._rollback-event? = val
+  {setter public {rollback-events? val:bool}:void
+    {if val != self._rollback-events? then
+        set self._rollback-events? = val
         set self.rollback-hook = 
             {if val then 
                 {proc {}:void
-                    {self.handle-event {SQLiteRollbackEvent}}
+                    {self.handle-event-protected {SQLiteRollbackEvent}}
                 }
              else 
                 null
@@ -1701,13 +1708,13 @@
     }
   }
 
-  field private _update-event?:bool
-  {getter public {update-event?}:bool
-    {return self._update-event?}
+  field private _update-events?:bool
+  {getter public {update-events?}:bool
+    {return self._update-events?}
   }
-  {setter public {update-event? val:bool}:void
-    {if val != self._update-event? then
-        set self._update-event? = val
+  {setter public {update-events? val:bool}:void
+    {if val != self._update-events? then
+        set self._update-events? = val
         set self.update-hook =
             {if val then 
                 {proc {operation:SQLiteOperation,
@@ -1715,7 +1722,7 @@
                        table-name:String,
                        rowid:int64
                        }:void
-                    {self.handle-event 
+                    {self.handle-event-protected
                         {SQLiteUpdateEvent
                             database-name, table-name, operation, rowid}
                     }

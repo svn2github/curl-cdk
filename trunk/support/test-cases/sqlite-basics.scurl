@@ -142,7 +142,7 @@ CREATE TABLE work.test (
         let log:StringArray = {StringArray}
 
         || == test rollback hook
-        set db.rollback-event? = true
+        set db.rollback-events? = true
         {db.add-event-handler
             {on SQLiteRollbackEvent do
                 {log.append {message Rollback}}}}
@@ -152,7 +152,7 @@ CREATE TABLE work.test (
             {con.execute "ROLLBACK;"}
         }
         || == test commit hook
-        set db.commit-event? = true
+        set db.commit-events? = true
         {db.add-event-handler
             {on e:SQLiteCommitEvent do
 ||--            set e.consumed? = true
@@ -167,7 +167,7 @@ CREATE TABLE work.test (
                 {con.execute "ROLLBACK;"}}
         }
         || == test update hook
-        set db.update-event? = true
+        set db.update-events? = true
         {db.add-event-handler
             {on e:SQLiteUpdateEvent do
                 {log.append 
