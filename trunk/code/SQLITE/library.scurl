@@ -124,21 +124,22 @@
   }
   {method public {open
                      filename:String,
-                     sqlite3:{Pointer-to SQLiteDatabaseHandle},
                      fail-if-missing?:bool = false,
                      read-only?:bool = false
-                 }:SQLiteStatus
+                 }:(SQLiteStatus, SQLiteDatabaseHandle)
     let constant SQLITE_OPEN_READONLY:int = 0x1
     let constant SQLITE_OPEN_READWRITE:int = 0x2
     let constant SQLITE_OPEN_CREATE:int = 0x4
     let constant flags:int =
         {if fail-if-missing? then 0 else SQLITE_OPEN_CREATE} +
         {if read-only? then SQLITE_OPEN_READONLY else SQLITE_OPEN_READWRITE}
-    {return
+    let db-ptr:{Pointer-to SQLiteDatabaseHandle} =
+        {new {Pointer-to SQLiteDatabaseHandle}}
+    let status:SQLiteStatus = 
         {SQLiteStatus
-            index = {self.open-internal filename, sqlite3, flags, null}
+            index = {self.open-internal filename, db-ptr, flags, null}
         }
-    }
+    {return status, db-ptr.value}
   }
 
   {dll-method private {open-internal ("sqlite3_open_v2")
@@ -443,22 +444,26 @@
   }
   {method public {prepare
                      sqlite3:SQLiteDatabaseHandle,
-                     sql:String,
-                     stmt:{Pointer-to SQLiteStatementHandle}
-                 }:(SQLiteStatus, tail:#String)
+                     sql:String
+                 }:(SQLiteStatus, stmt:SQLiteStatementHandle, tail:#String)
     let sql-utf8:CStringUTF8 = {CStringUTF8 sql}
-    let tail-ptr:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
-    {return
+    let tail-ptr:{Pointer-to CStringUTF8} = {new {Pointer-to CStringUTF8}}
+    let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
+        {new {Pointer-to SQLiteStatementHandle}}
+    let status:SQLiteStatus =
         {SQLiteStatus
             index =
                 {self.prepare-internal
                     sqlite3,
                     sql-utf8,
                     -1,
-                    stmt,
+                    stmt-ptr,
                     tail-ptr
                 }
-        },
+        }
+    {return
+        status,
+        stmt-ptr.value,
         {tail-ptr.value.to-String-or-null}
     }
   }

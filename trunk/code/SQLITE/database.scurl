@@ -329,16 +329,15 @@
          else
             ":memory:"
         }
-    let sqlite3-pointer-pointer:{Pointer-to SQLiteDatabaseHandle} =
-        {{Pointer-to SQLiteDatabaseHandle} value = 0}
-    let constant status:SQLiteStatus = 
-        {{SQLiteInterface}.open filename, sqlite3-pointer-pointer,
+    let status:SQLiteStatus
+    set (status, self._sqlite3) = 
+        {{SQLiteInterface}.open
+            filename,
             fail-if-missing? = self.error-if-missing?,
             read-only? = self.read-only?
         }
     || Note that sqlite3 is a pointer, but we do not add pointer to
     || the suffix just to avoid long name.
-    set self._sqlite3 = sqlite3-pointer-pointer.value
     {if status != SQLiteStatus.OK then
         {try
             {self.check-status}
@@ -1489,11 +1488,10 @@
   }
 
   {method package {prepare-statement stmt:SQLiteStatement}:#String
-    let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
-        {{Pointer-to SQLiteStatementHandle} value = 0}
-    let (status:SQLiteStatus, tail:#String) =
+    let status:SQLiteStatus, tail:#String
+    set (status, stmt.stmt, tail) =
         {{SQLiteInterface}.prepare 
-            self.non-null-sqlite3, stmt.sql, stmt-ptr
+            self.non-null-sqlite3, stmt.sql
         }
     
     {if status != SQLiteStatus.OK then
@@ -1503,7 +1501,6 @@
 
     || If we are here, the SQLiteInterface successfully compiled the
     || sql statement.
-    set stmt.stmt = stmt-ptr.value
     {self.note-statement-prepared stmt}
     {return tail}
   }
@@ -1666,6 +1663,9 @@
     {try
         {self.handle-event e}
      catch ex:Exception do
+        || FIXME: this should be a custom Event instead, so that it can
+        || happen at the start of processing events from the event queue
+        || instead of the end when Alarms run.
         {after 0s do {throw ex}}
     }
   }
