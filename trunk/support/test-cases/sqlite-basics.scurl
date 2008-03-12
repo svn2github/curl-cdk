@@ -629,14 +629,64 @@ CREATE TABLE test (
         let u:Url = {url "curl://temp/sqlite-basics-test-db.db"}
         {try
             {with-database
-                db = {SQLiteDatabase u, page-size = 2048, auto-vacuum? = true}
+                db = {SQLiteDatabase u, page-size = 512, auto-vacuum? = true}
              do
-                {db.execute "CREATE TABLE test (val1, val2)"}
-                {db.execute "INSERT INTO test VALUES ('a', 'b')"}
-                {db.execute "DROP TABLE test"}
+                {for outer-i = 0 below 8 do
+                    {db.execute "CREATE TABLE test (val1, val2)"}
+                    {with-transaction in db do
+                        {for i = 0 below 1100 do
+                            {db.execute "INSERT INTO test VALUES ('a', 'bbb')"}
+                        }
+                    }
+                    {db.execute "DROP TABLE test"}
+                }
             }
          finally
             {delete u, error-if-missing? = false}
+        }
+    },
+    {test-case "step throw-no-error? = true",
+        {with-database
+            db = {SQLiteDatabase null, page-size = 128}
+         do
+            {TestCondition.assert
+                {db.execute "DROP TABLE test-xxx", throw-on-error? = false}
+                != SQLiteStatus.OK
+            }
+            {TestCondition.assert
+                {db.execute "PRAGMA database_list", throw-on-error? = false}
+                == SQLiteStatus.OK
+            }
+            {TestCondition.assert
+                {db.execute "SELECT 1 LIMIT 0", throw-on-error? = false}
+                == SQLiteStatus.OK
+            }
+            {TestCondition.assert
+                {db.execute "PRAGMA database_list"}
+                == SQLiteStatus.OK
+            }
+            {TestCondition.assert
+                {db.execute "SELECT 1 LIMIT 0"}
+                == SQLiteStatus.OK
+            }
+            {with-statement in db
+                stmt = "DROP TABLE test-xxx"
+             do
+                {TestCondition.assert
+                    {stmt.step throw-on-error? = false} != SQLiteStatus.OK
+                }
+            }
+            {with-statement in db
+                stmt = "PRAGMA database_list"
+             do
+                let status:SQLiteStatus = {stmt.step throw-on-error? = false}
+
+                {TestCondition.assert
+                    status == SQLiteStatus.OK or
+                    status == SQLiteStatus.ROW or
+                    status == SQLiteStatus.DONE
+                }
+            }
         }
     }
 }

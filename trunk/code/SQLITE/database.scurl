@@ -336,8 +336,6 @@
             fail-if-missing? = self.error-if-missing?,
             read-only? = self.read-only?
         }
-    || Note that sqlite3 is a pointer, but we do not add pointer to
-    || the suffix just to avoid long name.
     {if status != SQLiteStatus.OK then
         {try
             {self.check-status}
@@ -347,6 +345,7 @@
         }
         {unreachable}
     }
+    || Note: Authorizer won't see these, because we havn't installed it yet.
     {if not self.read-only? then
         {self.execute
             "PRAGMA encoding='UTF-8';" &
@@ -588,19 +587,51 @@
                                     } = null,
                           throw-on-error?:bool = true
                       }:SQLiteStatus
-
-    let constant (status:SQLiteStatus, errmsg:String) =
-        {{SQLiteInterface}.exec
-            self.non-null-sqlite3,
-            {sql.to-String},
-            callback
+    || Note: this re-implements sqlite3_exec to get our try/finally
+    || blocks around all of the execution, since that makes sure that
+    || no throwing or bugs in sqlite3_exec can leave stranded
+    || unfinalized statements.
+    let status:SQLiteStatus = SQLiteStatus.OK
+    {with-statement in self
+        stmt = {sql.to-String}
+     do
+        {while true do
+            set status =
+                {stmt.step throw-on-error? = throw-on-error?}
+            {if status == SQLiteStatus.ROW then
+                {if-non-null callback then
+                    let count:int = stmt.column-count
+                    let current-row:StringArray =
+                        {StringArray efficient-size = count}
+                    {for i = 0 below count do
+                        {current-row.append
+                            {if-non-null s = {stmt.get-column-text i} then
+                                s
+                             else
+                                ""
+                            }
+                        }
+                    }
+                    {if {callback current-row, stmt.column-names} then
+                        {return SQLiteStatus.ABORT}
+                    }
+                }
+             elseif status == SQLiteStatus.DONE then
+                let not-done?:bool
+                set (not-done?, status) =
+                    {stmt.prepare-next throw-on-error? = throw-on-error?}
+                {if not not-done? then
+                    {return SQLiteStatus.OK}
+                 elseif status != SQLiteStatus.OK then
+                    {return status}
+                }
+                
+             elseif status != SQLiteStatus.OK then
+                {break}
+            }
         }
-
-    {if throw-on-error? and status != SQLiteStatus.OK then
-        {throw {SQLiteException status, errmsg}}
     }
-
-    {return status}
+    {return {if {SQLiteStatus-ok? status} then SQLiteStatus.OK else status}}
   }
 
   {doc-next
@@ -1487,22 +1518,27 @@
     }
   }
 
-  {method package {prepare-statement stmt:SQLiteStatement}:#String
+  {method package {prepare-statement stmt:SQLiteStatement, throw-on-error?:bool
+                  }:(#String, SQLiteStatus)
     let status:SQLiteStatus, tail:#String
     set (status, stmt.stmt, tail) =
         {{SQLiteInterface}.prepare 
             self.non-null-sqlite3, stmt.sql
         }
+
+    {if tail == "" then set tail = null}
     
     {if status != SQLiteStatus.OK then
+        {if not throw-on-error? then
+            {return tail, status}
+        }
         {self.check-status}
     }
-    {if tail == "" then set tail = null}
 
     || If we are here, the SQLiteInterface successfully compiled the
     || sql statement.
     {self.note-statement-prepared stmt}
-    {return tail}
+    {return tail, status}
   }
 
   {method package {finalize-statement

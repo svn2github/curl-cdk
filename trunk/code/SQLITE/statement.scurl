@@ -151,6 +151,18 @@
         Compiles {docref SQLiteStatement.sql} into a byte-code program
         readable by the SQLite virtual machine.
     }
+    {parameter throw-on-error?,
+        If {ctext true} and preparing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
+    }
+    {return-vals
+        Returns the {docref SQLiteStatus} about the preparation.
+    }
     {notes
         This method is a no-op if {ctext SQLiteStatement.stmt} is a
         valid, i.e. not 0.
@@ -167,16 +179,20 @@
         If the compilation fails a {docref SQLiteException} will be thrown.
     }
   }
-  {method public {prepare}:void
-    {if self.stmt != 0 then {return}}
+  {method public {prepare throw-on-error?:bool = true}:SQLiteStatus
+    {if self.stmt != 0 then {return SQLiteStatus.OK}}
 
-    set self.tail-sql = {self.database.prepare-statement self}
-
-    {if-non-null table = self._bind-table then
-        {for val key i in table do
-            {self.bind-any i, val}
+    let status:SQLiteStatus
+    set (self.tail-sql, status) =
+        {self.database.prepare-statement self, throw-on-error?}
+    {if status == SQLiteStatus.OK then
+        {if-non-null table = self._bind-table then
+            {for val key i in table do
+                {self.bind-any i, val}
+            }
         }
     }
+    {return status}
   }
 
   {doc-next
@@ -184,22 +200,38 @@
         Compiles {docref SQLiteStatement.tail-sql} into a byte-code program
         readable by the SQLite virtual machine.
     }
-    {notes
+    {parameter throw-on-error?,
+        If {ctext true} and preparing the statement fails,
+        an error will be thrown. Otherwise no error will be thrown and
+        the caller is responsible to check the return value of this
+        method to see if the statement was successfully
+        executed or not.
+
+        It is {ctext true} by default.
+    }
+    {return-vals
         If {docref SQLiteStatement.tail-sql} is {ctext null}, including
         if {docref SQLiteStatement.prepare} has never been called,
         then does nothing, but returns {ctext false}.
+        If a new SQL query has been prepared, this return {ctext true}.
+
+        The second return value is the {docref SQLiteStatus} about the
+        preparation.
     }
   }
-  {method public {prepare-next}:bool
+  {method public {prepare-next
+                     throw-on-error?:bool = true
+                 }:(bool, SQLiteStatus)
     {if-non-null tail-sql = self.tail-sql then
         set self.sql = tail-sql
         set self.tail-sql = null
         set self._bind-table = null
         {self.finalize}
-        {self.prepare}
-        {return true}
+        let status:SQLiteStatus =
+            {self.prepare throw-on-error? = throw-on-error?}
+        {return true, status}
     }
-    {return false}
+    {return false, SQLiteStatus.OK}
   }
   
   {doc-next
@@ -240,10 +272,15 @@
   {method public open {step
                           throw-on-error?:bool = true
                       }:SQLiteStatus
-    def status = {{SQLiteInterface}.step self.non-null-stmt}
-    {if throw-on-error? and
-        not {SQLiteStatus-ok? status}
-     then
+    let status:SQLiteStatus
+    {if self.stmt == 0 then
+        set status = {self.prepare throw-on-error? = throw-on-error?}
+        {if status != SQLiteStatus.OK then
+            {return status}
+        }
+    }
+    set status = {{SQLiteInterface}.step self.non-null-stmt}
+    {if throw-on-error? and not {SQLiteStatus-ok? status} then
         || Note: as of SQLite 3.5.6, you must reset in order to get
         || appropriate error messages (and maybe error codes), even
         || though the docs imply otherwise.  See SQLite ticket 2940:

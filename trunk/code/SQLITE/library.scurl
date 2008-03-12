@@ -179,110 +179,110 @@
 
   || query
   || ----------
-  {doc-next
-    {purpose
-        Executes one or more statements of SQL.
-    }
-    {parameter sqlite3,
-        SQLite database handle.
-    }
-    {parameter sql,
-        The SQL statement to be executed.
-    }
-    {parameter callback,
-        The callback function that will be called once for each row of
-        the query result.
-
-        The {param callback} should normally return {ctext false}. If it
-        returns {ctext true} then the query is aborted and all
-        subsequent SQL statements are skipped and then this function
-        will then return {ctext SQLiteStatus.ABORT}.
-
-        The first argument is the values of the row and the second
-        argument is the names the columns.
-    }
-    {return-vals
-        If all the SQL commands, {param sql} succeed, the return value
-        is {ctext SQLiteStatus.OK}, otherwise it is the appropriate error
-        code. The particular return value depends on the type of
-        error. If the query could not be executed because a database
-        file is locked or busy, then this function returns {ctext
-        SQLiteStatus.BUSY}.
-
-        The second return value is the error message if an error occurs while
-        parsing or evaluating the SQL statement {param sql}.
-    }
-    {notes
-        If one or more of SQL statements in {param sql} are queries,
-        then the callback function {param callback} will be called once
-        for each row of the query result.
-    }
-  }
-  {method public {exec
-                     sqlite3:SQLiteDatabaseHandle,
-                     sql:String,
-                     callback:#{proc-type
-                                   {data:StringArray,
-                                    column-names:StringArray
-                                   }:bool
-                               }
-                 }:(SQLiteStatus, errmsg:String)
-    let errmsg-pointer:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
-    let constant exec-callback-ptr:SQLiteExecCallbackPointerType =
-        {if-non-null callback then
-            {SQLiteExecCallbackPointerType
-                 {proc
-                     {userdata-ptr:CPointer,
-                     number-of-columns:int,
-                     data-pointer:CPointer,
-                     columns-pointer:CPointer
-                     }:int
-                     || Extract the info from above and then call the
-                     || callback proc that was passed and return its value.
-                     let constant data:StringArray =
-                         {StringArray efficient-size = number-of-columns}
-                     let constant column-names:StringArray =
-                         {StringArray efficient-size = number-of-columns}
-
-                     {for i = 0 below number-of-columns do
-                         let column-name:CStringUTF8 = 
-                             {unsafe-memory-get 
-                                 CStringUTF8, columns-pointer, index = i
-                             }
-                         {column-names.append {column-name.to-String}}
-                         let val:CStringUTF8 = 
-                             {unsafe-memory-get 
-                                 CStringUTF8, data-pointer, index = i
-                             }
-                         {data.append {val.to-String}}
-                     }
-                     || The columns and data-pointer will be freed for us.
-                     {return 
-                         {if {callback data, column-names} then 1 else 0}
-                     }
-                 }
-            }
-         else
-            {uninitialized-value-for-type SQLiteExecCallbackPointerType}
-        }
-    let status-code:int =
-        {self.exec-internal sqlite3, sql, exec-callback-ptr, 0, errmsg-pointer}
-    let errmsg:String = ""
-    {if status-code != SQLiteStatus.OK.index then
-        set errmsg = {errmsg-pointer.value.to-String}
-        {self.free errmsg-pointer.value}
-    }
-    {return {SQLiteStatus index = status-code}, errmsg}
-  }
-
-  {dll-method private {exec-internal ("sqlite3_exec")
-                          sqlite3:SQLiteDatabaseHandle,
-                          sql:String,
-                          callback:SQLiteExecCallbackPointerType,
-                          userdata:CPointer,
-                          errmsg:{Pointer-to CStringUTF8}
-                      }:int
-  }
+||--  {doc-next
+||--    {purpose
+||--        Executes one or more statements of SQL.
+||--    }
+||--    {parameter sqlite3,
+||--        SQLite database handle.
+||--    }
+||--    {parameter sql,
+||--        The SQL statement to be executed.
+||--    }
+||--    {parameter callback,
+||--        The callback function that will be called once for each row of
+||--        the query result.
+||--
+||--        The {param callback} should normally return {ctext false}. If it
+||--        returns {ctext true} then the query is aborted and all
+||--        subsequent SQL statements are skipped and then this function
+||--        will then return {ctext SQLiteStatus.ABORT}.
+||--
+||--        The first argument is the values of the row and the second
+||--        argument is the names the columns.
+||--    }
+||--    {return-vals
+||--        If all the SQL commands, {param sql} succeed, the return value
+||--        is {ctext SQLiteStatus.OK}, otherwise it is the appropriate error
+||--        code. The particular return value depends on the type of
+||--        error. If the query could not be executed because a database
+||--        file is locked or busy, then this function returns {ctext
+||--        SQLiteStatus.BUSY}.
+||--
+||--        The second return value is the error message if an error occurs while
+||--        parsing or evaluating the SQL statement {param sql}.
+||--    }
+||--    {notes
+||--        If one or more of SQL statements in {param sql} are queries,
+||--        then the callback function {param callback} will be called once
+||--        for each row of the query result.
+||--    }
+||--  }
+||--  {method public {exec
+||--                     sqlite3:SQLiteDatabaseHandle,
+||--                     sql:String,
+||--                     callback:#{proc-type
+||--                                   {data:StringArray,
+||--                                    column-names:StringArray
+||--                                   }:bool
+||--                               }
+||--                 }:(SQLiteStatus, errmsg:String)
+||--    let errmsg-pointer:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
+||--    let constant exec-callback-ptr:SQLiteExecCallbackPointerType =
+||--        {if-non-null callback then
+||--            {SQLiteExecCallbackPointerType
+||--                 {proc
+||--                     {userdata-ptr:CPointer,
+||--                     number-of-columns:int,
+||--                     data-pointer:CPointer,
+||--                     columns-pointer:CPointer
+||--                     }:int
+||--                     || Extract the info from above and then call the
+||--                     || callback proc that was passed and return its value.
+||--                     let constant data:StringArray =
+||--                         {StringArray efficient-size = number-of-columns}
+||--                     let constant column-names:StringArray =
+||--                         {StringArray efficient-size = number-of-columns}
+||--
+||--                     {for i = 0 below number-of-columns do
+||--                         let column-name:CStringUTF8 = 
+||--                             {unsafe-memory-get 
+||--                                 CStringUTF8, columns-pointer, index = i
+||--                             }
+||--                         {column-names.append {column-name.to-String}}
+||--                         let val:CStringUTF8 = 
+||--                             {unsafe-memory-get 
+||--                                 CStringUTF8, data-pointer, index = i
+||--                             }
+||--                         {data.append {val.to-String}}
+||--                     }
+||--                     || The columns and data-pointer will be freed for us.
+||--                     {return 
+||--                         {if {callback data, column-names} then 1 else 0}
+||--                     }
+||--                 }
+||--            }
+||--         else
+||--            {uninitialized-value-for-type SQLiteExecCallbackPointerType}
+||--        }
+||--    let status-code:int =
+||--        {self.exec-internal sqlite3, sql, exec-callback-ptr, 0, errmsg-pointer}
+||--    let errmsg:String = ""
+||--    {if status-code != SQLiteStatus.OK.index then
+||--        set errmsg = {errmsg-pointer.value.to-String}
+||--        {self.free errmsg-pointer.value}
+||--    }
+||--    {return {SQLiteStatus index = status-code}, errmsg}
+||--  }
+||--
+||--  {dll-method private {exec-internal ("sqlite3_exec")
+||--                          sqlite3:SQLiteDatabaseHandle,
+||--                          sql:String,
+||--                          callback:SQLiteExecCallbackPointerType,
+||--                          userdata:CPointer,
+||--                          errmsg:{Pointer-to CStringUTF8}
+||--                      }:int
+||--  }
 
 ||--  {doc-next
 ||--    {purpose
