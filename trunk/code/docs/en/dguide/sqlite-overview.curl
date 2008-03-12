@@ -448,7 +448,7 @@ CREATE TABLE products (
             will get a {docref SQLiteStatus}.{ctext BUSY} result,
             which, by default, will be thrown as an exception.
             Use {docref SQLiteDatabase.busy-timeout}
-            (or the more advanced {docref SQLiteDatabase.set-busy-handler})
+            (or the more advanced {docref SQLiteDatabase.busy-handler})
             to control behavior for this condition.
         }
         {item {bold Update notification}

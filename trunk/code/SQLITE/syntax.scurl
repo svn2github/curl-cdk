@@ -16,7 +16,7 @@
 
 {curl 6.0 package}
 {package COM.CURL.CDK.SQLITE-SYNTAX,
-    version = "0.8",
+    version = "0.9",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
@@ -25,7 +25,7 @@
 
 {doc
     type = package,
-    COM.CURL.CDK.SQLITE.SYNTAX
+    COM.CURL.CDK.SQLITE-SYNTAX
     {purpose
         The package defines syntax extensions useful with
         {docref COM.CURL.CDK.SQLITE} package.

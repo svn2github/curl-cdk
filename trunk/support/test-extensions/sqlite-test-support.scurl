@@ -17,7 +17,7 @@
 {curl 6.0 package}
 
 {package COM.CURL.CDK.SQLITE-TEST-SUPPORT,
-    version = "0.8",
+    version = "0.9",
     {compiler-directives
         careful? = true
     }

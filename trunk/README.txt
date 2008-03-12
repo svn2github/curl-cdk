@@ -50,7 +50,7 @@ The 'docs-install' directory contains library directory
 prepared for addition to the Curl Documentation Viewer
 using the IDE 'Install Documentation' command.
 The directories include both documentation
-and linked source code
+and preprocessed library.
 
 - COM.CURL.CDK.0.8/manifest.mcurl   	CDK library doc definition
 
@@ -59,7 +59,7 @@ Source Code
 
 The 'src' directory contains all source code for CDK modules,
 and could be used for modifying the CDK itself. 
-It also inclides test suites, and some sample applets.
+It also includes test suites, and some sample applets.
 
 - code			source code
 -- code/project.cprj	Curl IDE project
