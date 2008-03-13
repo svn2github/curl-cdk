@@ -757,6 +757,6 @@
 {def connection-cache =
     {{Memoizer-of SQLiteDatabase, SQLiteConnection}
         {proc {db:SQLiteDatabase}:SQLiteConnection
-            {return {SQLiteConnection database = db}}}}
+            {return {SQLiteConnection db}}}}
 }
 

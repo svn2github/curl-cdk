@@ -100,10 +100,10 @@ CREATE TABLE test (
                     {q.bind x}
                     {q.step}
                 }}
-            let a:String =
-                {format "ATTACH DATABASE '%s' AS work",
-                    {non-null dbloc.local-filename}}
-            {db.execute a}
+||            let a:String =
+||                {format "ATTACH DATABASE '%s' AS work",
+||                    {non-null dbloc.local-filename}}
+            {db.attach dbloc, "work"}
             {db.execute "
 DROP TABLE IF EXISTS work.test;
 CREATE TABLE work.test (
@@ -117,14 +117,14 @@ CREATE TABLE work.test (
                 {TestCondition.assert message = {lmessage expected identical},
                     result == SQLiteStatus.DONE}
             }
+            {db.detach "work"}
         }
         {delete dbloc, error-if-missing? = false}
     },
     || --------------------
     {test-case "callbacks",
         || TODO: use Database instead
-        let con:SQLiteConnection = {SQLiteConnection database-url = null}
-        let db:SQLiteDatabase = {non-null con.database}
+        let db:SQLiteDatabase = {SQLiteDatabase null}
 
         || schema
         {db.execute {read-from {url "../test-data/oe-data/define.sql"}}}
@@ -147,9 +147,9 @@ CREATE TABLE work.test (
             {on SQLiteRollbackEvent do
                 {log.append {message Rollback}}}}
         {do
-            {con.execute "BEGIN;"}
-            {con.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
-            {con.execute "ROLLBACK;"}
+            {db.execute "BEGIN;"}
+            {db.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
+            {db.execute "ROLLBACK;"}
         }
         || == test commit hook
         set db.commit-events? = true
@@ -159,12 +159,12 @@ CREATE TABLE work.test (
 ||--            {log.append {lmessage canceling Commit}}
                 {log.append {lmessage Commit}}}}
         {do
-            {con.execute "BEGIN;"}
-            {con.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
+            {db.execute "BEGIN;"}
+            {db.execute "UPDATE item SET quantity = 225 WHERE rowid = 1;"}
             {try
-                {con.execute "COMMIT;"}
+                {db.execute "COMMIT;"}
              catch e:Exception do
-                {con.execute "ROLLBACK;"}}
+                {db.execute "ROLLBACK;"}}
         }
         || == test update hook
         set db.update-events? = true
@@ -178,11 +178,11 @@ CREATE TABLE work.test (
                         row {value e.rowid}
                     }}}}
         {do
-            {con.execute "BEGIN;"}
-            {con.execute "UPDATE item SET quantity = 200 WHERE rowid = 1;"}
-            {con.execute "UPDATE item SET quantity = 166 WHERE rowid = 3;"}
-            {con.execute "DELETE FROM item WHERE rowid = 5;"}
-            {con.execute "ROLLBACK;"}
+            {db.execute "BEGIN;"}
+            {db.execute "UPDATE item SET quantity = 200 WHERE rowid = 1;"}
+            {db.execute "UPDATE item SET quantity = 166 WHERE rowid = 3;"}
+            {db.execute "DELETE FROM item WHERE rowid = 5;"}
+            {db.execute "ROLLBACK;"}
         }
 
         || == confirm results

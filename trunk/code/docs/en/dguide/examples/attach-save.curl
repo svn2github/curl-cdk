@@ -49,7 +49,7 @@
 }
 
 {value
-    def con = {SQLiteConnection database-url = null}
+    def con = {SQLiteConnection {SQLiteDatabase null}}
     def db = con.database
     {db.execute "
 CREATE TABLE log (

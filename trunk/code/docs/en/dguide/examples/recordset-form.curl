@@ -22,7 +22,7 @@
 {value
     || database and connection
     def db = {SQLiteDatabase null}
-    def con = {SQLiteConnection database = db}
+    def con = {SQLiteConnection db}
     || schema and data
     {db.execute {read-from {url "products.sql"}}}
     || recordset

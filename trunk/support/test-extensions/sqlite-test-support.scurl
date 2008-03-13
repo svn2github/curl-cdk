@@ -140,7 +140,7 @@
     def database = {SQLiteDatabase self.location}
     {if-non-null init-proc then
         {init-proc database}}
-    set self.connection = {SQLiteConnection database = database}
+    set self.connection = {SQLiteConnection database}
     {self.generate-tests}
   }
   {method {generate-tests}:void

@@ -1126,7 +1126,7 @@
                          database:SQLiteDatabase, database-name:String,
                          database-count:int = 1
                      }:void
-    let con:SQLiteConnection = {SQLiteConnection database = database}
+    let con:SQLiteConnection = {SQLiteConnection database}
     let tables-columns:StringArray = {make-tables-columns}
 ||--    {output "== ", database-name, " - ", database.url}
 ||--    {output {DateTime}}
@@ -1188,11 +1188,13 @@
         db = {SQLiteDatabase {url "curl://temp/xyz2"}}
      do
         {localfile-pragma db}
-        {db.execute "ATTACH '" &
-            {url "curl://temp/xyz"}.local-filename & "' AS xyz"}
+||        {db.execute "ATTACH '" &
+||            {url "curl://temp/xyz"}.local-filename & "' AS xyz"}
+        {db.attach {url "curl://temp/xyz"}, "xyz"}
         {localfile-pragma db, name = "xyz"}
         {do-recordsets-for-all-tables db, "xyz", database-count = 2}
         {do-recordsets-for-all-tables db, "", database-count = 2}
+        {db.detach "xyz"}
     }
     {with-database
         db = {SQLiteDatabase null}

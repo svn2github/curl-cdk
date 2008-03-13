@@ -15,12 +15,12 @@
 ||| limitations under the License.
 
 {define-class package final FunctionSpec
-  field constant public name:String
-  field constant public number-of-args:int
-  field constant public xfunc:#SQLiteFunctionProcType
-  field constant public xfunc-ptr:SQLiteFunctionPointerType
-  field constant public final-xfunc:#SQLiteFinalFunctionProcType
-  field constant public final-xfunc-ptr:SQLiteFinalFunctionPointerType
+  field constant package name:String
+  field constant package number-of-args:int
+  field constant package xfunc:#SQLiteFunctionProcType
+  field constant package xfunc-ptr:SQLiteFunctionPointerType
+  field constant package final-xfunc:#SQLiteFinalFunctionProcType
+  field constant package final-xfunc-ptr:SQLiteFinalFunctionPointerType
 
   {doc-next
     {purpose
@@ -1766,6 +1766,34 @@
              else 
                 null
             }
+    }
+  }
+
+  {method public {attach u:Url, name:String}:void
+    let filename:String =
+        {if-non-null f = u.local-filename then
+            f
+         else
+            || must be http(s)
+            def loc = {local-data-copy-of u, "DB"}
+            {non-null loc.local-filename}
+        }
+    || FIXME: what quoting do we need to do to the filename and name?
+    {with-statement in self
+        stmt = "ATTACH ? AS ?"
+     do
+        {stmt.bind-text 1, filename}
+        {stmt.bind-text 2, name}
+        {stmt.step}
+    }
+  }
+
+  {method public {detach name:String}:void
+    {with-statement in self
+        stmt = "DETACH ?"
+     do
+        {stmt.bind-text 1, name}
+        {stmt.step}
     }
   }
 }

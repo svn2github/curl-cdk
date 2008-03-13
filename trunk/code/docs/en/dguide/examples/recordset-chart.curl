@@ -22,7 +22,7 @@
 
 {value
     def db = {SQLiteDatabase null}
-    def con = {SQLiteConnection database = db}
+    def con = {SQLiteConnection db}
     {db.execute "
 CREATE TABLE temp (
  year INT NOT NULL,

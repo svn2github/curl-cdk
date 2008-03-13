@@ -25,7 +25,7 @@
 {import * from CURL.IDE.PERFORMANCE}
 
 {value
-    def con = {SQLiteConnection database-url = null}
+    def con = {SQLiteConnection {SQLiteDatabase null}}
     def db = con.database
     
     def display = 

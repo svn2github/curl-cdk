@@ -34,40 +34,19 @@
     {purpose
         Create a {docref SQLiteConnection}.
     }
-    {parameter database-url,
-        {docref Url} of the database file.  If this is supplied
-        the applet should call {docref SQLiteDatabase.close} on the
-        {docref SQLiteConnection.database} field when they are done
-        with the database.
-    }
     {parameter database,
-        {docref SQLiteDatabase} that was already created.
-    }
-    {parameter error-if-missing?,
-        If {ctext true} and {param database-url} is supplied, but the
-        file does not exist, fail.  If {ctext false}, then
-        {param database-url} will be created if needed.
+        {docref SQLiteDatabase} to base this connection on.
     }
   }
   {constructor public {default 
-                          database-url:#Url = null,
-                          database:#SQLiteDatabase = null,
-                          error-if-missing?:bool = false
+                          database:SQLiteDatabase
                       }
-    || Only supply the url or the database or neither (for in memory database)
-    {assert database-url == null or database == null}
-
     || open database
-    set self.database =
-        {if-non-null database then
-            database 
-         else
-            {SQLiteDatabase database-url, error-if-missing? = error-if-missing?}
-        }
+    set self.database = database
 
     || superclasses
     {construct-super.SQLConnection 
-        {if-non-null database-url then
+        {if-non-null database-url = database.url then
             database-url
          else
             || TODO: is there a better url for in memory databases?
