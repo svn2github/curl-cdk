@@ -44,6 +44,7 @@
     }
 }
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
+{import * from COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX}
 
 {include "library-defs.scurl"}
 {include "library-dll.scurl"}

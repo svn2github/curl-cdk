@@ -28,6 +28,10 @@
     location = "SQLITE/base-load.scurl"
 }
 
+{component package COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX,
+    location = "SQLITE/library-syntax.scurl"
+}
+
 {component package COM.CURL.CDK.SQLITE-LIBRARY,
     location = "SQLITE/library-load.scurl"
 }

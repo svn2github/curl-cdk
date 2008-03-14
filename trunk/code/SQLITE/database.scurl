@@ -1689,22 +1689,10 @@
         }}
   }
   
-  || Internal implementation stuff, copied from old SQLiteConnection
-  || Notification
   || FIXME: These will result in event handling in the middle of other code,
   || at possibly illegal points in time, or unusual times anyway.
   || These should probably be queued up instead of handled inline, but that
   || doesn't let you control return values.
-  {method private {handle-event-protected e:Event}:void
-    {try
-        {self.handle-event e}
-     catch ex:Exception do
-        || FIXME: this should be a custom Event instead, so that it can
-        || happen at the start of processing events from the event queue
-        || instead of the end when Alarms run.
-        {after 0s do {throw ex}}
-    }
-  }
 
   field private _commit-events?:bool
   {getter public {commit-events?}:bool
@@ -1717,7 +1705,7 @@
             {if val then 
                 {proc {}:bool
                     let e:SQLiteCommitEvent = {SQLiteCommitEvent}
-                    {self.handle-event-protected e}
+                    {self.handle-event e}
                     {return e.consumed?}
                 }
              else 
@@ -1736,7 +1724,7 @@
         set self.rollback-hook = 
             {if val then 
                 {proc {}:void
-                    {self.handle-event-protected {SQLiteRollbackEvent}}
+                    {self.handle-event {SQLiteRollbackEvent}}
                 }
              else 
                 null
@@ -1758,7 +1746,7 @@
                        table-name:String,
                        rowid:int64
                        }:void
-                    {self.handle-event-protected
+                    {self.handle-event
                         {SQLiteUpdateEvent
                             database-name, table-name, operation, rowid}
                     }

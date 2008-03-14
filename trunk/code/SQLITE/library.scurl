@@ -1391,7 +1391,10 @@
                     {userdata-ptr:CPointer,
                      ncalls:int
                     }:int
-                    {return {if {callback ncalls} then 1 else 0}}
+                    {with-defered-exceptions
+                        {return {if {callback ncalls} then 1 else 0}}
+                    }
+                    {return 0}
                 }
             }
          else
@@ -1489,9 +1492,11 @@
                      table:CStringUTF8,
                      rowid:int64
                     }:void
-                    {callback 
-                        {SQLiteOperation index = which}, 
-                        {database.to-String}, {table.to-String}, rowid
+                    {with-defered-exceptions
+                        {callback 
+                            {SQLiteOperation index = which}, 
+                            {database.to-String}, {table.to-String}, rowid
+                        }
                     }
                 }
             }
@@ -1536,7 +1541,10 @@
         {if-non-null callback then
             {SQLiteCommitCallbackPointerType
                 {proc {userdata-ptr:CPointer}:int
-                    {return {if {callback} then 1 else 0}}
+                    {with-defered-exceptions
+                        {return {if {callback} then 1 else 0}}
+                    }
+                    {return 1}
                 }
             }
          else
@@ -1584,7 +1592,9 @@
         {if-non-null callback then
             {SQLiteRollbackCallbackPointerType
                 {proc {userdata-ptr:CPointer}:void
-                    {callback}
+                    {with-defered-exceptions
+                        {callback}
+                    }
                 }
             }
          else
@@ -2385,7 +2395,10 @@
         {if-non-null callback then
             {SQLiteProgressHandlerPointerType
                 {proc {userdata:CPointer}:int
-                    {return {if {callback} then 1 else 0}}
+                    {with-defered-exceptions
+                        {return {if {callback} then 1 else 0}}
+                    }
+                    {return 1}
                 }
             }
          else
@@ -2450,15 +2463,18 @@
                        data1:CStringUTF8, data2:CStringUTF8,
                        data3:CStringUTF8, data4:CStringUTF8
                       }:int
-                    {return
-                        {callback
-                            {SQLiteOperation index = operation},
-                            {data1.to-String-or-null},
-                            {data2.to-String-or-null},
-                            {data3.to-String-or-null},
-                            {data4.to-String-or-null}
-                        }.index
+                    {with-defered-exceptions
+                        {return
+                            {callback
+                                {SQLiteOperation index = operation},
+                                {data1.to-String-or-null},
+                                {data2.to-String-or-null},
+                                {data3.to-String-or-null},
+                                {data4.to-String-or-null}
+                            }.index
+                        }
                     }
+                    {return SQLiteAuthorizerReturnCode.DENY.index}
                 }
             }
          else
@@ -2487,5 +2503,5 @@
 
   || FIXME: no support for sqlite3_create_module(), but it requires lots
   || of structs and such.
+  || FIXME: no support for sqlite3_create_collation
 }
-
