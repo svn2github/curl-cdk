@@ -539,7 +539,8 @@
                  case d:SQLiteVariantDomain do
                     {switch d.affinity
                      case SQLiteDatatypeAffinity.NUMERIC,
-                        SQLiteDatatypeAffinity.INTEGER
+                        SQLiteDatatypeAffinity.INTEGER,
+                        SQLiteDatatypeAffinity.REAL
                      do true
                      else false}
                  else d.type isa NumericType}
