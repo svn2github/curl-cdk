@@ -1262,7 +1262,7 @@
     let constant database:SQLiteDatabase = self.database
     let constant count:int = self.bind-parameter-count
     let unnamed-index:int = 1
-    let last-named:int = 0
+    let last-named:int = count
     let constant stmt:SQLiteStatementHandle = self.non-null-stmt
     let constant interface:SQLiteInterface = {SQLiteInterface}
     {for (v, k) in ... do

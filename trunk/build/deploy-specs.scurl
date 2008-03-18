@@ -16,7 +16,7 @@
 
 {value
     def name = "COM.CURL.CDK"
-    def version = "0.8"
+    def version = "0.9"
     def dirname = name & "." & version
     
     {DeploySpecs
