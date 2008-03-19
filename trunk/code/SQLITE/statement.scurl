@@ -1267,22 +1267,33 @@
     let constant interface:SQLiteInterface = {SQLiteInterface}
     {for (v, k) in ... do
         {if-non-null k then
-            let named-index:int = (last-named mod count) + 1
-            {while named-index != last-named do
-                {if-non-null
-                    name = {interface.bind-parameter-name stmt, named-index} 
-                 then
-                    {if {name.suffix? k} and
-                        name.size == (k.size + 1) and
-                        name[0] != '?'
+            let found?:bool
+            {if count > 0 then
+                let named-index:int = (last-named mod count) + 1
+                {while true do
+                    {if-non-null
+                        name = {interface.bind-parameter-name stmt, named-index} 
                      then
-                        {self.bind-any named-index, v}
+                        {if {name.suffix? k} and
+                            name.size == (k.size + 1) and
+                            name[0] != '?'
+                         then
+                            {self.bind-any named-index, v}
+                            set found? = true
+                            {break}
+                        }
+                    }
+                    set named-index = (named-index mod count) + 1
+                    {if named-index == last-named then
                         {break}
                     }
                 }
-                set named-index = (named-index mod count) + 1
+
+                {if found? then
+                    set last-named = named-index
+                }
             }
-            {if named-index == last-named then
+            {if not found? then
                 {throw
                     {SQLiteException
                         SQLiteStatus.ERROR,
@@ -1290,7 +1301,6 @@
                     }
                 }
             }
-            set last-named = named-index
          else
             || Search for the next unnamed parameter, but be willing to
             || go too high to induce an error from the SQLite code if there
