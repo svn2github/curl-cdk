@@ -171,6 +171,7 @@
 || --------------------
 {define-class public QueryModel {inherits EventTarget}
   field public-get constant database:SQLiteDatabase
+  field public-get constant connection:SQLiteConnection
   field _state:QueryState
   field _sql:String = ""
   field public-get result:#RecordSet
@@ -181,6 +182,7 @@
                           sql:String = "",
                           ...:EventHandler}
     set self.database = database
+    set self.connection = {SQLiteConnection database}
     set self.sql = sql
     set self.last-sql = null
     {construct-super {splice ...}}
@@ -220,7 +222,8 @@
     set self.exception = null
     set self.state = QueryState.running
     {try
-        def rs = {SQLiteBasicRecordSet self.database, self.sql}
+        def rs =
+            {SQLiteRecordSet.create self.connection, "main", self.sql}
         set self.result = rs
         set self.last-sql = self.sql
         || report success

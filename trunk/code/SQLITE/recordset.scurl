@@ -733,30 +733,3 @@
     }
   }
 }
-
-
-|| TEMP: connectionless RecordSet
-|| --------------------
-{define-class public SQLiteBasicRecordSet {inherits SQLiteRecordSet}
-  {constructor public {default
-                          database-name:SQLiteDatabase,
-                          sql:String,
-                          request-modifiable?:bool = false,
-                          parameters:#Arguments = null,
-                          strict-types?:bool = false,
-                          ...:EventHandler}
-    def connection = connection-cache[database-name]
-    {construct-super.create connection, "main", sql,
-        request-modifiable? = request-modifiable?,
-        strict-types? = strict-types?,
-        {splice ...}
-    }
-    set self.query-parameters = parameters
-  }
-}
-{def connection-cache =
-    {{Memoizer-of SQLiteDatabase, SQLiteConnection}
-        {proc {db:SQLiteDatabase}:SQLiteConnection
-            {return {SQLiteConnection db}}}}
-}
-

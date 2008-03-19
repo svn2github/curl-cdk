@@ -22,6 +22,7 @@
 
 {value
     def db = {SQLiteDatabase null}
+    def con = {SQLiteConnection db}
     
     {db.execute "CREATE TABLE words (word TEXT NOT NULL PRIMARY KEY);"}
     {SQLiteStatement.import-csv db, "words", {url "Nouns.txt"}}
@@ -72,7 +73,7 @@
                     {with-busy-cursor
                         def q = c.value asa String
                         {try
-                            def rs = {SQLiteBasicRecordSet db, q}
+                            def rs = {SQLiteRecordSet.create con, "main", q}
                             set display.record-source = rs
                             {if {c.find q} < 0 then
                                 {c.append q}}
