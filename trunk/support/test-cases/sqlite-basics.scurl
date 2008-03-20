@@ -216,32 +216,34 @@ CREATE TABLE work.test (
                     {with-statement in db2 
                         stmt2 = "INSERT INTO test VALUES (?);" 
                      do
+                        || NOTE: default timeout is 5s; no need here
+                        {with db2.busy-timeout = 50ms do
+                            {for i = 0 below 4 do
+                                let d1:String = {{DateTime}.info.iso-full.substr 11, 12}
+                                {sleep 2ms}
+                                let d2:String = {{DateTime}.info.iso-full.substr 11, 12}
 
-                        {for i = 0 below 4 do
-                            let d1:String = {{DateTime}.info.iso-full.substr 11, 12}
-                            {sleep 2ms}
-                            let d2:String = {{DateTime}.info.iso-full.substr 11, 12}
+                                {with-transaction in db do
+                                    || DB1 should succeed
+                                    {stmt.reset}
+                                    {stmt.bind d1}
+                                    let result:SQLiteStatus = {stmt.step}
+                                    {output {message DB1 {value d1} : {value result.name}}}
+                                    {results.append result}
 
-                            {with-transaction in db do
-                                || DB1 should succeed
-                                {stmt.reset}
-                                {stmt.bind d1}
-                                let result:SQLiteStatus = {stmt.step}
-                                {output {message DB1 {value d1} : {value result.name}}}
-                                {results.append result}
+                                    || DB2 should fail because of lock
+                                    {stmt2.reset}
+                                    {stmt2.bind d2}
+                                    let result2:SQLiteStatus = {stmt2.step throw-on-error? = false}
+                                    {output {message DB2 {value d2} : {value result2.name}}}
+                                    {results.append result2}
+                                }
 
-                                || DB2 should fail because of lock
-                                {stmt2.reset}
-                                {stmt2.bind d2}
-                                let result2:SQLiteStatus = {stmt2.step throw-on-error? = false}
+                                || now DB2 should succeed
+                                let result2:SQLiteStatus = {stmt2.step}
                                 {output {message DB2 {value d2} : {value result2.name}}}
                                 {results.append result2}
                             }
-
-                            || now DB2 should succeed
-                            let result2:SQLiteStatus = {stmt2.step}
-                            {output {message DB2 {value d2} : {value result2.name}}}
-                            {results.append result2}
                         }
                         def n = {db.sql-value "SELECT count(*) FROM test"}
                         {output {message DB2 : {value n}}}
