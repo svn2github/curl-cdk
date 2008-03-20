@@ -22,6 +22,25 @@
     {compiler-directives careful? = true}
 }
 
+{doc
+    type = package,
+    COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX
+    {purpose
+        The package defines syntax extensions used with
+        {docref COM.CURL.CDK.SQLITE-LIBRARY} package.
+    }
+    {details
+        This is a separate package so that it can be used by
+        {ctext COM.CURL.CDK.SQLITE-LIBRARY}, but you should never import this directly.
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
 {import * from CURL.LANGUAGE.SOURCE}
 
 || Used for all callback/hooks/handlers to defer exceptions until later.

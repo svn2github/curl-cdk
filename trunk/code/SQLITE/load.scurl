@@ -26,9 +26,18 @@
     type = package,
     COM.CURL.CDK.SQLITE
     {purpose
-        The package provides support for local SQL databases,
-        using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
-        SQL engine.
+        This super-package provides the packages needed for
+        working with local SQL databases using the popular
+        {link href = {url "http://www.sqlite.org"}, SQLite} SQL engine.
+        Developers normally import this package instead of the individual packages it contains.
+    }
+    {details
+        This package consolidates definitions from these packages:
+        {itemize
+            {item {docref COM.CURL.CDK.SQLITE-RECORDSET}}
+            {item {docref COM.CURL.CDK.SQLITE-BASE}}
+            {item {docref COM.CURL.CDK.SQLITE-LIBRARY}}
+        }
     }
     {notes
         {italic

@@ -22,6 +22,22 @@
     {compiler-directives careful? = true}
 }
 
+{doc
+    type = package,
+    COM.CURL.CDK.SQLITE-BASE
+    {purpose
+        The package provides core support for local SQL databases,
+        using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
+        SQL engine.
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
 || Needed for some of the types passed to SQLiteInterface
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
 {import * from COM.CURL.CDK.SQLITE-LIBRARY}

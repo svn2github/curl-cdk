@@ -224,7 +224,7 @@
                 stored in 1, 2, 3, 4, 6, or 8 bytes depending on the
                 magnitude of the value.
             }
-            {item {ctext FLOAT}: The value is a floating point value,
+            {item {ctext REAL}: The value is a floating point value,
                 stored as an 8-byte IEEE floating point number.
             }
             {item {ctext TEXT}: The value is a text string, stored
