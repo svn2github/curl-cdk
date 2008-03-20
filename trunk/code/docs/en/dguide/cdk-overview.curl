@@ -82,12 +82,12 @@
     There have been a few API changes since Version 0.8
 
     {itemize
-        {item {docref SQLiteRecordSet} takes default values from underlying database.}
-        {item {docref SQLiteStatement} supports named parameters (as keyword arguments)
+        {item {docref SQLiteRecordSet.fields} created using default values specified in underlying database.}
+        {item {docref SQLiteStatement.bind} supports named parameters (as keyword arguments)
             as well as numbered parameters.}
-        {item {docref SQLiteDatabase.busy-timeout} set by default.}
-        {item {docref SQLiteRecordSet.use-transaction?} added.}
-        {item {docref SQLiteDatabase} now target for notification events
+        {item {docref SQLiteDatabase.busy-timeout} is set by default.}
+        {item {docref SQLiteRecordSet.use-transaction?} was added.}
+        {item {docref SQLiteDatabase} is now target for notification events
             (like {docref SQLiteUpdateEvent}) rather than {docref SQLiteConnection}.}
         {item uses SQLite version 3.5.6 library.}
         {item {docref SQLiteDatabase.default} accepts {ctext read-only?} keyword.}

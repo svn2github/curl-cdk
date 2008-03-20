@@ -169,7 +169,9 @@ CREATE TABLE products (
     This is the "life cycle" of a statement.
     {itemize
         {item create with {docref SQLiteDatabase.create-statement}.}
-        {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.}
+        {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.
+            Parameters defined by name in SQL are supplied as keyword arguments.
+            Parameters defined by position or number in SQL are supplied as positional parameters.}
         {item get consolidated results.
             {itemize
                 {item by iterating with {docref-abbr SQLiteStatement.rows-to-Iterator}.}
@@ -210,8 +212,8 @@ CREATE TABLE products (
         {curl-code
             def insert =
                 {db.create-statement
-                    "INSERT INTO log (when, where, what) VALUES (?, ?, ?)"}
-            {insert.bind "now", "here", "this"}
+                    "INSERT INTO log (when, where, what) VALUES (:when, :where, :what"}
+            {insert.bind when = "now", where = "here", what = "this"}
             {insert.step}
         }}
     
@@ -255,7 +257,7 @@ CREATE TABLE products (
             {cell INTEGER}
             {cell {docref int} or {docref int64}}},
         {row
-            {cell NUMERIC}
+            {cell REAL}
             {cell {docref double}}},
         {row
             {cell BLOB}
@@ -318,17 +320,6 @@ CREATE TABLE products (
     (For example, {docref RecordGrid} and {docref Chart} recognize numeric types.)
     Use the {ctext strict-types?} keyword to control whether
     the recordset domains enforce type affinity.    
-
-||--    {Frame background = "pink", margin = 6px,
-||--        {paragraph {bold TODO:}
-||--            Examples illustrating modifiability variants.    
-||--            
-||--            {itemize
-||--                {item table recordsets}
-||--                {item view recordsets}
-||--                {item query recordsets}
-||--            }
-||--        }}
     
     Some kinds of processing can performed either
     at the level of the database engine (in SQL),
@@ -631,25 +622,6 @@ CREATE TABLE products (
     {link href = {url "http://www.apress.com/book/view/1590596730"}, 
     The Definitive Guide to SQLite}.
 }
-
-|| ====================
-||--{heading level=2,
-||--    SQLITE Samples
-||--}
-||--{paragraph
-||--   TODO.
-||--}
-||--
-||--{itemize
-||--    {item order entry}
-||--    {item aggregation}
-||--    {item undo history}
-||--    {item settings}
-||--    {item logging}
-||--    {item example index}
-||--    {item translation history}
-||--    {item OCC}
-||--}
 
 || ====================
 {curl-copyright}
