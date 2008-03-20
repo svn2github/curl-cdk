@@ -139,6 +139,7 @@
             base-where-clause = base-where-clause,
             hidden-primary-key-field = hidden-primary-key-field,
             query-is-full-row? = true,
+            strict-types? = strict-types?,
             base-where-clause-parameters = base-where-clause-parameters,
             load-now? = load-now?,
             ...
