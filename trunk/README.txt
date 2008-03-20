@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 0.8 for Curl API Version 6.0. 
+CDK Preview Release 0.9 for Curl API Version 6.0. 
 ====================
 
-This directory contains the 0.8 preview of the Curl Data Kit (CDK)
+This directory contains the 0.9 preview of the Curl Data Kit (CDK)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
 applications in Curl. It provides support for local SQL databases,
@@ -41,7 +41,7 @@ Deployable Library
 The 'deploy' directory contains a preprocessed library 
 for use in deployed applications.
 
-- COM.CURL.CDK.0.8/manifest.mcurl   	CDK library definition
+- COM.CURL.CDK.0.9/manifest.mcurl   	CDK library definition
 
 Documentation
 --------------------
@@ -52,7 +52,7 @@ using the IDE 'Install Documentation' command.
 The directories include both documentation
 and preprocessed library.
 
-- COM.CURL.CDK.0.8/manifest.mcurl   	CDK library doc definition
+- COM.CURL.CDK.0.9/manifest.mcurl   	CDK library doc definition
 
 Source Code
 --------------------
@@ -71,10 +71,29 @@ It also includes test suites, and some sample applets.
 
 - tools			build applets
 
-
-KNOWN ISSUES
+ 
+CHANGES
 ====================
 
+CDK 0.9 CHANGES
+--------------------
 
+There have been a few API changes since Version 0.8
 
+- SQLiteRecordSet.fields are created using default values
+  specified in underlying database.
+
+- SQLiteStatement.bind supports named parameters
+  (as keyword arguments) as well as numbered parameters.
+
+- SQLiteDatabase.busy-timeout is set by default.
+
+- SQLiteRecordSet.use-transaction? was added.
+
+- SQLiteDatabase is now target for notification events 
+  (like SQLiteUpdateEvent) rather than SQLiteConnection.
+
+- uses SQLite version 3.5.6 library.
+
+- SQLiteDatabase.default accepts read-only? keyword.
 
