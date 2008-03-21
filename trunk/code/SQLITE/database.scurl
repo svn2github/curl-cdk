@@ -1631,7 +1631,7 @@
   {method public {sql-column
                      sql:StringInterface,
                      index:int = 0,
-                     ...:any
+                     ...
                  }:Array
     {return
         {with-statement in self s = sql do
@@ -1656,7 +1656,7 @@
 
   {method public {sql-row
                      sql:StringInterface,
-                     ...:any
+                     ...
                  }:Array
     {return
         {with-statement in self s = sql do
@@ -1680,7 +1680,7 @@
   
   {method public {sql-rows
                      sql:StringInterface,
-                     ...:any
+                     ...
                  }:{Array-of Array}
     {return
         {with-statement in self s = sql do
