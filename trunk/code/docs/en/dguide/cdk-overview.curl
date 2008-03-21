@@ -79,7 +79,7 @@
             SQLite Overview}}
     }
 
-    There have been a few API changes since Version 0.8
+    There have been a few API changes since Version 0.8.
 
     {itemize
         {item {docref SQLiteRecordSet.fields} created using default values specified in underlying database.}
@@ -90,9 +90,12 @@
         {item {docref SQLiteDatabase} is now target for notification events
             (like {docref SQLiteUpdateEvent}) rather than {docref SQLiteConnection}.}
         {item uses SQLite version 3.5.6 library.}
-        {item {docref SQLiteDatabase.default} accepts {ctext read-only?} keyword.}
+        {item added {docref SQLiteDatabase.attach} and {docref SQLiteDatabase.detach} methods.}
+        {item {docref SQLiteDatabase.default} has additional keyword arguments:
+            {ctext read-only?}, {ctext auto-vacuum?}, {ctext page-size}}
     }
-    
+
+    Several bugs have been fixed.    
 }
 
 || ====================

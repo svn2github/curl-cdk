@@ -95,5 +95,9 @@ There have been a few API changes since Version 0.8
 
 - uses SQLite version 3.5.6 library.
 
-- SQLiteDatabase.default accepts read-only? keyword.
+- added SQLiteDatabase.attach and SQLiteDatabase.detach methods.
 
+- SQLiteDatabase.default accepts additional keyword arguments:
+  read-only?, auto-vacuum?, page-size
+
+Several bugs have been fixed.
