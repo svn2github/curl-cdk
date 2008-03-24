@@ -14,8 +14,6 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{import SQLiteAuthorizerProcType from COM.CURL.CDK.SQLITE-LIBRARY}
-
 {define-class public AuthorizationPolicy
   field public-get constant policies:{HashTable-of SQLiteOperation, SQLiteAuthorizerReturnCode}
   field public-get constant default-policy:SQLiteAuthorizerReturnCode

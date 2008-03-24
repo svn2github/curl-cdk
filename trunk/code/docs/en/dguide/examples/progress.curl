@@ -18,7 +18,6 @@
 {applet manifest = "../manifest.mcurl",
     {compiler-directives careful? = true}}
 {import * from COM.CURL.CDK.SQLITE}
-{import * from COM.CURL.CDK.SQLITE-LIBRARY}
 
 {include "simple-explorer.scurl"}
 {include "authorization.scurl"}
