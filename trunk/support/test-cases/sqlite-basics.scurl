@@ -610,6 +610,64 @@ CREATE TABLE test (
                 }
             }
         }},
+    {test-case "bind bad keywords",
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE t (x, y);
+INSERT INTO t VALUES (1, 2);
+INSERT INTO t VALUES (2, 4);
+INSERT INTO t VALUES (3, 9);
+"}
+            {try
+                {db.sql-value "SELECT y FROM t WHERE x=:x", 2}
+                {TestCondition.fail
+                    message = "Statement with index param should fail."
+                }
+             catch e:SQLiteException do
+                || Expected
+            }
+            {try
+                {db.sql-value "SELECT y FROM t WHERE x=:x", y = 2}
+                {TestCondition.fail
+                    message = "Statement with bad named param should fail."
+                }
+             catch e:SQLiteException do
+                || Expected
+            }
+            {TestCondition.assert
+                {db.sql-value "SELECT y FROM t WHERE x=:x"} == null}
+            {TestCondition.assert
+                {db.sql-value "SELECT y FROM t WHERE x=?", 2} == 4}
+            {TestCondition.assert
+                {db.sql-value "SELECT y FROM t WHERE x=:x", x = 2} == 4}
+            {TestCondition.assert
+                {db.sql-value "SELECT y FROM t WHERE x=?"} == null}
+            {try
+                {db.sql-value "SELECT y FROM t WHERE x=?", x = 2}
+                {TestCondition.fail
+                    message = "Statement with missing named param should fail."
+                }
+             catch e:SQLiteException do
+                || Expected
+            }
+            {try
+                {db.sql-value "SELECT y FROM t WHERE x=2", 2}
+                {TestCondition.fail
+                    message = "Statement with missing index param should fail."
+                }
+             catch e:SQLiteException do
+                || Expected
+            }
+            {try
+                {db.sql-value "SELECT y FROM t WHERE x=2", x = 2}
+                {TestCondition.fail
+                    message = "Statement with missing named param should fail."
+                }
+             catch e:SQLiteException do
+                || Expected
+            }
+        }
+    },
     {test-case "database error-if-missing",
         let u:Url = {url "curl://temp/does-not-exist-db"}
         {try
@@ -617,7 +675,7 @@ CREATE TABLE test (
             {with-database
                 db = {SQLiteDatabase u, error-if-missing? = true}
              do
-                {db.execute "SELECT 1 FROM hi"}
+                {db.execute "SELECT * FROM hi"}
             }
             {delete u, error-if-missing? = false}
             {TestCondition.terminate
