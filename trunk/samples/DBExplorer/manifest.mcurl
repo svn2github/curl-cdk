@@ -30,7 +30,7 @@
 
 {component package COM.CURL.CDK.DB-EXPLORER,
     location = "load.scurl",
-    version = "0.8"
+    version = "0.9"
 }
 
 {component file DBX-STYLE-SHEET,

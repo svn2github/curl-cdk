@@ -115,7 +115,7 @@
   {constructor public {default
                           url:Url
                       }
-    set self.connection = {SQLiteConnection database-url = url, error-if-missing? = true}
+    set self.connection = {SQLiteConnection {SQLiteDatabase url, error-if-missing? = true}}
     set self.task-rs =
         {self.connection.create-sql-record-set-from-table-name
             "main", "task", request-modifiable? = true
