@@ -27,10 +27,10 @@
 CREATE TABLE temp (
  year INT NOT NULL,
  month INT NOT NULL,
- day INT NOT NULL,
- max INT NOT NULL,
- mean INT NOT NULL,
- min INT NOT NULL,
+ day DOUBLE NOT NULL,
+ max DOUBLE NOT NULL,
+ mean DOUBLE NOT NULL,
+ min DOUBLE NOT NULL,
  PRIMARY KEY (year, month, day)
 );
 CREATE VIEW by_month AS
