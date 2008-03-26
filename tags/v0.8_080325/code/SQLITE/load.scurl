@@ -1,0 +1,66 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 package}
+{package COM.CURL.CDK.SQLITE,
+    version = "0.9",
+    resource-directory = "../resources/",
+    translations-file = "messages.xml",
+    {compiler-directives careful? = true}
+}
+
+{doc
+    type = package,
+    COM.CURL.CDK.SQLITE
+    {purpose
+        This super-package provides the packages needed for
+        working with local SQL databases using the popular
+        {link href = {url "http://www.sqlite.org"}, SQLite} SQL engine.
+        Developers normally import this package instead of the individual packages it contains.
+    }
+    {details
+        This package consolidates definitions from these packages:
+        {itemize
+            {item {docref COM.CURL.CDK.SQLITE-RECORDSET}}
+            {item {docref COM.CURL.CDK.SQLITE-BASE}}
+            {item {docref COM.CURL.CDK.SQLITE-LIBRARY}}
+        }
+    }
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
+{import public * from COM.CURL.CDK.SQLITE-SYNTAX}
+
+{import public
+    SQLiteStatus,
+    SQLiteOperation,
+    SQLiteAuthorizerReturnCode,
+    SQLiteDatatype,
+    SQLiteCommitHookProcType,
+    SQLiteRollbackHookProcType,
+    SQLiteBusyHandlerProcType,
+    SQLiteUpdateHookProcType,
+    SQLiteAuthorizerProcType,
+    SQLiteProgressHandlerProcType
+ from COM.CURL.CDK.SQLITE-LIBRARY}
+
+{import public * from COM.CURL.CDK.SQLITE-BASE}
+{import public * from COM.CURL.CDK.SQLITE-RECORDSET}
