@@ -19,6 +19,7 @@
     version = "0.9",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
+    use-built-in? = false,
     {compiler-directives careful? = true}
 }
 
@@ -44,7 +45,13 @@
 {import * from COM.CURL.CDK.SQLITE-SYNTAX}
 {import * from COM.CURL.CDK.SQLITE-BASE}
 {import * from COM.CURL.CDK.SQL-BASE}
-{import SQLiteDatatype, SQLiteStatus from COM.CURL.CDK.SQLITE-LIBRARY}
+{if-use-built-in
+    {import SQLiteDatatype, SQLiteStatus, SQLiteException
+     from CURL.IO.SQLITE-LIBRARY}
+ else
+    {import SQLiteDatatype, SQLiteStatus, SQLiteException
+     from COM.CURL.CDK.SQLITE-LIBRARY}
+}
 
 {include "connection.scurl"}
 {include "domain.scurl"}

@@ -44,8 +44,20 @@
     }
 }
 {import * from CURL.LANGUAGE.DLL-INTERFACE}
+||{import * from CURL.IO.SQLITE-LIBRARY-SYNTAX}
 {import * from COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX}
+{if-built-in
+    {import-hidden get-process-security-manager, SecurityManagerInterface
+     from CURL.SECURITY.CORE
+    }
+    {import-hidden PrivilegedUrl
+     from CURL.IO.FILE
+    }
+}
 
-{include "library-defs.scurl"}
-{include "library-dll.scurl"}
-{include "library.scurl"}
+{include
+    "library-defs.scurl",
+    "defs.scurl",
+    "library.scurl",
+    "database-handle.scurl"
+}

@@ -201,3 +201,27 @@
         }
     }
 }
+
+{define-macro public {if-use-built-in
+                         ?body:statements
+                         ?else-and-body:{optional else ?:statements}
+                     }
+    let (v:any, found?:bool) =
+        {macro-env.meta-data.get-if-exists "use-built-in?"}
+    {return
+        {if found? and v == true then
+            {expand-template
+                ?body
+            }
+         else
+            {syntax-switch else-and-body
+             case {pattern else ?else-body:statements} do
+                {expand-template
+                    ?else-body
+                }
+             else
+                {EmptySource}
+            }
+        }
+    }
+}

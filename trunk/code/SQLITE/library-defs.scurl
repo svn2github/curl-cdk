@@ -46,12 +46,10 @@
 
 {let package constant SQLITE_UTF8:int = 1}
 
-|| TODO: It would be better if these were value classes in 6.0 to
-|| make them type safe.
-{let public constant SQLiteDatabaseHandle:Type = CPointer}
-{let public constant SQLiteStatementHandle:Type = CPointer}
-{let public constant SQLiteContextHandle:Type = CPointer}
-{let public constant SQLiteValueHandle:Type = CPointer}
+{let package constant LowSQLiteDatabaseHandle:Type = CPointer}
+{let package constant LowSQLiteStatementHandle:Type = CPointer}
+{let package constant SQLiteContextHandle:Type = CPointer}
+{let package constant SQLiteValueHandle:Type = CPointer}
 
 {let package constant LowSQLiteExecCallbackProcType:ProcType =
     {proc-type 

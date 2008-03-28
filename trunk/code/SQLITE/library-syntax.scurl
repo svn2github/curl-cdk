@@ -21,6 +21,12 @@
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
+||{import-hidden ThreadExit
+|| from CURL.RUNTIME.PROCESS
+||}
+||{import-hidden critical-try
+|| from CURL.LANGUAGE.COMPILER
+||}
 
 {doc
     type = package,
@@ -44,19 +50,14 @@
 {import * from CURL.LANGUAGE.SOURCE}
 
 || Used for all callback/hooks/handlers to defer exceptions until later.
-{define-class public final SQLiteDelayedExceptionEvent
+{define-class package final SQLiteDelayedExceptionEvent
   {inherits Event, BasicEventTarget}
 
-  field private constant exception:Exception
+  field private constant exception:Object
   
-  {constructor package {default ex:Exception}
+  {constructor package {default ex:Object}
     set self.exception = ex
   }                           
-  {define-proc public {create-and-enqueue ex:Exception}:void
-    let event:SQLiteDelayedExceptionEvent =
-        {SQLiteDelayedExceptionEvent ex}
-    {event.enqueue-event event, position = EventQueuePosition.head}
-  }
   
   || See BasicEventTarget.
   {method public final {verify-event event:Event}:void
@@ -66,27 +67,63 @@
   || See BasicEventTarget.
   {method public final {handle-event event:Event}:void
     {self.verify-event event}
-    {throw self.exception}
+    || Do this to let us not say what type of data self.execption
+    || is.  If it is an Object then throw doesn't like it.  And
+    || BasicThrowable isn't visable when not built-in.
+    || Yes that is throw-up that you taste in your mouth.
+    {with-compiler-directives allow-implicit-any-casts? = true do
+        {throw (self.exception asa any)}
+    }
   }
+}
+
+{define-proc package {enqueue-delayed-exception ex:Object}:void
+    def event = {SQLiteDelayedExceptionEvent ex}
+    {event.enqueue-event event, position = EventQueuePosition.head}
 }
 
 {define-macro public {with-defered-exceptions
                          ?body:statements
                      }
-    let exception-type:Identifier =
-        {Identifier 
-            {if macro-env.meta-data.jit-compiled? then
-                "Exception"
-             else
-                "BasicThrowable"
+    {return
+        {if macro-env.meta-data.jit-compiled? then
+            {expand-template
+                {try
+                    ?body
+                 catch t:Exception do
+                    {enqueue-delayed-exception t}
+                }
+            }
+         else
+            {expand-template
+                {critical-try
+                    ?body
+                 catch t:ThreadExit do
+                    {enqueue-delayed-exception t}
+                 catch t:Exception do
+                    {enqueue-delayed-exception t}
+                }
             }
         }
+    }
+}
+{define-macro public {if-built-in
+                         ?body:statements
+                         ?else-and-body:{optional else ?:statements}
+                     }
     {return
-        {expand-template
-            {try
+        {if not macro-env.meta-data.jit-compiled? then
+            {expand-template
                 ?body
-             catch t:?exception-type do
-                {SQLiteDelayedExceptionEvent.create-and-enqueue t}
+            }
+         else
+            {syntax-switch else-and-body
+             case {pattern else ?else-body:statements} do
+                {expand-template
+                    ?else-body
+                }
+             else
+                {EmptySource}
             }
         }
     }

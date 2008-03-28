@@ -19,6 +19,7 @@
     version = "0.9",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
+    use-built-in? = false,
     {compiler-directives careful? = true}
 }
 
@@ -39,16 +40,26 @@
 }
 
 || Needed for some of the types passed to SQLiteInterface
-{import * from CURL.LANGUAGE.DLL-INTERFACE}
-{import * from COM.CURL.CDK.SQLITE-LIBRARY}
 {import * from COM.CURL.CDK.SQLITE-SYNTAX}
+{if-use-built-in
+    {import * from CURL.IO.SQLITE-LIBRARY}
+ else
+    {import * from COM.CURL.CDK.SQLITE-LIBRARY}
+}
 
 || For CsvDataReader used by SQLiteStatement.import-csv
 {import * from CURL.DATA-ACCESS.BASE}
 
 {include 
-    "defs.scurl",
     "events.scurl",
     "database.scurl",
-    "statement.scurl"
+    "statement.scurl",
+    "library-dll.scurl"
 }
+
+{if-use-built-in
+else
+    || Only do this if you do not want the built-in version of the dll.
+    {SQLiteInterface.set-library-url {local-library-url "libsqlite"}}
+}
+

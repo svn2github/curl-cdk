@@ -509,6 +509,11 @@
         {if (start-record != 0 or size-limit >= 0) and
             {query.prefix? "SELECT", ignore-case? = true}
          then
+            || Note: This is apparently slower than looking at keys
+            || and just asking for the next size-limit rows after the last
+            || key that was loaded.  But there is no way to implement
+            || that generically.  Maybe we could let whatever is doing paging
+            || remember rowids/keys and use that to help implement that.
             set query = query & " LIMIT " & start-record & ", " & size-limit
             true
          else

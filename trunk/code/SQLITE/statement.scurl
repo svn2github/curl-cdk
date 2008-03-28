@@ -96,6 +96,7 @@
                        }
     set self.database = database
     set self.sql = {sql.to-String}
+    set self.stmt = {SQLiteStatementHandle}
   }
 
   {doc-next
@@ -180,11 +181,11 @@
     }
   }
   {method public {prepare throw-on-error?:bool = true}:SQLiteStatus
-    {if self.stmt != 0 then {return SQLiteStatus.OK}}
+    {if self.stmt.open? then {return SQLiteStatus.OK}}
 
     let status:SQLiteStatus
     set (self.tail-sql, status) =
-        {self.database.prepare-statement self, throw-on-error?}
+        {self.database.prepare-statement self.sql, self.stmt, throw-on-error?}
     {if status == SQLiteStatus.OK then
         {if-non-null table = self._bind-table then
             {for val key i in table do
@@ -273,7 +274,7 @@
                           throw-on-error?:bool = true
                       }:SQLiteStatus
     let status:SQLiteStatus
-    {if self.stmt == 0 then
+    {if not self.stmt.open? then
         set status = {self.prepare throw-on-error? = throw-on-error?}
         {if status != SQLiteStatus.OK then
             {return status}
@@ -810,10 +811,9 @@
     }
   }
   {method public open {finalize}:SQLiteStatus
-    {if self.stmt == 0 then {return SQLiteStatus.OK}}
-
-    let constant status:SQLiteStatus = {self.database.finalize-statement self}
-    set self.stmt = 0
+    {if not self.stmt.open? then {return SQLiteStatus.OK}}
+    let constant status:SQLiteStatus =
+        {self.database.finalize-statement self.stmt}
     {return status}
   }
 
@@ -839,8 +839,7 @@
     }
   }
   {method public open {reset}:SQLiteStatus
-    {if self.stmt == 0 then {return SQLiteStatus.OK}}
-
+    {if not self.stmt.open? then {return SQLiteStatus.OK}}
     {return {{SQLiteInterface}.reset self.stmt}}
   }
 
@@ -851,7 +850,7 @@
     }
   }
   {method public open {clear-bindings}:void
-    {if self.stmt == 0 then {return}}
+    {if not self.stmt.open? then {return}}
     set self._bind-table = null
     
     {if {{SQLiteInterface}.clear-bindings self.stmt} != SQLiteStatus.OK then

@@ -77,7 +77,7 @@
     {return file}
 }
 
-{define-proc package {local-SharedLibrary name:String}:SharedLibrary
+{define-proc public {local-library-url name:String}:Url
     || manifest specifies library location
     || - qualified by platform
     def mloc =
@@ -121,6 +121,8 @@
         {if {http-url? mloc} then
             || TODO: dguide recommends "curl://common/"
             {user-data-copy-of mloc, name}
-         else mloc}
-    {return {SharedLibrary.from-url loc}}
+        else
+            mloc
+        }
+    {return loc}
 }

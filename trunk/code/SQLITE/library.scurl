@@ -48,11 +48,55 @@
   || but we do not expose those on any of the public functions because
   || the Curl language closure is better.
 
+  let private library-url:#Url
   || Holds singleton instance.
   let private interface:#SQLiteInterface
+  {define-proc public {set-library-url u:Url}:void
+    {if-built-in
+        {if not {process-privileged?} then
+            {throw
+                {SecurityException
+                    {lmessage Only privileged processes can set the library url.}
+                }
+            }
+        }
+    }
+    set SQLiteInterface.library-url = u
+  }
 
   {constructor private {create}
-    {construct-super {local-SharedLibrary "libsqlite"}}
+    let u:Url =
+        {if-non-null library-url = SQLiteInterface.library-url then
+            library-url
+         else
+            let default-url:Url = 
+                {abs-url
+                    "curl://install/lib/" &
+                    {platform-switch
+                     case "win32" do
+                        "sqlite_3-5-6.dll"
+                     case "linux" do
+                        "sqlite_3-5-6.so"
+                     case "mac" do
+                        {platform-switch
+                         case "x86" do
+                            "sqlite_3-5-6.x86.dylib"
+                         case "ppc" do
+                            "sqlite_3-5-6.ppc.dylib"
+                         else
+                            {unreachable}
+                        }
+                     else
+                        {unreachable}
+                    }
+                }
+            {if-built-in
+                {PrivilegedUrl default-url}
+             else
+                default-url
+            }
+        }
+    {construct-super {SharedLibrary.from-url u}}
   }
 
   {method protected {reclaim-resources}:void
@@ -122,19 +166,19 @@
         released by calling {docref SQLiteInterface.close}.
     }
   }
-  {method public {open
-                     filename:String,
-                     fail-if-missing?:bool = false,
-                     read-only?:bool = false
-                 }:(SQLiteStatus, SQLiteDatabaseHandle)
+  {method package {open
+                      filename:String,
+                      fail-if-missing?:bool = false,
+                      read-only?:bool = false
+                  }:(SQLiteStatus, LowSQLiteDatabaseHandle)
     let constant SQLITE_OPEN_READONLY:int = 0x1
     let constant SQLITE_OPEN_READWRITE:int = 0x2
     let constant SQLITE_OPEN_CREATE:int = 0x4
     let constant flags:int =
         {if fail-if-missing? then 0 else SQLITE_OPEN_CREATE} +
         {if read-only? then SQLITE_OPEN_READONLY else SQLITE_OPEN_READWRITE}
-    let db-ptr:{Pointer-to SQLiteDatabaseHandle} =
-        {new {Pointer-to SQLiteDatabaseHandle}}
+    let db-ptr:{Pointer-to LowSQLiteDatabaseHandle} =
+        {new {Pointer-to LowSQLiteDatabaseHandle}}
     let status:SQLiteStatus = 
         {SQLiteStatus
             index = {self.open-internal filename, db-ptr, flags, null}
@@ -144,7 +188,7 @@
 
   {dll-method private {open-internal ("sqlite3_open_v2")
                           filename:String,
-                          sqlite3:{Pointer-to SQLiteDatabaseHandle},
+                          sqlite3:{Pointer-to LowSQLiteDatabaseHandle},
                           flags:int,
                           vfs-module:#String
                       }:int
@@ -166,14 +210,14 @@
         return {ctext SQLiteStatus.BUSY}.
     }
   }
-  {method public {close
-                     sqlite3:SQLiteDatabaseHandle
-                 }:SQLiteStatus
+  {method package {close
+                     sqlite3:LowSQLiteDatabaseHandle
+                  }:SQLiteStatus
     {return {SQLiteStatus index = {self.close-internal sqlite3}}}
   }
 
   {dll-method private {close-internal ("sqlite3_close")
-                          sqlite3:SQLiteDatabaseHandle
+                          sqlite3:LowSQLiteDatabaseHandle
                       }:int
   }
 
@@ -275,14 +319,33 @@
 ||--    {return {SQLiteStatus index = status-code}, errmsg}
 ||--  }
 ||--
-||--  {dll-method private {exec-internal ("sqlite3_exec")
-||--                          sqlite3:SQLiteDatabaseHandle,
-||--                          sql:String,
-||--                          callback:SQLiteExecCallbackPointerType,
-||--                          userdata:CPointer,
-||--                          errmsg:{Pointer-to CStringUTF8}
-||--                      }:int
-||--  }
+  {method public {exec
+                     sqlite3:LowSQLiteDatabaseHandle,
+                     sql:String
+                 }:(SQLiteStatus, errmsg:String)
+    let errmsg-pointer:{Pointer-to CStringUTF8} = {{Pointer-to CStringUTF8}}
+    let status-code:int =
+        {self.exec-internal
+            sqlite3, sql, 
+            {uninitialized-value-for-type SQLiteExecCallbackPointerType},
+            0, errmsg-pointer
+        }
+    let errmsg:String = ""
+    {if status-code != SQLiteStatus.OK.index then
+        set errmsg = {errmsg-pointer.value.to-String}
+        {self.free errmsg-pointer.value}
+    }
+    {return {SQLiteStatus index = status-code}, errmsg}
+  }
+
+  {dll-method private {exec-internal ("sqlite3_exec")
+                          sqlite3:LowSQLiteDatabaseHandle,
+                          sql:String,
+                          callback:SQLiteExecCallbackPointerType,
+                          userdata:CPointer,
+                          errmsg:#{Pointer-to CStringUTF8}
+                      }:int
+  }
 
 ||--  {doc-next
 ||--    {purpose
@@ -442,14 +505,14 @@
         if any.
     }
   }
-  {method public {prepare
-                     sqlite3:SQLiteDatabaseHandle,
-                     sql:String
-                 }:(SQLiteStatus, stmt:SQLiteStatementHandle, tail:#String)
+  {method package {prepare
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      sql:String
+                  }:(SQLiteStatus, stmt:LowSQLiteStatementHandle, tail:#String)
     let sql-utf8:CStringUTF8 = {CStringUTF8 sql}
     let tail-ptr:{Pointer-to CStringUTF8} = {new {Pointer-to CStringUTF8}}
-    let stmt-ptr:{Pointer-to SQLiteStatementHandle} =
-        {new {Pointer-to SQLiteStatementHandle}}
+    let stmt-ptr:{Pointer-to LowSQLiteStatementHandle} =
+        {new {Pointer-to LowSQLiteStatementHandle}}
     let status:SQLiteStatus =
         {SQLiteStatus
             index =
@@ -475,7 +538,7 @@
                          || that tail will point to valid storage.
                          sql:CStringUTF8,
                          nbytes:int,
-                         stmt:{Pointer-to SQLiteStatementHandle},
+                         stmt:{Pointer-to LowSQLiteStatementHandle},
                          tail:{Pointer-to CStringUTF8}
                      }:int
   }  
@@ -509,11 +572,11 @@
     }
   }
   {method public {step stmt:SQLiteStatementHandle}:SQLiteStatus
-    {return {SQLiteStatus index = {self.step-internal stmt}}}
+    {return {SQLiteStatus index = {self.step-internal stmt._handle}}}
   }
 
   {dll-method private {step-internal ("sqlite3_step")
-                          stmt:SQLiteStatementHandle
+                          stmt:LowSQLiteStatementHandle
                       }:int
   }
 
@@ -534,9 +597,15 @@
         number of values in the current row of the result set.
     }
   }
-  {dll-method public {data-count ("sqlite3_data_count")
-                         stmt:SQLiteStatementHandle
-                     }:int
+  {method public {data-count
+                     stmt:SQLiteStatementHandle
+                 }:int
+    {return {self.data-count-internal stmt._handle}}
+  }
+
+  {dll-method private {data-count-internal ("sqlite3_data_count")
+                          stmt:LowSQLiteStatementHandle
+                      }:int
   }
 
   {doc-next
@@ -553,9 +622,15 @@
         {param stmt} is an SQL statement that does not return data.
     }
   }
-  {dll-method public {column-count ("sqlite3_column_count")
-                         stmt:SQLiteStatementHandle
-                     }:int
+  {method public {column-count
+                     stmt:SQLiteStatementHandle
+                 }:int
+    {return {self.column-count-internal stmt._handle}}
+  }
+
+  {dll-method private {column-count-internal ("sqlite3_column_count")
+                          stmt:LowSQLiteStatementHandle
+                      }:int
   }
   
   {doc-next
@@ -575,10 +650,16 @@
         The column name.
     }
   }
-  {dll-method public {column-name ("sqlite3_column_name")
-                         stmt:SQLiteStatementHandle,
-                         column-index:int
-                     }:String
+  {method public {column-name
+                     stmt:SQLiteStatementHandle,
+                     column-index:int
+                 }:String
+    {return {self.column-name-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-name-internal ("sqlite3_column_name")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:String
   }
   
   {doc-next
@@ -608,10 +689,14 @@
                      stmt:SQLiteStatementHandle,
                      column-index:int
                  }:SQLiteDatatype
-    {return {SQLiteDatatype index = {self.column-type-internal stmt, column-index}}}
+    {return
+        {SQLiteDatatype
+            index = {self.column-type-internal stmt._handle, column-index}
+        }
+    }
   }
   {dll-method private {column-type-internal ("sqlite3_column_type")
-                          stmt:SQLiteStatementHandle,
+                          stmt:LowSQLiteStatementHandle,
                           column-index:int
                       }:int
   }
@@ -644,8 +729,14 @@
         {ctext null} is returned.
     }
   }
-  {dll-method public {column-decltype ("sqlite3_column_decltype")
-                         stmt:SQLiteStatementHandle,
+  {method public {column-decltype
+                     stmt:SQLiteStatementHandle,
+                     column-index:int
+                 }:#String
+    {return {self.column-decltype-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-decltype-internal ("sqlite3_column_decltype")
+                         stmt:LowSQLiteStatementHandle,
                          column-index:int
                      }:#String
   }
@@ -677,10 +768,16 @@
         value with 0 one can use {docref SQLiteInterface.column-type}.
     }
   }
-  {dll-method public {column-int ("sqlite3_column_int")
-                         stmt:SQLiteStatementHandle,
-                         column-index:int
-                     }:int
+  {method public {column-int
+                     stmt:SQLiteStatementHandle,
+                     column-index:int
+                 }:int
+    {return {self.column-int-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-int-internal ("sqlite3_column_int")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:int
   }
 
   {doc-next
@@ -710,10 +807,16 @@
         value with 0 one can use {docref SQLiteInterface.column-type}.
     }
   }
-  {dll-method public {column-int64 ("sqlite3_column_int64")
-                         stmt:SQLiteStatementHandle,
-                         column-index:int
-                     }:int64
+  {method public {column-int64
+                     stmt:SQLiteStatementHandle,
+                     column-index:int
+                 }:int64
+    {return {self.column-int64-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-int64-internal ("sqlite3_column_int64")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:int64
   }
 
   {doc-next
@@ -743,10 +846,16 @@
         value with 0 one can use {docref SQLiteInterface.column-type}.
     }
   }
-  {dll-method public {column-double ("sqlite3_column_double")
-                         stmt:SQLiteStatementHandle,
-                         column-index:int
-                     }:double
+  {method public {column-double
+                     stmt:SQLiteStatementHandle,
+                     column-index:int
+                 }:double
+    {return {self.column-double-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-double-internal ("sqlite3_column_double")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:double
   }
 
   {doc-next
@@ -772,10 +881,16 @@
         undefined.
     }
   }
-  {dll-method public {column-text ("sqlite3_column_text")
+  {method public {column-text
                          stmt:SQLiteStatementHandle,
                          column-index:int
                      }:#String
+    {return {self.column-text-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-text-internal ("sqlite3_column_text")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:#String
   }
 
   {doc-next
@@ -810,7 +925,7 @@
                      out:#ByteArray = null
                  }:#ByteArray
     || Note: you must call this before column-bytes according to SQLite docs
-    let _bytes:CPointer = {self.column-blob-internal stmt, column-index}
+    let _bytes:CPointer = {self.column-blob-internal stmt._handle, column-index}
     {if _bytes == 0 then
         {return null}
     }
@@ -829,7 +944,7 @@
   }
 
   {dll-method private {column-blob-internal ("sqlite3_column_blob")
-                         stmt:SQLiteStatementHandle,
+                         stmt:LowSQLiteStatementHandle,
                          column-index:int
                      }:CPointer
   }
@@ -858,10 +973,16 @@
         undefined.
     }
   }
-  {dll-method public {column-bytes ("sqlite3_column_bytes")
+  {method public {column-bytes
                          stmt:SQLiteStatementHandle,
                          column-index:int
                      }:int
+    {return {self.column-bytes-internal stmt._handle, column-index}}
+  }
+  {dll-method private {column-bytes-internal ("sqlite3_column_bytes")
+                          stmt:LowSQLiteStatementHandle,
+                          column-index:int
+                      }:int
   }
 
   {doc-next
@@ -893,14 +1014,14 @@
         SQLiteStatus.ABORT}.
     }
   }
-  {method public {finalize
-                     stmt:SQLiteStatementHandle
-                 }:SQLiteStatus
-    {return {SQLiteStatus index = {self.finalize-internal stmt}}}
+  {method package {finalize
+                      handle:LowSQLiteStatementHandle
+                  }:SQLiteStatus
+    {return {SQLiteStatus index = {self.finalize-internal handle}}}
   }
 
   {dll-method private {finalize-internal ("sqlite3_finalize")
-                          stmt:SQLiteStatementHandle
+                          stmt:LowSQLiteStatementHandle
                       }:int
   }
 
@@ -922,11 +1043,11 @@
   {method public {reset
                      stmt:SQLiteStatementHandle
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.reset-internal stmt}}}
+    {return {SQLiteStatus index = {self.reset-internal stmt._handle}}}
   }
 
   {dll-method private {reset-internal ("sqlite3_reset")
-                          stmt:SQLiteStatementHandle
+                          stmt:LowSQLiteStatementHandle
                       }:int
   }
 
@@ -966,10 +1087,12 @@
                      index:int,
                      val:int
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.bind-int-internal stmt, index, val}}}
+    {return
+        {SQLiteStatus index = {self.bind-int-internal stmt._handle, index, val}}
+    }
   }
   {dll-method private {bind-int-internal ("sqlite3_bind_int")
-                          stmt:SQLiteStatementHandle,
+                          stmt:LowSQLiteStatementHandle,
                           index:int,
                           val:int
                       }:int
@@ -1009,10 +1132,14 @@
                      index:int,
                      val:int64
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.bind-int64-internal stmt, index, val}}}
+    {return
+        {SQLiteStatus
+            index = {self.bind-int64-internal stmt._handle, index, val}
+        }
+    }
   }
   {dll-method private {bind-int64-internal ("sqlite3_bind_int64")
-                          stmt:SQLiteStatementHandle,
+                          stmt:LowSQLiteStatementHandle,
                           index:int,
                           val:int64
                       }:int
@@ -1054,14 +1181,16 @@
                      val:double
                  }:SQLiteStatus
     {return
-        {SQLiteStatus index = {self.bind-double-internal stmt, index, val}}
+        {SQLiteStatus
+            index = {self.bind-double-internal stmt._handle, index, val}
+        }
     }
   }
   {dll-method private {bind-double-internal ("sqlite3_bind_double")
-                      stmt:SQLiteStatementHandle,
-                      index:int,
-                      val:double
-                  }:int
+                          stmt:LowSQLiteStatementHandle,
+                          index:int,
+                          val:double
+                      }:int
   }
 
   {doc-next
@@ -1094,10 +1223,12 @@
                      stmt:SQLiteStatementHandle,
                      index:int
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.bind-null-internal stmt, index}}}
+    {return
+        {SQLiteStatus index = {self.bind-null-internal stmt._handle, index}}
+    }
   }
   {dll-method private {bind-null-internal ("sqlite3_bind_null")
-                         stmt:SQLiteStatementHandle,
+                         stmt:LowSQLiteStatementHandle,
                          index:int
                      }:int
   }
@@ -1141,7 +1272,7 @@
         {SQLiteStatus
             index = 
                 {self.bind-text-internal 
-                    stmt, index, val, -1, SQLiteTransient
+                    stmt._handle, index, val, -1, SQLiteTransient
                 }
         }
     }
@@ -1163,7 +1294,7 @@
   ||       is finalized.
   ||
   {dll-method private {bind-text-internal ("sqlite3_bind_text")
-                         stmt:SQLiteStatementHandle,
+                         stmt:LowSQLiteStatementHandle,
                          index:int,
                          val:String,
                          nval:int,
@@ -1210,7 +1341,8 @@
         {SQLiteStatus
             index =
             {self.bind-blob-internal
-                stmt, index, val.underlying-FastArray, val.size, SQLiteTransient
+                stmt._handle, index, val.underlying-FastArray, val.size,
+                SQLiteTransient
             }
         }
     }
@@ -1225,7 +1357,7 @@
   || then SQLite makes its own copy of the data before returning and
   || automatically cleans it up when the query is finalized.
   {dll-method private {bind-blob-internal ("sqlite3_bind_blob")
-                         stmt:SQLiteStatementHandle,
+                         stmt:LowSQLiteStatementHandle,
                          index:int,
                          val:CPointer,
                          nval:int,
@@ -1246,9 +1378,15 @@
         The number of parameters in {param stmt}.
     }
   }
-  {dll-method public {bind-parameter-count ("sqlite3_bind_parameter_count")
-                         stmt:SQLiteStatementHandle
-                     }:int
+  {method public {bind-parameter-count
+                     stmt:SQLiteStatementHandle
+                 }:int
+    {return {self.bind-parameter-count-internal stmt._handle}}
+  }
+  {dll-method private {bind-parameter-count-internal
+                          ("sqlite3_bind_parameter_count")
+                          stmt:LowSQLiteStatementHandle
+                      }:int
   }
 
   {doc-next
@@ -1272,10 +1410,18 @@
         The name of the parameter at {param index} in {param stmt}.
     }
   }
-  {dll-method public {bind-parameter-name ("sqlite3_bind_parameter_name")
-                         stmt:SQLiteStatementHandle,
-                         index:int
-                     }:#String
+  {method public {bind-parameter-name
+                     stmt:SQLiteStatementHandle,
+                     index:int
+                 }:#String
+    {return {self.bind-parameter-name-internal stmt._handle, index}}
+  }
+
+  {dll-method private {bind-parameter-name-internal
+                          ("sqlite3_bind_parameter_name")
+                          stmt:LowSQLiteStatementHandle,
+                          index:int
+                      }:#String
   }
   
   {doc-next
@@ -1297,8 +1443,15 @@
         given name, this method returns 0.
     }
   }
-  {dll-method public {bind-parameter-index ("sqlite3_bind_parameter_index")
-                         stmt:SQLiteStatementHandle,
+  {method public {bind-parameter-index
+                     stmt:SQLiteStatementHandle,
+                     name:String
+                 }:int
+    {return {self.bind-parameter-index-internal stmt._handle, name}}
+  }
+  {dll-method private {bind-parameter-index-internal
+                          ("sqlite3_bind_parameter_index")
+                         stmt:LowSQLiteStatementHandle,
                          name:String
                      }:int
   }
@@ -1317,11 +1470,11 @@
   {method public {clear-bindings
                      stmt:SQLiteStatementHandle
                  }:SQLiteStatus
-    {return {SQLiteStatus index = {self.clear-bindings-internal stmt}}}
+    {return {SQLiteStatus index = {self.clear-bindings-internal stmt._handle}}}
   }
 
   {dll-method private {clear-bindings-internal ("sqlite3_clear_bindings")
-                          stmt:SQLiteStatementHandle
+                          stmt:LowSQLiteStatementHandle
                       }:int
   }
 
@@ -1380,10 +1533,10 @@
         the callback, which must be kept alive.
     }
   }
-  {method public {busy-handler
-                     sqlite3:SQLiteDatabaseHandle,
-                     callback:#SQLiteBusyHandlerProcType
-                 }:(SQLiteStatus, SQLiteBusyHandlerPointerType)
+  {method package {busy-handler
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      callback:#SQLiteBusyHandlerProcType
+                  }:(SQLiteStatus, SQLiteBusyHandlerPointerType)
     let ret:SQLiteBusyHandlerPointerType =
         {if-non-null callback then
             {SQLiteBusyHandlerPointerType
@@ -1408,7 +1561,7 @@
     }
   }
   {dll-method private {busy-handler-internal ("sqlite3_busy_handler")
-                          sqlite3:SQLiteDatabaseHandle,
+                          sqlite3:LowSQLiteDatabaseHandle,
                           callback:SQLiteBusyHandlerPointerType,
                           userdata:CPointer
                       }:int
@@ -1431,15 +1584,15 @@
         {param ms} is a number of milliseconds.
     }
   }
-  {method public {busy-timeout
-                     sqlite3:SQLiteDatabaseHandle,
+  {method package {busy-timeout
+                     sqlite3:LowSQLiteDatabaseHandle,
                      ms:int
-                 }:SQLiteStatus
+                  }:SQLiteStatus
     {return {SQLiteStatus index = {self.busy-timeout-internal sqlite3, ms}}}
   }
 
   {dll-method private {busy-timeout-internal ("sqlite3_busy_timeout")
-                          sqlite3:SQLiteDatabaseHandle,
+                          sqlite3:LowSQLiteDatabaseHandle,
                           ms:int
                       }:int
   }
@@ -1478,10 +1631,10 @@
         SQLiteInterface.rollback-hook}.
     }
   }
-  {method public {update-hook
-                     sqlite3:SQLiteDatabaseHandle,
-                     callback:#SQLiteUpdateHookProcType
-                 }:SQLiteUpdateCallbackPointerType
+  {method package {update-hook
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      callback:#SQLiteUpdateHookProcType
+                  }:SQLiteUpdateCallbackPointerType
     let constant ret:SQLiteUpdateCallbackPointerType =
         {if-non-null callback then
             {SQLiteUpdateCallbackPointerType
@@ -1508,7 +1661,7 @@
   }
 
   {dll-method private {update-hook-internal ("sqlite3_update_hook")
-                          sqlite3:SQLiteDatabaseHandle,
+                          sqlite3:LowSQLiteDatabaseHandle,
                           callback:SQLiteUpdateCallbackPointerType,
                           userdata:CPointer
                       }:CPointer
@@ -1533,10 +1686,10 @@
         the callback, which must be kept alive.
     }
   }
-  {method public {commit-hook
-                     sqlite3:SQLiteDatabaseHandle,
-                     callback:#SQLiteCommitHookProcType
-                 }:SQLiteCommitCallbackPointerType
+  {method package {commit-hook
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      callback:#SQLiteCommitHookProcType
+                  }:SQLiteCommitCallbackPointerType
     let constant ret:SQLiteCommitCallbackPointerType =
         {if-non-null callback then
             {SQLiteCommitCallbackPointerType
@@ -1555,7 +1708,7 @@
   }
 
   {dll-method private {commit-hook-internal ("sqlite3_commit_hook")
-                         sqlite3:SQLiteDatabaseHandle,
+                         sqlite3:LowSQLiteDatabaseHandle,
                          callback:SQLiteCommitCallbackPointerType,
                          userdata:CPointer
                      }:CPointer
@@ -1584,10 +1737,10 @@
         database connection is closed.
     }
   }
-  {method public {rollback-hook
-                     sqlite3:SQLiteDatabaseHandle,
-                     callback:#SQLiteRollbackHookProcType
-                 }:SQLiteRollbackCallbackPointerType
+  {method package {rollback-hook
+                      sqlite3: LowSQLiteDatabaseHandle,
+                      callback:#SQLiteRollbackHookProcType
+                  }:SQLiteRollbackCallbackPointerType
     let ret:SQLiteRollbackCallbackPointerType =
         {if-non-null callback then
             {SQLiteRollbackCallbackPointerType
@@ -1605,7 +1758,7 @@
   }
 
   {dll-method private {rollback-hook-internal ("sqlite3_rollback_hook")
-                         sqlite3:SQLiteDatabaseHandle,
+                         sqlite3:LowSQLiteDatabaseHandle,
                          callback:SQLiteRollbackCallbackPointerType,
                          userdata:CPointer
                      }:CPointer
@@ -1644,17 +1797,17 @@
   || should be passed for xFunc. To delete an existing SQL function or
   || aggregate, pass NULL for all three function callback.
 
-  {method public {create-function
-                     sqlite3:SQLiteDatabaseHandle,
-                     name:String,
-                     num-args:int,
-                     xfunc:#SQLiteFunctionProcType,
-                     xstep:#SQLiteFunctionProcType,
-                     xfinal:#SQLiteFinalFunctionProcType
-                 }:(SQLiteStatus, 
-                     xfunc:SQLiteFunctionPointerType,
-                     xstep:SQLiteFunctionPointerType,
-                     xfinal:SQLiteFinalFunctionPointerType)
+  {method package {create-function
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      name:String,
+                      num-args:int,
+                      xfunc:#SQLiteFunctionProcType,
+                      xstep:#SQLiteFunctionProcType,
+                      xfinal:#SQLiteFinalFunctionProcType
+                  }:(SQLiteStatus, 
+                      xfunc:SQLiteFunctionPointerType,
+                      xstep:SQLiteFunctionPointerType,
+                      xfinal:SQLiteFinalFunctionPointerType)
     let constant xfunc-ret:SQLiteFunctionPointerType =
         {if-non-null xfunc then
             {SQLiteFunctionPointerType
@@ -1702,7 +1855,7 @@
   }
 
   {dll-method private {create-function-internal ("sqlite3_create_function")
-                         sqlite3:SQLiteDatabaseHandle,
+                         sqlite3:LowSQLiteDatabaseHandle,
                          name:String,
                          num-args:int,
                          textrep:int,
@@ -1725,9 +1878,9 @@
         The type of {param val}.
     }
   }
-  {method public {value-type
-                     val:SQLiteValueHandle
-                 }:SQLiteDatatype
+  {method package {value-type
+                      val:SQLiteValueHandle
+                  }:SQLiteDatatype
     {return
         {SQLiteDatatype
             index = {self.value-type-internal val}
@@ -1758,9 +1911,9 @@
         The value of {param val} as a {ctext int}.
     }
   }
-  {dll-method public {value-int ("sqlite3_value_int")
-                         val:SQLiteValueHandle
-                     }:int
+  {dll-method package {value-int ("sqlite3_value_int")
+                          val:SQLiteValueHandle
+                      }:int
   }
 
   {doc-next
@@ -1775,9 +1928,9 @@
         The value of {param val} as a {ctext int64}.
     }
   }
-  {dll-method public {value-int64 ("sqlite3_value_int64")
-                         val:SQLiteValueHandle
-                     }:int64
+  {dll-method package {value-int64 ("sqlite3_value_int64")
+                          val:SQLiteValueHandle
+                      }:int64
   }
 
   {doc-next
@@ -1792,9 +1945,9 @@
         The value of {param val} as a {ctext double}.
     }
   }
-  {dll-method public {value-double ("sqlite3_value_double")
-                         val:SQLiteValueHandle
-                     }:double
+  {dll-method package {value-double ("sqlite3_value_double")
+                          val:SQLiteValueHandle
+                      }:double
   }
 
   {doc-next
@@ -1809,9 +1962,9 @@
         The value of {param val} as a String.
     }
   }
-  {dll-method public {value-text ("sqlite3_value_text")
-                         val:SQLiteValueHandle
-                     }:#String
+  {dll-method package {value-text ("sqlite3_value_text")
+                          val:SQLiteValueHandle
+                      }:#String
   }
 
   {doc-next
@@ -1826,10 +1979,10 @@
         The value of {param val} as a {docref ByteArray}.
     }
   }
-  {method public {value-blob
-                     val:SQLiteValueHandle,
-                     out:#ByteArray = null
-                 }:#ByteArray
+  {method package {value-blob
+                      val:SQLiteValueHandle,
+                      out:#ByteArray = null
+                  }:#ByteArray
     || Note: you must call this before column-bytes according to SQLite docs
     let _bytes:CPointer = {self.value-blob-internal val}
     {if _bytes == 0 then
@@ -1869,9 +2022,9 @@
         The number of bytes it will take to hold {param val}.
     }
   }
-  {dll-method public {value-bytes ("sqlite3_value_bytes")
-                         val:SQLiteValueHandle
-                     }:int
+  {dll-method package {value-bytes ("sqlite3_value_bytes")
+                          val:SQLiteValueHandle
+                      }:int
   }
 
   {doc-next
@@ -1887,10 +2040,10 @@
         Value to set.
     }
   }
-  {method public {set-aggregate-context-int
-                     context:SQLiteContextHandle,
-                     val:int
-                 }:void
+  {method package {set-aggregate-context-int
+                      context:SQLiteContextHandle,
+                      val:int
+                  }:void
     {unsafe-memory-set int, {self.aggregate-context context, 4}, val}
   }
 
@@ -1910,9 +2063,9 @@
         Return will be 0 if a value has not been set for this context.
     }
   }
-  {method public {get-aggregate-context-int
-                     context:SQLiteContextHandle
-                 }:int
+  {method package {get-aggregate-context-int
+                      context:SQLiteContextHandle
+                  }:int
     {return {unsafe-memory-get int, {self.aggregate-context context, 4}}}
   }
 
@@ -1932,9 +2085,9 @@
         created with {docref SQLiteInterface.create-function}.
     }
   }
-  {dll-method public {result-null ("sqlite3_result_null")
-                         context:SQLiteContextHandle
-                     }:void
+  {dll-method package {result-null ("sqlite3_result_null")
+                          context:SQLiteContextHandle
+                      }:void
   }
 
   {doc-next
@@ -1950,10 +2103,10 @@
         The value to set.
     }
   }
-  {dll-method public {result-int ("sqlite3_result_int")
-                         context:SQLiteContextHandle,
-                         val:int
-                     }:void
+  {dll-method package {result-int ("sqlite3_result_int")
+                          context:SQLiteContextHandle,
+                          val:int
+                      }:void
   }
 
   {doc-next
@@ -1969,10 +2122,10 @@
         The value to set.
     }
   }
-  {dll-method public {result-int64 ("sqlite3_result_int64")
-                         context:SQLiteContextHandle,
-                         val:int64
-                     }:void
+  {dll-method package {result-int64 ("sqlite3_result_int64")
+                          context:SQLiteContextHandle,
+                          val:int64
+                      }:void
   }
 
   {doc-next
@@ -1988,10 +2141,10 @@
         The value to set.
     }
   }
-  {dll-method public {result-double ("sqlite3_result_double")
-                         context:SQLiteContextHandle,
-                         val:double
-                     }:void
+  {dll-method package {result-double ("sqlite3_result_double")
+                          context:SQLiteContextHandle,
+                          val:double
+                      }:void
   }
 
   {doc-next
@@ -2007,7 +2160,7 @@
         The value to set.
     }
   }
-  {method public {result-text context:SQLiteContextHandle, val:String}:void
+  {method package {result-text context:SQLiteContextHandle, val:String}:void
     {self.result-text-internal context, val, -1, SQLiteTransient} 
   }
 
@@ -2047,7 +2200,7 @@
         The value to set.
     }
   }
-  {method public {result-blob context:SQLiteContextHandle, val:ByteArray}:void
+  {method package {result-blob context:SQLiteContextHandle, val:ByteArray}:void
     {self.result-blob-internal
         context, val.underlying-FastArray, val.size, SQLiteTransient
     }
@@ -2085,10 +2238,10 @@
         The value to set.
     }
   }
-  {method public {result-error
-                     context:SQLiteContextHandle,
-                     val:String
-                 }:void
+  {method package {result-error
+                      context:SQLiteContextHandle,
+                      val:String
+                  }:void
     {self.result-error-internal context, val, -1}
   }
   {dll-method private {result-error-internal ("sqlite3_result_error")
@@ -2112,10 +2265,10 @@
     }
   }
   || Added in SQLite 3.5.6
-  {method public {result-error-code
-                     context:SQLiteContextHandle,
-                     val:SQLiteStatus
-                 }:void
+  {method package {result-error-code
+                      context:SQLiteContextHandle,
+                      val:SQLiteStatus
+                  }:void
     {self.result-error-code-internal context, val.index}
   }
 
@@ -2141,9 +2294,9 @@
   }
   || NOTE: If you add mprintf or vmprintf then mention them in the
   || notes section as well.
-  {dll-method public {free ("sqlite3_free")
-                         sql:CPointer
-                     }:void
+  {dll-method package {free ("sqlite3_free")
+                          sql:CPointer
+                      }:void
   }
 
 ||--  {doc-next
@@ -2190,9 +2343,15 @@
         See also: {docref SQLiteInterface.total-changes}.
     }
   }
-  {dll-method public {changes ("sqlite3_changes")
-                         sqlite3:SQLiteDatabaseHandle
-                     }:int
+  {method public {changes
+                     handle:SQLiteDatabaseHandle
+                 }:int
+    {return {self.changes-internal handle.non-null-sqlite3}}
+  }
+   
+  {dll-method private {changes-internal ("sqlite3_changes")
+                          sqlite3:LowSQLiteDatabaseHandle
+                      }:int
   }
    
   {doc-next
@@ -2225,9 +2384,15 @@
         See also: {docref SQLiteDatabase.changes}.
     }
   }
-  {dll-method public {total-changes ("sqlite3_total_changes")
-                         sqlite3:SQLiteDatabaseHandle
-                     }:int
+  {method public {total-changes
+                     handle:SQLiteDatabaseHandle
+                 }:int
+    {return {self.total-changes-internal handle.non-null-sqlite3}}
+  }
+
+  {dll-method package {total-changes-internal ("sqlite3_total_changes")
+                          sqlite3:LowSQLiteDatabaseHandle
+                      }:int
   }
 
   {doc-next
@@ -2249,9 +2414,14 @@
         ROWID}, {ctext OID}, OR {ctext _ROWID_}.
     }
   }
-  {dll-method public {last-insert-rowid ("sqlite3_last_insert_rowid")
-                         sqlite3:SQLiteDatabaseHandle
-                     }:int64
+  {method public {last-insert-rowid
+                     handle:SQLiteDatabaseHandle
+                 }:int64
+    {return {self.last-insert-rowid-internal handle.non-null-sqlite3}}
+  }
+  {dll-method private {last-insert-rowid-internal ("sqlite3_last_insert_rowid")
+                          sqlite3:LowSQLiteDatabaseHandle
+                      }:int64
   }
 
   || status
@@ -2274,12 +2444,14 @@
     }
   }
   {method public {errcode sqlite3:SQLiteDatabaseHandle}:SQLiteStatus
-    {return {SQLiteStatus value = {self.errcode-internal sqlite3}}}
+    {return
+        {SQLiteStatus value = {self.errcode-internal sqlite3.non-null-sqlite3}}
+    }
   }
 
-  {dll-method public {errcode-internal ("sqlite3_errcode")
-                         sqlite3:SQLiteDatabaseHandle
-                     }:int
+  {dll-method private {errcode-internal ("sqlite3_errcode")
+                          sqlite3:LowSQLiteDatabaseHandle
+                      }:int
   }
 
   {doc-next
@@ -2299,8 +2471,14 @@
         recent API call is successful.
     }
   }
-  {dll-method public {errmsg ("sqlite3_errmsg")
-                         sqlite3:SQLiteDatabaseHandle
+  {method public {errmsg
+                     sqlite3:SQLiteDatabaseHandle
+                 }:String
+    {return {self.errmsg-internal sqlite3.non-null-sqlite3}}
+  }
+
+  {dll-method private {errmsg-internal ("sqlite3_errmsg")
+                         sqlite3:LowSQLiteDatabaseHandle
                      }:String
   }
 
@@ -2355,9 +2533,14 @@
         Normally called from a callback of some sort.
     }
   }
-  {dll-method public {interrupt ("sqlite3_interrupt")
-                         sqlite3:SQLiteDatabaseHandle
-                     }:void
+  {method public {interrupt
+                     handle:SQLiteDatabaseHandle
+                 }:void
+    {self.interrupt-internal handle.non-null-sqlite3}
+  }
+  {dll-method private {interrupt-internal ("sqlite3_interrupt")
+                          sqlite3:LowSQLiteDatabaseHandle
+                      }:void
   }
 
   {doc-next
@@ -2386,11 +2569,11 @@
         progress handler.
     }
   }
-  {method public {progress-handler
-                     sqlite3:SQLiteDatabaseHandle,
-                     instruction-count:int,
-                     callback:#SQLiteProgressHandlerProcType
-                 }:SQLiteProgressHandlerPointerType
+  {method package {progress-handler
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      instruction-count:int,
+                      callback:#SQLiteProgressHandlerProcType
+                  }:SQLiteProgressHandlerPointerType
     let constant ret:SQLiteProgressHandlerPointerType =
         {if-non-null callback then
             {SQLiteProgressHandlerPointerType
@@ -2414,7 +2597,7 @@
   }
 
   {dll-method private {progress-handler-internal ("sqlite3_progress_handler")
-                          sqlite3:SQLiteDatabaseHandle,
+                          sqlite3:LowSQLiteDatabaseHandle,
                           instruction-count:int,
                           callback:SQLiteProgressHandlerPointerType,
                           userdata:CPointer
@@ -2452,10 +2635,10 @@
         authorizer callback.
     }
   }
-  {method public {set-authorizer
-                     sqlite3:SQLiteDatabaseHandle,
-                     callback:#SQLiteAuthorizerProcType
-                 }:(SQLiteStatus, SQLiteAuthorizerPointerType)
+  {method package {set-authorizer
+                      sqlite3:LowSQLiteDatabaseHandle,
+                      callback:#SQLiteAuthorizerProcType
+                  }:(SQLiteStatus, SQLiteAuthorizerPointerType)
     let constant ret:SQLiteAuthorizerPointerType =
         {if-non-null callback then
             {SQLiteAuthorizerPointerType
@@ -2495,7 +2678,7 @@
   }
 
   {dll-method private {set-authorizer-internal ("sqlite3_set_authorizer")
-                          sqlite3:SQLiteDatabaseHandle,
+                          sqlite3:LowSQLiteDatabaseHandle,
                           callback:SQLiteAuthorizerPointerType,
                           userdata:CPointer
                       }:int

@@ -19,6 +19,7 @@
     version = "0.9",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
+    use-built-in? = false,
     {compiler-directives careful? = true}
 }
 
@@ -49,6 +50,7 @@
 
 {import public * from COM.CURL.CDK.SQLITE-SYNTAX}
 
+{if-use-built-in
 {import public
     SQLiteStatus,
     SQLiteOperation,
@@ -59,8 +61,24 @@
     SQLiteBusyHandlerProcType,
     SQLiteUpdateHookProcType,
     SQLiteAuthorizerProcType,
-    SQLiteProgressHandlerProcType
+    SQLiteProgressHandlerProcType,
+    SQLiteException
+ from CURL.IO.SQLITE-LIBRARY}
+ else
+{import public
+    SQLiteStatus,
+    SQLiteOperation,
+    SQLiteAuthorizerReturnCode,
+    SQLiteDatatype,
+    SQLiteCommitHookProcType,
+    SQLiteRollbackHookProcType,
+    SQLiteBusyHandlerProcType,
+    SQLiteUpdateHookProcType,
+    SQLiteAuthorizerProcType,
+    SQLiteProgressHandlerProcType,
+    SQLiteException
  from COM.CURL.CDK.SQLITE-LIBRARY}
+}
 
 {import public * from COM.CURL.CDK.SQLITE-BASE}
 {import public * from COM.CURL.CDK.SQLITE-RECORDSET}
