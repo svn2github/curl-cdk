@@ -22,12 +22,12 @@
     {details
         It is a special value for the destructor that is passed in as
         the final argument to routines like {docref
-        SQLiteInterface.result_blob}. It indicates to the destructor
+        SQLiteInterface.result-blob}. It indicates to the destructor
         that the content pointer is constant and will never change so
         it should not be destroyed.
     }
 }
-{let public constant SQLiteStatic:CPointer = 0}
+{let package constant SQLiteStatic:CPointer = 0}
 
 {doc-next
     {purpose
@@ -36,7 +36,7 @@
     {details
         It is a special value for the destructor that is passed in as
         the final argument to routines like {docref
-        SQLiteInterface.result_blob}. It indicates to the destructor
+        SQLiteInterface.result-blob}. It indicates to the destructor
         that the content pointer is transient, and hence may change,
         so it should make its own private copy of the content before
         returning.
@@ -222,7 +222,7 @@
     }
     {notes
         This is the signature of the callback procedure that is
-        registered via {docref SQLiteDatabase.commit-hook}.
+        registered via {docref SQLiteDatabaseHandle.commit-hook}.
     }
 }
 {let constant public SQLiteCommitHookProcType:ProcType =
@@ -235,7 +235,7 @@
     }
     {notes
         This is the signature of the callback procedure that is
-        registered via {docref SQLiteDatabase.rollback-hook}.
+        registered via {docref SQLiteDatabaseHandle.rollback-hook}.
     }
 }
 {let constant public SQLiteRollbackHookProcType:ProcType =
@@ -248,7 +248,7 @@
     }
     {notes
         This is the signature of the callback procedure that is
-        registered via {docref SQLiteDatabase.set-progress-handler}.
+        registered via {docref SQLiteDatabaseHandle.set-progress-handler}.
     }
 }
 {let constant public SQLiteProgressHandlerProcType:ProcType =
@@ -327,7 +327,7 @@
             {item {ctext AUTH}: Authorization denied.}
             {item {ctext FORMAT}: Auxiliary database format error.}
             {item {ctext RANGE}: 2nd parameter to 
-                {docref SQLiteInterface.bind} out of range.
+                {ctext SQLiteInterface.bind-*} out of range.
             }
             {item {ctext NOTADB}: File opened is not a database file.}
             {item {ctext ROW}: {docref SQLiteInterface.step} has another 
@@ -472,8 +472,8 @@
         Represents a SQLite operation.
     }
     {notes
-        Used by {docref SQLiteUpdateEvent} and
-        {docref SQLiteDatabase.authorizer}.
+        Used by {ctext SQLiteUpdateEvent} and
+        {docref SQLiteDatabaseHandle.authorizer}.
     }
 }
 {define-enum public SQLiteOperation
@@ -516,7 +516,7 @@
         Return value for an authorizer callback.
     }
     {notes
-        Used by {docref SQLiteDatabase.authorizer}.
+        Used by {docref SQLiteDatabaseHandle.authorizer}.
     }
 }
 {define-enum public SQLiteAuthorizerReturnCode

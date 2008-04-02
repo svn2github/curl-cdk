@@ -628,8 +628,8 @@
         The {param callback} is not invoked when internal system
         tables are modified.
 
-        See also {docref SQLiteDatabase.commit-hook} and {docref
-        SQLiteDatabase.rollback-hook}.
+        See also {docref SQLiteDatabaseHandle.commit-hook} and {docref
+        SQLiteDatabaseHandle.rollback-hook}.
     }
   }
   {setter public open {update-hook
@@ -859,7 +859,7 @@
         is a {docref SQLiteException} then {docref SQLiteException.code}
         will be set as the error code, if the exception is not a 
         {docref SQLiteException}, then the error code will be
-        {docref SQLiteStatus.ERROR}.
+        {ctext SQLiteStatus.ERROR}.
     }
   }
   || TODO: should this take a default aggregate-context value instead

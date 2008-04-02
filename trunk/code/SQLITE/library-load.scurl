@@ -49,9 +49,10 @@
   {import * from CURL.LANGUAGE.DLL-INTERFACE-LOW}
  else
   {import * from CURL.LANGUAGE.DLL-INTERFACE}
+  {import define-dll-class from COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX}
 }
 {if-built-in
-  {import-hidden with-defered-exceptions, sqlite-define-dll-class
+  {import-hidden with-defered-exceptions, define-dll-class
    from CURL.IO.SQLITE-LIBRARY-SYNTAX
   }
   {import-hidden get-process-security-manager, SecurityManagerInterface

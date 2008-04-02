@@ -55,7 +55,7 @@
   {define-proc package {define-dll-class-impl r:CurlSource}:CurlSource
       {return r}
   }
-  {import define-dll-class from CURL.LANGUAGE.DLL-INTERFACE}
+  {import CURL.LANGUAGE.DLL-INTERFACE}
 ||  {import-hidden define-dll-class-impl, dll-method-impl
 ||   from CURL.LANGUAGE.DLL-INTERFACE-LOW
 ||  }
@@ -152,12 +152,12 @@
 {define-macro
     public
 ||    hidden
-    {sqlite-define-dll-class ?rest:tokens}
+    {define-dll-class ?rest:tokens}
     {return
         {if not macro-env.meta-data.jit-compiled? then
             {define-dll-class-impl rest}
          else
-            {expand-template {define-dll-class ?rest}}
+            {expand-template {CURL.LANGUAGE.DLL-INTERFACE.define-dll-class ?rest}}
         }
     }
 }

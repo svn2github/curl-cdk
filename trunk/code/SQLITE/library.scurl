@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{doc SQLiteInterface
+{doc-next
     {purpose
         Curl language interface to SQLite C APIs.
     }
@@ -27,7 +27,7 @@
         At present you need privilege to use this interface.
     }
 }
-{sqlite-define-dll-class public final SQLiteInterface
+{define-dll-class public final SQLiteInterface
   {defaults 
     || This is the normal calling convention for DLLs.
     calling-convention = cdecl,
@@ -486,7 +486,7 @@
     {parameter tail,
         Points to the unused portion of {param sql}.
 
-        The {ctext SQLiteInterface.prepare} compiles the first
+        The {docref SQLiteDatabaseHandle.prepare-statement} compiles the first
         statement in {param sql}, so {param tail} is left pointing to
         what remains uncompiled.
     }
@@ -543,7 +543,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
         The return value is either {ctext SQLiteStatus.BUSY}, {ctext
@@ -559,7 +559,7 @@
         If the SQL statement being executed returns any data, then
         {ctext SQLiteStatus.ROW} is returned for each time a row of data is
         ready for processing by the caller. The values can be accessed
-        by using {docref SQLiteInterface.column} method. Subsequent
+        by using {ctext SQLiteInterface.column-*} method. Subsequent
         rows are retrieved by calling {ctext SQLiteInterface.step}
         method.
     }
@@ -581,7 +581,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
         If called before {docref SQLiteInterface.step} or after {ctext
@@ -608,7 +608,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
         Returns the number of columns in the result set. It is zero if
@@ -633,7 +633,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column name is to be
@@ -662,7 +662,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column type is to be
@@ -708,7 +708,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column declared type is to be
@@ -742,7 +742,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -781,7 +781,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -820,7 +820,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -859,7 +859,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -894,7 +894,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -940,7 +940,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter column-index,
         The column ordinal for which the column value is to be
@@ -975,7 +975,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
         Returns the status code of the most recent step or
@@ -1015,7 +1015,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {notes
         After this call {param stmt} is ready to be re-executed. Any
@@ -1044,7 +1044,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1059,7 +1059,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are not reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1089,7 +1089,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1104,7 +1104,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are nor reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1136,7 +1136,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1152,7 +1152,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are nor reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1184,7 +1184,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1196,7 +1196,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are nor reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1224,7 +1224,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1240,7 +1240,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are nor reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1293,7 +1293,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter to be set. 
@@ -1309,7 +1309,7 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteInterface.prepare} or {docref SQLiteInterface.reset} and
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
         before {docref SQLiteInterface.step}. Bindings are nor reset
         by the {ctext SQLiteInterface.reset} method. Unbound
         parameters are interpreted as NULL.
@@ -1355,7 +1355,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
         The number of parameters in {param stmt}.
@@ -1379,7 +1379,7 @@
     {parameter stmt,
         The handle of the compiled statement.
         
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter index,
         Index of the parameter whose name is to be retrieved. 
@@ -1414,7 +1414,7 @@
     {parameter stmt,
         The handle of the compiled statement.
 
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {parameter name,
         The name of the parameter whose index is requested.
@@ -1447,7 +1447,7 @@
     {parameter stmt,
         The handle of the compiled statement.
 
-        See Also: {docref SQLiteInterface.prepare}.
+        See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
   }
   {method public {clear-bindings
@@ -2357,7 +2357,7 @@
         If the database connection is not open, this method will
         return 0.
 
-        See also: {docref SQLiteDatabase.changes}.
+        See also: {docref SQLiteInterface.changes}.
     }
   }
   {method public {total-changes
