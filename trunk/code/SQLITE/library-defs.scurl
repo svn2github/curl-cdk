@@ -106,11 +106,57 @@
         {ncalls:int}:bool
     }
 }
+{let package constant LowSQLiteValueHandleArray:ClassType =
+    {if-built-in
+        {Reference-to SQLiteValueHandle}
+     else
+        {CArray-of SQLiteValueHandle}
+    }
+}
+{define-proc package {LowSQLiteValueHandleArray-to-Array
+                        args:LowSQLiteValueHandleArray,
+                        num-args:int
+                     }:{Array-of SQLiteValueHandle}
+    {return
+        {if-built-in
+            let array:{Array-of SQLiteValueHandle} =
+                {new {Array-of SQLiteValueHandle}, efficient-size = num-args}
+            {for i = 0 below num-args do
+                {array.append {unsafe-get SQLiteValueHandle, args, i}}}
+            array
+         else
+            {args.to-Array num-args}
+        }
+    }
+}
+{define-proc package {bytes-to-ByteArray
+                        bytes:CPointer,
+                        length:int,
+                        out:#ByteArray = null
+                     }:ByteArray
+    let nn-out:ByteArray =
+        {if-non-null out then
+            set out.efficient-size = out.size + length
+            out
+         else
+            {ByteArray efficient-size = length}
+        }
+    {for i:int = 0 below length do
+        {nn-out.append
+            {if-built-in
+                {unsafe-get byte, bytes, i}
+             else
+                {unsafe-memory-get byte, bytes, index = i}
+            }
+        }
+    }
+    {return nn-out}
+}
 {let package constant LowSQLiteFunctionProcType:ProcType =
     {proc-type
         {context:SQLiteContextHandle,
          nargs:int,
-         args:{CArray-of SQLiteValueHandle}
+         args:LowSQLiteValueHandleArray
         }:void
     }
 }

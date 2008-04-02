@@ -15,29 +15,26 @@
 ||| limitations under the License.
 
 {curl 6.0 package}
-{package COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX,
+{package
+    COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX,
+||    CURL.IO.SQLITE-LIBRARY-SYNTAX,
     version = "0.9",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
 }
-||{import-hidden ThreadExit
-|| from CURL.RUNTIME.PROCESS
-||}
-||{import-hidden critical-try
-|| from CURL.LANGUAGE.COMPILER
-||}
 
 {doc
     type = package,
     COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX
+||    CURL.IO.SQLITE-LIBRARY-SYNTAX
     {purpose
         The package defines syntax extensions used with
-        {docref COM.CURL.CDK.SQLITE-LIBRARY} package.
+        {docref CURL.IO.SQLITE-LIBRARY} package.
     }
     {details
         This is a separate package so that it can be used by
-        {ctext COM.CURL.CDK.SQLITE-LIBRARY}, but you should never import this directly.
+        {ctext CURL.IO.SQLITE-LIBRARY}, but you should never import this directly.
     }
     {notes
         {italic
@@ -48,6 +45,25 @@
 }
 
 {import * from CURL.LANGUAGE.SOURCE}
+
+||  {import-hidden ThreadExit
+||   from CURL.RUNTIME.PROCESS
+||  }
+||  {import-hidden critical-try
+||   from CURL.LANGUAGE.COMPILER
+||  }
+  {define-proc package {define-dll-class-impl r:CurlSource}:CurlSource
+      {return r}
+  }
+  {import define-dll-class from CURL.LANGUAGE.DLL-INTERFACE}
+||  {import-hidden define-dll-class-impl, dll-method-impl
+||   from CURL.LANGUAGE.DLL-INTERFACE-LOW
+||  }
+||  {import DLLInterface from CURL.LANGUAGE.DLL-INTERFACE-LOW}
+
+||{define-macro public {dll-method ?rest:tokens}
+||    {return {dll-method-impl rest}}
+||}
 
 || Used for all callback/hooks/handlers to defer exceptions until later.
 {define-class package final SQLiteDelayedExceptionEvent
@@ -82,9 +98,13 @@
     {event.enqueue-event event, position = EventQueuePosition.head}
 }
 
-{define-macro public {with-defered-exceptions
-                         ?body:statements
-                     }
+{define-macro
+    public
+||    hidden
+    {with-defered-exceptions
+        ?body:statements
+    }
+
     {return
         {if macro-env.meta-data.jit-compiled? then
             {expand-template
@@ -111,6 +131,7 @@
                          ?body:statements
                          ?else-and-body:{optional else ?:statements}
                      }
+
     {return
         {if not macro-env.meta-data.jit-compiled? then
             {expand-template
@@ -125,6 +146,18 @@
              else
                 {EmptySource}
             }
+        }
+    }
+}
+{define-macro
+    public
+||    hidden
+    {sqlite-define-dll-class ?rest:tokens}
+    {return
+        {if not macro-env.meta-data.jit-compiled? then
+            {define-dll-class-impl rest}
+         else
+            {expand-template {define-dll-class ?rest}}
         }
     }
 }

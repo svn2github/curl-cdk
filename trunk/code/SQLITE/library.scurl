@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{doc-next
+{doc SQLiteInterface
     {purpose
         Curl language interface to SQLite C APIs.
     }
@@ -27,7 +27,7 @@
         At present you need privilege to use this interface.
     }
 }
-{define-dll-class public final SQLiteInterface
+{sqlite-define-dll-class public final SQLiteInterface
   {defaults 
     || This is the normal calling convention for DLLs.
     calling-convention = cdecl,
@@ -78,14 +78,7 @@
                      case "linux" do
                         "sqlite_3-5-6.so"
                      case "mac" do
-                        {platform-switch
-                         case "x86" do
-                            "sqlite_3-5-6.x86.dylib"
-                         case "ppc" do
-                            "sqlite_3-5-6.ppc.dylib"
-                         else
-                            {unreachable}
-                        }
+                        "sqlite_3-5-6.dylib"
                      else
                         {unreachable}
                     }
@@ -930,17 +923,7 @@
         {return null}
     }
     let length:int = {self.column-bytes stmt, column-index}
-    let nn-out:ByteArray =
-        {if-non-null out then
-            set out.efficient-size = out.size + length
-            out
-         else
-            {ByteArray efficient-size = length}
-        }
-      {for i = 0 below length do
-          {nn-out.append {unsafe-memory-get byte, _bytes, index = i}}
-      }
-    {return nn-out}
+    {return {bytes-to-ByteArray _bytes, length, out = out}}
   }
 
   {dll-method private {column-blob-internal ("sqlite3_column_blob")
@@ -1813,9 +1796,12 @@
             {SQLiteFunctionPointerType
                 {proc {context:SQLiteContextHandle,
                        num-args:int,
-                       args:{CArray-of SQLiteValueHandle}
+                       args:LowSQLiteValueHandleArray
                       }:void
-                    {xfunc context, {args.to-Array num-args}}
+                    {xfunc
+                        context,
+                        {LowSQLiteValueHandleArray-to-Array args, num-args}
+                    }
                 }
             }
          else
@@ -1826,9 +1812,11 @@
             {SQLiteFunctionPointerType
                 {proc {context:SQLiteContextHandle,
                        num-args:int,
-                       args:{CArray-of SQLiteValueHandle}
+                       args:LowSQLiteValueHandleArray
                       }:void
-                    {xstep context, {args.to-Array num-args}}
+                    {xstep context,
+                        {LowSQLiteValueHandleArray-to-Array args, num-args}
+                    }
                 }
             }
          else
@@ -1989,21 +1977,7 @@
         {return null}
     }
     let length:int = {self.value-bytes val}
-    let nn-out:ByteArray =
-        {if-non-null out then
-            set out.efficient-size = out.size + length
-            out
-         else
-            {ByteArray efficient-size = length}
-        }
-    {if length > 0 then
-        {for i:int = 0 below length do
-            {nn-out.append
-                {unsafe-memory-get byte, _bytes, index = i}
-            }
-        }
-    }
-    {return nn-out}
+    {return {bytes-to-ByteArray _bytes, length, out = out}}
   }
 
   {dll-method private {value-blob-internal ("sqlite3_value_blob")
@@ -2044,7 +2018,7 @@
                       context:SQLiteContextHandle,
                       val:int
                   }:void
-    {unsafe-memory-set int, {self.aggregate-context context, 4}, val}
+    set {self.aggregate-context context, 4}.value = val
   }
 
   {doc-next
@@ -2066,13 +2040,15 @@
   {method package {get-aggregate-context-int
                       context:SQLiteContextHandle
                   }:int
-    {return {unsafe-memory-get int, {self.aggregate-context context, 4}}}
+    {return {self.aggregate-context context, 4}.value}
   }
 
+  || TODO: this is really returning a pointer to whatever you want,
+  || But it is easier to handle if it is just pointer to an int.
   {dll-method private {aggregate-context ("sqlite3_aggregate_context")
                          context:SQLiteContextHandle,
                          n:int
-                     }:CPointer
+                     }:{Reference-to int}
   }
 
   {doc-next

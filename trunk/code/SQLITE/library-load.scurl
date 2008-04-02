@@ -43,16 +43,32 @@
         and are subject to revision.}
     }
 }
-{import * from CURL.LANGUAGE.DLL-INTERFACE}
 ||{import * from CURL.IO.SQLITE-LIBRARY-SYNTAX}
 {import * from COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX}
 {if-built-in
-    {import-hidden get-process-security-manager, SecurityManagerInterface
-     from CURL.SECURITY.CORE
-    }
-    {import-hidden PrivilegedUrl
-     from CURL.IO.FILE
-    }
+  {import * from CURL.LANGUAGE.DLL-INTERFACE-LOW}
+ else
+  {import * from CURL.LANGUAGE.DLL-INTERFACE}
+}
+{if-built-in
+  {import-hidden with-defered-exceptions, sqlite-define-dll-class
+   from CURL.IO.SQLITE-LIBRARY-SYNTAX
+  }
+  {import-hidden get-process-security-manager, SecurityManagerInterface
+   from CURL.SECURITY.CORE
+  }
+  {import-hidden PrivilegedUrl
+   from CURL.IO.FILE
+  }
+  {import-hidden unsafe-get, unsafe-set
+   from CURL.LANGUAGE.COMPILER
+  }
+  {import-hidden ThreadExit
+   from CURL.RUNTIME.PROCESS
+  }
+  {import-hidden critical-try
+   from CURL.LANGUAGE.COMPILER
+  }
 }
 
 {include

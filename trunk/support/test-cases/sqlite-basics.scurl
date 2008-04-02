@@ -691,7 +691,7 @@ INSERT INTO t VALUES (3, 9);
             {with-database
                 db = {SQLiteDatabase u, page-size = 512, auto-vacuum? = true}
              do
-                {for outer-i = 0 below 8 do
+                {for outer-i = 0 below 3 do
                     {db.execute "CREATE TABLE test (val1, val2)"}
                     {with-transaction in db do
                         {for i = 0 below 1100 do
