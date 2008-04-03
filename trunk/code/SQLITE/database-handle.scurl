@@ -241,25 +241,25 @@
         }
      case SQLiteOperation.PRAGMA do
         {switch data1
-         case "auto_vacuum", "page_size", "case_sensitive_like",
-            "count_changes", "encoding", "fullsync",
-            "incremental_vacuum", "legacy_file_format",
-            "short_column_names", "synchronous", 
-            "database_list", "foreign_key_list", 
-            "index_info", "index_list", "table_info",
-            "integrity_check"
+         case "auto_vacuum", "page_size", "case_sensitive_like", ||""
+            "count_changes", "encoding", "fullsync", ||""
+            "incremental_vacuum", "legacy_file_format", ||""
+            "short_column_names", "synchronous",  ||""
+            "database_list", "foreign_key_list",  ||""
+            "index_info", "index_list", "table_info", ||""
+            "integrity_check" ||""
          do
             || Those are allowed.
          else
             {if-non-null data1 then
                 {if {SQLiteDatabaseHandle.match-pragma-with-name?
-                        data1, "locking_mode"} or
+                        data1, "locking_mode"} or ||""
                     {SQLiteDatabaseHandle.match-pragma-with-name?
-                        data1, "freelist_count"} or
+                        data1, "freelist_count"} or ||""
                     {SQLiteDatabaseHandle.match-pragma-with-name?
-                        data1, "user_version"} or
+                        data1, "user_version"} or ||""
                     ({SQLiteDatabaseHandle.match-pragma-with-name?
-                        data1, "schema_version"} and data2 == null)
+                        data1, "schema_version"} and data2 == null) ||""
                  then
                     || Those are allowed.
                  else
@@ -318,7 +318,7 @@
                 {error {lmessage Invalid non-local database url '{value u}'.}}
             }
          else
-            ":memory:"
+            ":memory:" ||""
         }
 || This needs mxPathname to also be larger, and then this fixes things.
 ||--    {platform-switch
@@ -348,17 +348,17 @@
     }
     || Note: Authorizer won't see these, because we havn't installed it yet.
     {if not self.read-only? then
-        {self.exec "PRAGMA encoding='UTF-8';" & "PRAGMA synchronous=NORMAL"}
+        {self.exec "PRAGMA encoding='UTF-8';PRAGMA synchronous=NORMAL"} ||""
         {if self.page-size != -1 then
             || Could fail with a non-power of 2 page-size or a too big one.
             let (status:SQLiteStatus, errmsg:#String) =
-                {self.exec "PRAGMA page_size=" & self.page-size}
+                {self.exec "PRAGMA page_size=" & self.page-size} ||""
             {if status != SQLiteStatus.OK then
                 {return status, errmsg}
             }
         }
         {if self.auto-vacuum? then
-            {self.exec "PRAGMA auto_vacuum=1"}
+            {self.exec "PRAGMA auto_vacuum=1"} ||""
         }
     }
 
@@ -1284,8 +1284,8 @@
             {error {lmessage Invalid database url '{value u}'.}}
         }
     {self.exec
-        "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} & "' AS '" &
-        {SQLiteDatabaseHandle.sql-quote name} & "'"
+        "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} & ||""
+        "' AS '" & {SQLiteDatabaseHandle.sql-quote name} & "'" ||""
     }
   }
 
@@ -1304,7 +1304,7 @@
     }
   }
   {method public {detach name:String}:void
-    {self.exec "DETACH '" & {SQLiteDatabaseHandle.sql-quote name} & "'"}
+    {self.exec "DETACH '" & {SQLiteDatabaseHandle.sql-quote name} & "'"} ||""
   }
 
   {define-proc private {sql-quote s:String}:String

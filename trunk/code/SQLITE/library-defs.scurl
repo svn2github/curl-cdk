@@ -309,7 +309,7 @@
             {item {ctext NOMEM}: Insufficient Memory.}
             {item {ctext READONLY}: Attempt to write a readonly database.}
             {item {ctext INTERRUPT}: Operation terminated by 
-                {docref SQLiteInterface.interrupt.}
+                {docref SQLiteInterface.interrupt}.
             }
             {item {ctext IOERR}: Disk I/O error occurred.}
             {item {ctext CORRUPT}: Database disk image is malformed.}
