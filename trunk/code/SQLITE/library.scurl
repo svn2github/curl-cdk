@@ -84,7 +84,7 @@
                     }
                 }
             {if-built-in
-                {PrivilegedUrl default-url}
+                {PrivilegedUrl default-url, has-execute-permission? = true}
              else
                 default-url
             }
