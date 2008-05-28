@@ -14,14 +14,11 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
+{curl 7.0 manifest}
 {manifest COM.CURL.CDK.DB-EXPLORER}
 
 {delegate-to COM.CURL.CDK,
     location = "../../code/manifest.mcurl"
-}
-{delegate-to COM.CURL.GUI.STYLED,
-    location = "../../lib/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"
 }
 
 {component file start.curl,
@@ -30,7 +27,7 @@
 
 {component package COM.CURL.CDK.DB-EXPLORER,
     location = "load.scurl",
-    version = "0.9"
+    version = "0.9.1"
 }
 
 {component file DBX-STYLE-SHEET,

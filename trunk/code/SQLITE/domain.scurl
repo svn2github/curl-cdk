@@ -198,7 +198,7 @@
          case String do ("TEXT", true)
          case double do ("REAL", true)
          case int, int8, int16, int64, uint8, uint16 do ("INTEGER", true)
-         case uint32, uint64 do ("INTEGER", true) || new types in 6.0
+         case uint32, uint64 do ("INTEGER", true)
          case Null do ("NULL", true)
          case ByteArray do ("BLOB", true)
          else ("NULL", false)}}

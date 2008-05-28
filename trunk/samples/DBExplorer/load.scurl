@@ -14,13 +14,12 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 package}
+{curl 7.0 package}
 {package COM.CURL.CDK.DB-EXPLORER,
-    version = "0.8",
+    version = "0.9.1",
     {compiler-directives careful? = true}
 }
 {import * from CURL.GUI.STANDARD}
-{import * from COM.CURL.GUI.STYLED-CONTROLS}
 {import * from COM.CURL.CDK.SQLITE}
 
 {include

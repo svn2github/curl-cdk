@@ -41,6 +41,8 @@
                 {splice ...}}
         }}
 }
+|| NOTE: privilege no longer needed when using built-in library
+|| -- CURL IO.SQLITE-LIBRARY
 {define-proc {privilege-note}:Visual
     {return
         {Frame background = "#DDD",

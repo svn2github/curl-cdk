@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 0.9 for Curl API Version 6.0. 
+CDK Preview Release 0.9.1 for Curl API Version 7.0. 
 ====================
 
-This directory contains the 0.9 preview of the Curl Data Kit (CDK)
+This directory contains the 0.9.1 preview of the Curl Data Kit (CDK)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
 applications in Curl. It provides support for local SQL databases,
@@ -41,7 +41,7 @@ Deployable Library
 The 'deploy' directory contains a preprocessed library 
 for use in deployed applications.
 
-- COM.CURL.CDK.0.9/manifest.mcurl   	CDK library definition
+- COM.CURL.CDK.0.9.1/manifest.mcurl   	CDK library definition
 
 Documentation
 --------------------
@@ -52,7 +52,7 @@ using the IDE 'Install Documentation' command.
 The directories include both documentation
 and preprocessed library.
 
-- COM.CURL.CDK.0.9/manifest.mcurl   	CDK library doc definition
+- COM.CURL.CDK.0.9.1/manifest.mcurl   	CDK library doc definition
 
 Source Code
 --------------------
@@ -74,6 +74,16 @@ It also includes test suites, and some sample applets.
  
 CHANGES
 ====================
+
+CDK 0.9 CHANGES
+--------------------
+
+Curl Release 7 incorporates the SQLite engine 
+(as package CURL.IO.SQLITE-LIBRARY).
+
+This change eliminates the need for privilege to use SQLite, which had
+been necessary in earlier releases, when the SQLite library was
+included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
 CDK 0.9 CHANGES
 --------------------

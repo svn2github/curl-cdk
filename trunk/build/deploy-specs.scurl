@@ -16,7 +16,7 @@
 
 {value
     def name = "COM.CURL.CDK"
-    def version = "0.9"
+    def version = "0.9.1"
     def dirname = name & "." & version
     
     {DeploySpecs
@@ -57,12 +57,6 @@
             "lib/CDU/project.cprj",
             "deploy",
             "src/lib/CDU"
-        },
-        || incorporate STYLED library 
-        || --------------------
-        {DeployCopy
-            "lib/COM.CURL.GUI.STYLED-6.0-pcurl-en",
-            "src/lib/COM.CURL.GUI.STYLED-6.0-pcurl-en"
         },
         || -- build scripts (copy)
         {DeployAction

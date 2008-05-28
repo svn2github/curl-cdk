@@ -146,6 +146,13 @@
     set self._database = database
     {self.database-changed}
   }
+
+  {method public {do-query sql:String}:void
+    set self.query = sql
+    def cmd = {self.commands.get-command "execute"}
+    {cmd.impl.do-command}
+  }
+  
   || state
   {getter {current-query-display}:#QueryDisplay
     {if-non-null pane = self.panes.current-pane then

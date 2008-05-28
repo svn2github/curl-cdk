@@ -14,23 +14,23 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 applet}
+{curl 7.0 applet}
 {applet manifest = "manifest.mcurl",
     {compiler-directives careful? = true}}
-{import * from COM.CURL.GUI.STYLED-CONTROLS}
 {import * from COM.CURL.CDK.SQLITE}
 {import * from COM.CURL.CDK.DB-EXPLORER}
 
-{install-style-sheet
+{install-style-sheet 
     {StyleSheet
-        {manifest-url "file", "DEFAULT-STYLE-SHEET"},
+        {get-default-style-sheet},
         {manifest-url "file", "DBX-STYLE-SHEET"}
-    }}
+    }
+}
 
 {document-style PlainDocument}
 {set-document-properties hstretch? = true, vstretch? = true}
 
-{DBExplorer 
+{DBExplorer
     {SQLiteDatabase null}
 }
 
