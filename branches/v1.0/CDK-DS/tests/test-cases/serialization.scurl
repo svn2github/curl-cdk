@@ -1,0 +1,137 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from COM.CURL.CDK.AMF}
+||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
+{include "support.scurl"}
+
+{define-proc {test-one-amf3 this:any}:(any, ByteArray)
+    def bytes = {ByteArray}
+    def out = {AMF3Serializer {ByteArrayOutputStream bytes}}
+    def in = {AMF3Deserializer {ByteArrayInputStream bytes}}
+    {out.write-one this}
+    def that = {in.read-one}
+    {return that, bytes}
+}
+{define-proc {test-one-amf0 this:any}:(any, ByteArray)
+    def bytes = {ByteArray}
+    def out = {AMF0Serializer {ByteArrayOutputStream bytes}}
+    def in = {AMF0Deserializer {ByteArrayInputStream bytes}}
+    {out.write-one this}
+    def that = {in.read-one}
+    {return that, bytes}
+}
+
+{define-proc {round-trip-tests
+                 name:String,
+                 xs:Array,
+                 test-one:{proc-type {any}:(any, ByteArray)} = test-one-amf3
+             }:TestSuite
+    def suite = {TestSuite name}
+    {for x key i in xs do
+        def tx = {type-of x}
+        def printable? = tx.primitive? or x isa String or x == null
+        def name =
+            {if printable? then
+                {format "%w", x}
+             else
+                {format "%s #%02d", tx, i}}
+        {suite.add
+            {test-case name,
+                def (y, bs) = {test-one x}
+                def eq? = {test-compare x, y}
+                {TestCondition.assert
+                    message = {hex-encode bs},
+                    eq?}}}}
+    {return suite}
+}
+
+
+{TestSuite "AMF Serialization",
+    
+    || primitives
+    || --------------------
+    {value
+        def xs =
+            {Array
+                {bit-sll 1, 28} - 2,
+                {bit-sll 1, 28} - 1,
+                {bit-sll 1, 28},
+                {bit-sll 1, 28} + 1,
+                {bit-sll 1, 29} - 1,
+                "===",
+                -1,
+                -2,
+                -{bit-sll 1, 28} + 1,
+                -{bit-sll 1, 28},
+                "===",
+                0x00FFFFFF,
+                0x01000000, 
+                0x0FFFFFFF,
+                0x10000000,
+                0x20000000,
+                -0x0FFFFFFF,
+                -0x10000000,
+                -0x20000000,
+                12.34,
+                "abc",
+                "",
+                null,
+                true,
+                false
+            }
+        {TestSuite "primitives",
+            {round-trip-tests "AMF3", xs},
+            {round-trip-tests "AMF0", xs,
+                test-one = test-one-amf0}
+        }
+    },    
+    || structures
+    || --------------------
+    {value
+        def xt = {DataObjectTraits "Foo", {StringArray "a", "b"}}
+        def yt = {DataObjectTraits "Foo", {StringArray "a", "b"}, dynamic? = false}
+        def x1 = {DataObject a = 1, b = "q"}
+        def x2 = {DataObject traits = xt, a = 1, b = "q"}
+        def y2 = {DataObject traits = yt, a = 1, b = "q"}
+
+        def xs =
+            {Array
+                {Array 1, 2, 3},
+                {Array "ABC", "ABC"},
+                {Array "ABC", "DEF"},
+                {ByteArray 9, 8, 7},
+                {DateTime "2007-01-29"},
+                x1,
+                x2,
+                y2,
+                {Array x1, x1},
+                {Array x1, x2},
+                {Array x1, x2, x1, x2},
+                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
+                null
+            }
+        {TestSuite "structures",
+            {round-trip-tests "AMF3", xs},
+            {round-trip-tests "AMF0",
+                {xs.filter-clone
+                    {fn x => not x isa ByteArray}
+                },
+                test-one = test-one-amf0}
+        }
+    }
+}

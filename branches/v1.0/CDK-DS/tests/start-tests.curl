@@ -53,6 +53,7 @@
 
     let suite:TestSuite =
         {TestSuite "main",
+            
             || prelude
             || --------------------
             || test context info
@@ -71,7 +72,12 @@
             {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES-SUPPORT"},
         
             || DataObject
+            || --------------------
             {TestSuite.import {url "test-cases/data-object.scurl"}},
+        
+            || Serialization
+            || --------------------
+            {TestSuite.import {url "test-cases/serialization.scurl"}},
         
             || postlude
             || --------------------
