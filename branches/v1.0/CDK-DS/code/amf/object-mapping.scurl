@@ -1,0 +1,121 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-proc public {set-deserialize-mapper
+                        key:String,
+                        value:any
+                    }:void
+    {{ObjectMapper.get-mapper}.for-deserialize.set
+        key, value
+    }
+}
+
+{define-proc public {remove-deserialize-mapper
+                        key:String,
+                        error-if-missing?:bool = false
+                    }:void
+    {{ObjectMapper.get-mapper}.for-deserialize.remove
+        key,
+        error-if-missing? = error-if-missing?
+    }
+}
+
+{define-proc public {set-serialize-mapper
+                        key:ClassType,
+                        value:String
+                    }:void
+    {{ObjectMapper.get-mapper}.for-serialize.set
+        key, value
+    }
+}
+
+{define-proc public {remove-serialize-mapper
+                        key:ClassType,
+                        error-if-missing?:bool = false
+                    }:void
+    {{ObjectMapper.get-mapper}.for-serialize.remove
+        key,
+        error-if-missing? = error-if-missing?
+    }
+}
+
+{define-proc public {add-refered-package
+                        package-name:String
+                    }:void
+    def p = {import-package
+                {make-package-selector package-name}
+            }
+    {{ObjectMapper.get-mapper}.refered-packages.append
+        p
+    }
+}
+{define-proc package {exist-stuff? name:String}:bool
+    {for p in {ObjectMapper.get-mapper}.refered-packages do
+        def (val, found?) = {p.lookup name}
+        {if found? then {return true}}
+    }
+    {return false}
+}
+
+{define-class public final ObjectMapper
+
+  field public constant for-deserialize:{HashTable-of String, any}
+  field public constant for-serialize:{HashTable-of ClassType, String}
+  field public constant refered-packages:{Array-of Package}
+  let private _singleton:#ObjectMapper
+
+  {constructor private {default}
+    set self.for-deserialize = {{HashTable-of String, any}}
+    set self.for-serialize = {{HashTable-of ClassType, String}}
+    set self.refered-packages = {{Array-of Package}}
+    {self.config-for-messages}
+  }
+
+  {factory public {get-mapper}:ObjectMapper
+    {if ObjectMapper._singleton == null then
+        set ObjectMapper._singleton = {ObjectMapper}
+    }
+    {return {non-null ObjectMapper._singleton}}
+  }
+
+  {method public open {initialize
+                          default?:bool = true
+                      }:void
+    {self.for-deserialize.clear}
+    {self.for-serialize.clear}
+    {self.refered-packages.clear}
+    {if default? then
+        {self.config-for-messages}}
+  }
+
+  {method private {config-for-messages}:void
+    || desrialize
+||--    {self.for-deserialize.set
+||--        "DSK", AcknowledgeMessageExt}
+    {self.for-deserialize.set
+        "flex.messaging.io.ArrayCollection", ArrayCollection}
+
+    || serialize
+||--    {self.for-serialize.set
+||--        AcknowledgeMessageExt, "DSK"}
+    {self.for-serialize.set
+        ArrayCollection, "flex.messaging.io.ArrayCollection"}
+
+    || references
+||--    def type = IMessage asa ClassType
+||--    {self.refered-packages.append type.package}
+  }
+}

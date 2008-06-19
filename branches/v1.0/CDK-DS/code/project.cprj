@@ -7,31 +7,49 @@
     manifest-location = "manifest.mcurl",
     api-version = "6.0",
     compiler-directives = "careful? = true",
+    use-style-sheets? = false,
+    style-package-name = "",
+    style-sheet-name = "",
     {target
         name = "deploy-source",
         target-url-name = "c:\\curl\\CDK-DS-source",
-        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", copy? = true},
-        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000data-object/load.scurl", copy? = true},
         {resource-transform "docs\u0000directory\u0000docs", copy? = true},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000data-object/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", copy? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
-        {resource-transform "resources\u0000directory\u0000resources", copy? = true}
+        {package-transform "COM.CURL.CDK.IO\u0000package\u0000io/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000recordset-for/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", copy? = true},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000amf/load.scurl", copy? = true}
     },
     {target
         name = "deploy",
         target-url-name = "c:\\curl\\CDK-DS",
-        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", pcurl? = true},
-        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", pcurl? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000data-object/load.scurl", pcurl? = true},
         {resource-transform "docs\u0000directory\u0000docs"},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000data-object/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", pcurl? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj"},
-        {resource-transform "resources\u0000directory\u0000resources", copy? = true}
+        {package-transform "COM.CURL.CDK.IO\u0000package\u0000io/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000recordset-for/load.scurl", pcurl? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", pcurl? = true},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000amf/load.scurl", pcurl? = true}
     },
     {target
         name = "deploy-docs",
         target-url-name = "c:\\curl\\CDK-DS-docs",
-        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", pcurl? = true, generate-doc? = true},
-        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", pcurl? = true, generate-doc? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000data-object/load.scurl", pcurl? = true, generate-doc? = true},
         {resource-transform "docs\u0000directory\u0000docs", copy? = true},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000data-object/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000SQL/load.scurl", pcurl? = true, generate-doc? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj"},
-        {resource-transform "resources\u0000directory\u0000resources", copy? = true}
+        {package-transform "COM.CURL.CDK.IO\u0000package\u0000io/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.RECORDSET-FOR\u0000package\u0000recordset-for/load.scurl", pcurl? = true, generate-doc? = true},
+        {package-transform "COM.CURL.CDK.DATA-OBJECT\u0000package\u0000DATA-OBJECT/load.scurl", pcurl? = true, generate-doc? = true},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {package-transform "COM.CURL.CDK.AMF\u0000package\u0000amf/load.scurl", pcurl? = true, generate-doc? = true}
     }
 }

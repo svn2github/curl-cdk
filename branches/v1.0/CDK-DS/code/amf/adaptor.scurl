@@ -1,0 +1,208 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class package abstract ObjectAdaptor
+
+  field package constant object:Object
+
+  {constructor protected {default obj:Object}
+    set self.object = obj
+  }
+
+  {factory package {default obj:Object}:ObjectAdaptor
+    def apt = {type-switch obj
+               case ext:Externalizable do
+                  {ExternalizableObjectAdaptor ext}
+||--               case msg:AbstractMessage do
+||--                  {MessageAdaptor msg}
+               case ao:DataObject do
+                  {AMFObjectAdaptor ao}
+               case h:{HashTable-of String, any} do
+                  {HashTableAdaptor h}
+               else
+                  {DefaultObjectAdaptor obj}
+              }
+    {return apt}
+  }
+
+  {getter package {type}:ClassType
+    {return {type-of self.object} asa ClassType}
+  }
+
+  {getter package {name}:String
+    def mapper = {ObjectMapper.get-mapper}.for-serialize
+    def type = self.type
+    def (ret, found?) = {mapper.get-if-exists type}
+    {return
+        {if found? then ret else type.name}
+    }
+  }
+
+  {getter package {has-dynamic?}:bool
+    {if-non-null dynamics = self.dynamics then
+        {return (not dynamics.empty?)} || TODO: WRONG
+    }
+    {return false}
+  }
+
+  {getter package abstract {dynamics}:#{HashTable-of String, any}}
+  
+  {getter package {externalizable?}:bool
+    {return (self.object isa Externalizable)}
+  }
+
+  {method package {create-trait}:DataObjectTraits
+    def trait = {DataObjectTraits
+                    self.name,
+                    {StringArray},
+                    externalizable? = self.externalizable?,
+                    dynamic? = self.has-dynamic?
+                }
+    {return trait}
+  }
+
+  {method package abstract {get-value key:String}:any}
+}
+
+{define-class package HashTableAdaptor {inherits ObjectAdaptor}
+
+  {constructor package {default obj:{HashTable-of String, any}}
+    {construct-super obj}
+  }
+
+  {getter package {dynamics}:#{HashTable-of String, any}
+    {return null}
+  }
+
+  {getter private {hashtable}:{HashTable-of String, any}
+    {return (self.object asa {HashTable-of String, any})}
+  }
+
+  {getter package {name}:String
+    {return ""}
+  }
+
+  {method package {create-trait}:DataObjectTraits
+    def trait = {super.create-trait}
+    {for member in {self.hashtable.keys-to-Iterator} do
+        {trait.members.append member}
+    }
+    {return trait}
+  }
+
+  {method package {get-value key:String}:any
+    {return self.hashtable[key]}
+  }
+}
+
+
+{define-class package AMFObjectAdaptor {inherits ObjectAdaptor}
+
+  {constructor package {default obj:DataObject}
+    {construct-super obj}
+  }
+
+  {getter package {typed-object}:DataObject
+    {return self.object asa DataObject}
+  }
+
+  {method package {create-trait}:DataObjectTraits
+    def trait = self.typed-object.traits
+    {return trait}
+  }
+
+  {getter package {dynamics}:#{HashTable-of String, any}
+    {return
+        {type-switch self.typed-object
+         case x:OpenDataObject do
+            {x.to-HashTable}
+         else null}}
+  }
+
+  {getter package {name}:String
+    {return self.typed-object.traits.name}
+  }
+
+  {method package {get-value key:String}:any
+    {return self.typed-object[key]}
+  }
+}
+
+
+{define-class package DefaultObjectAdaptor {inherits ObjectAdaptor}
+
+  {constructor package {default obj:Object}
+    {construct-super obj}
+  }
+
+  {getter package {dynamics}:#{HashTable-of String, any}
+    {return null}
+  }
+
+  {method package {create-trait}:DataObjectTraits
+    def trait = {super.create-trait}
+    def fields = {self.type.get-members
+                     filter = ClassMember.get-property-filter
+                 }
+    def dup = {{Set-of String}}
+    {for member in fields do
+        def name = member.name
+        {if not {dup.member? name} then
+            {trait.members.append name}
+            {dup.insert name}
+        }
+    }
+    {return trait}
+  }
+
+  {method package {get-value key:String}:any
+    def f = {self.type.get-property-for-get key}
+    {return {f.get-value self.object}}
+  }
+}
+
+{define-class package MessageAdaptor {inherits DefaultObjectAdaptor}
+
+  {constructor package {default obj:Object}
+    {construct-super obj}
+  }
+
+  {getter package {name}:String
+    {return "flex.messaging.messages." & self.type.name}
+  }
+}
+
+
+{define-class package ExternalizableObjectAdaptor {inherits ObjectAdaptor}
+
+  {constructor package {default obj:Externalizable}
+    {construct-super obj}
+  }
+
+  {getter package {dynamics}:#{HashTable-of String, any}
+    {return null}
+  }
+
+  {method package {create-trait}:DataObjectTraits
+    def trait = {super.create-trait}
+    {return trait}
+  }
+
+  {method package {get-value key:String}:any
+    {return null}
+  }
+}
+

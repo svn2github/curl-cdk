@@ -1,0 +1,367 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| Deserialize AMF3
+{define-class public open AMF3Deserializer {inherits AMFDeserializer}
+
+  field private constant references:AMF3References
+
+  {constructor public {default input:ByteInputStream}
+    {construct-super input}
+    set self.references = {AMF3References}
+  }
+
+  {method public open {read-one}:any
+    def type = {marshal-in-uint8 self.input}
+    {return
+        {switch type
+         case AMF3Marker.undefined-marker.value do  null
+         case AMF3Marker.null-marker.value do       null
+         case AMF3Marker.false-marker.value do      false
+         case AMF3Marker.true-marker.value do       true
+         case AMF3Marker.integer-marker.value do    {self.read-integer}
+         case AMF3Marker.double-marker.value do
+            {marshal-in-double self.input}
+         case AMF3Marker.string-marker.value do     {self.read-string}
+         case AMF3Marker.xml-doc-marker.value do    {self.read-xml-document}
+         case AMF3Marker.date-marker.value do       {self.read-date}
+         case AMF3Marker.array-marker.value do      {self.read-array}
+         case AMF3Marker.object-marker.value do     {self.read-object}
+||--         case AMF3Marker.xml-marker.value do        {self.read-xml}
+         case AMF3Marker.byte-array-marker.value do {self.read-byte-array}
+         else
+            {error "Unsupported amf3 type"}
+        }
+    }
+  }
+
+  || read amf3 integers. 29bit integer
+  {method public {read-integer}:int
+    let n:int = 0
+    let result:int = 0
+
+    {while true do
+        let b:byte = {self.input.read-one}
+        {if n == 3 then
+            set result = {bit-or {bit-sll result, 8}, b}
+            {if {bit-and result, 0x10000000} != 0 then
+                set result = {bit-or result, 0xF0000000}
+            }
+            {break}
+         else
+            set result = {bit-or {bit-sll result, 7}, {bit-and b, 0x7f}}
+            {if {bit-and b, 0x80} == 0 then
+                {break}
+            }
+        }
+        {inc n}
+    }
+
+    {return result}
+  }
+
+  || ream amf3 strings.
+  {method public {read-string}:String
+    def type = {self.read-integer}
+    def (inline?, n) = {self.check-reference type}
+    
+    {if inline? then
+        def (num-bytes-decoded, chars) =
+            {decode-characters
+                {self.input.read n = n}.underlying-FastArray,
+                CharEncoding.utf8
+            }
+        {if not chars.empty? then
+            {self.references.add-string chars}
+        }
+        {return chars}
+     else
+        {return {self.references.get-string n}}
+    }
+  }
+
+  {method public open {read-xml-document}:String
+    def type = {self.read-integer}
+    def (inline?, n) = {self.check-reference type}
+
+    {if inline? then
+        def (num-bytes-decoded, chars) =
+            {decode-characters
+                {self.input.read n = n}.underlying-FastArray,
+                CharEncoding.utf8
+            }
+        {if not chars.empty? then
+            {self.references.add-object chars}
+        }
+        {return chars}
+     else
+        {return {self.references.get-object n} asa String}
+    }
+  }
+
+  {method public open {read-date}:DateTime
+    def type = {self.read-integer}
+    def (inline?, n) = {self.check-reference type}
+
+    {if inline? then
+        let (seconds:double, partial-seconds:double) =
+            {floor {marshal-in-double self.input}, 1000.0}
+        let dt:DateTime =
+            {DateTime
+                {DateTimeData
+                    DateTimeData.epoch-simple.epoch-second +
+                    (seconds asa int64),
+                    partial-second =
+                        (partial-seconds * {ldexp 1.0, 63}) asa int64
+                },
+                zone = DateTimeZone.utc
+            }
+        {self.references.add-object dt}
+        {return dt}
+     else
+        {return {self.references.get-object n} asa DateTime}
+    }
+  }
+
+||--  {method public open {read-xml}:String
+||--    || Can we parse e4x syntax?
+||--||--    {error "Unsupported xml types"}
+||--    {return {self.read-xml-document}}
+||--  }
+
+  {method public open {read-array}:Object
+    def type = {self.read-integer}
+    def (inline?, n) = {self.check-reference type}
+    {if not inline? then
+        {return {self.references.get-object n}}
+    }
+    || FIXME: Could have both dense and associative data
+    {return
+        {if n > 0 then
+            {self.read-dense-array-data n}
+         else
+            {self.read-associative-array-data}
+        }
+    }
+  }
+
+  {method private {read-dense-array-data count:int}:{Array-of any}
+    def array = {{Array-of any} efficient-size = count}
+    {self.references.add-object array}
+    || FIXME: Could have both dense and associative data
+    {while not {self.read-string}.empty? do
+        {output "WARNING: Ignoring associative array data."}
+        {self.read-one}
+    }
+    {for i:int=0 below count do
+        {array.append {self.read-one}}
+    }
+    {return array}
+  }
+
+  {method private {read-associative-array-data}:{HashTable-of String, any}
+    def hash = {{HashTable-of String, any}}
+    {self.references.add-object hash}
+    {while true do
+        def keyword = {self.read-string}
+        {if keyword.empty? then
+            {break}
+        }
+        set hash[keyword] = {self.read-one}
+    }
+    {return hash}
+  }
+
+  {method public open {read-byte-array}:ByteArray
+    def type = {self.read-integer}
+    def (inline?, n) = {self.check-reference type}
+
+    {if inline? then
+        def ret = {self.input.read n = n}
+        {self.references.add-object ret}
+        {return ret}
+     else
+        {return {self.references.get-object n} asa ByteArray}
+    }
+  }
+
+  {method public open {read-object}:Object
+    def type = {self.read-integer}
+    def (obj-inline?, obj-index) = {self.check-reference type}
+    {if not obj-inline? then
+        {return {self.references.get-object obj-index} asa Object}
+    }
+
+    def trait = {self.read-trait type}
+    def class-name = trait.name
+    
+    {if trait.externalizable? then
+        {return {self.read-externalizable class-name}}
+     else
+        {if-non-null ret = {self.read-default-object trait} then
+            {return ret}
+        }
+        
+        def obj = {DataObject.from-traits trait}
+        {self.references.add-object obj}
+
+        {for member key index in trait.members do
+            {obj.set-internal index, {self.read-one}}
+        }
+        
+        {if trait.dynamic? then
+            {while true do
+                def name = {self.read-string}
+                {if name.empty? then {break}}
+                set obj[name] = {self.read-one}
+            }
+        }
+        {return obj}
+    }
+  }
+
+  {method protected open {read-trait type:int}:DataObjectTraits
+    def ref? = ({bit-and type, 0x3} == 1)
+
+    {if ref? then
+        def trait = {self.references.get-trait {bit-srl type, 2}}
+        {return trait}
+     else
+        def externalizable? = ({bit-and type, 0x4} != 0)
+        def dynamic? = ({bit-and type, 0x8} != 0)
+        def mem-count = {bit-srl type, 4}
+        def class-name = {self.read-string}
+
+        def trait =
+            {StandardDataObjectTraits class-name,
+                {StringArray},
+                externalizable? = externalizable?,
+                dynamic? = dynamic?}
+        {self.references.add-trait trait}
+        
+        {for i:int=0 below mem-count do
+            {trait.members.append {self.read-string}}
+        }
+
+        {trait.generate-index}
+        
+        {return trait}
+    }
+  }
+
+  {method protected open {read-externalizable class-name:String}:Object
+    def mapper = {ObjectMapper.get-mapper}.for-deserialize
+    {assert
+        {mapper.key-exists? class-name},
+        "Need handlers"
+    }
+    {type-switch mapper[class-name]
+     case ct:ClassType do
+        {assert {ct.subtype-of? Externalizable}}
+        def ext = {{ct.get-constructor "default"}.new} asa Externalizable
+        {self.references.add-object ext}
+        {ext.read-externalizable self}
+        {return ext}
+
+     case prc:{proc-type {AMF3Deserializer, ByteInputStream}:DataObject} do
+        def ret = {prc self, self.input}
+        {self.references.add-object ret}
+        {return ret}
+
+     else
+        {error "bad handler"}
+    }
+  }
+
+  {method protected open {read-default-object trait:DataObjectTraits}:#Object
+||--    def class-path = trait.name
+||--    def idx = {class-path.find
+||--                  '.',
+||--                  search-direction = SearchDirection.backward,
+||--                  starting-index = (class-path.size - 1)
+||--              }
+||--    def class-name =
+||--        {if idx != -1 then
+||--            {class-path.tail idx + 1}
+||--         else
+||--            class-path
+||--        }
+||--    let class-type:#ClassType
+||--    {for p in {ObjectMapper.get-mapper}.refered-packages do
+||--        def (val, found?) = {p.lookup class-name}
+||--        {if found? then
+||--            set class-type = val asa ClassType
+||--            {break}
+||--        }
+||--    }
+    || EXPERIMENTAL
+    || TODO: proper registration, outside this package (?)
+    def class-type:#ClassType =
+        {switch trait.name
+||--         case "flex.messaging.messages.AcknowledgeMessage" do AcknowledgeMessage
+         else null}
+    
+    {if class-type == null then
+        {return null}
+    }
+    || This also needs to deal with the "default" constructor not having
+    || the right number of args.  And maybe the mapper could have a
+    || prefered constructor name in it, and could allow supplying all
+    || field values as ... in the constructor.
+    {if-non-null c = {class-type.get-constructor "default"} then
+        def instance = {c.new} asa Object
+        {self.references.add-object instance}
+        {for member in trait.members do
+            def pval = {self.read-one}
+            {if-non-null property =
+                {class-type.get-property-for-set {self.curlfy-name member}}
+             then
+                {type-switch pval
+                 case pval:Null do
+                    || ignore
+                 case pval:DataObject do
+                    {property.set-value instance,
+                        {if property.type == {HashTable-of String, any} then
+                            {pval.to-HashTable}
+                         else
+                            pval}}
+                 else
+                    {property.set-value instance, pval}
+                }
+            }
+        }
+        {return instance}
+    }
+    {return null}
+  }
+
+  {method public {curlfy-name name:String}:String
+    || FIXME: do this more cheaply, by not using regexp, or caching
+    || a compiled regexp, and by combining the two replacements.
+    let curl-name:String =
+        {regexp-subst |"([a-z])([A-Z])"|, name, "\\1-\\2", replace-all?=true}
+    set curl-name =
+        {regexp-subst |"([A-Z]{2,})([a-z])"|, curl-name, "\\1-\\2", replace-all?=true}
+    set curl-name = {curl-name.to-lower-clone}
+    {return curl-name}
+  }
+  
+  {method private final inline {check-reference type:int}:(flag?:bool, n:int)
+    def flag? = ({bit-and type, 0x01} != 0)
+    def n = {bit-srl type, 1}
+    {return flag?, n}
+  }
+}

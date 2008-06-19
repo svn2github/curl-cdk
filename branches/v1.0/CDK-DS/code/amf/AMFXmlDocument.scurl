@@ -14,40 +14,12 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
-{manifest COM.CURL.CDK.DATA-SERVICES,
-    version = "0.1"}
+{define-class public open AMFXmlDocument
 
-|| core modules
-|| --------------------
-{component package COM.CURL.CDK.DATA-OBJECT,
-    location = "data-object/load.scurl"
+  field public constant xml:String
+
+  {constructor public {default xml:String}
+    set self.xml = xml
+  }
+
 }
-
-{component package COM.CURL.CDK.RECORDSET-FOR,
-    location = "recordset-for/load.scurl"
-}
-
-{component package COM.CURL.CDK.AMF,
-    location = "amf/load.scurl"
-}
-
-|| documentation
-|| --------------------
-{component directory docs,
-    location = "docs"
-}
-
-|| localization
-|| --------------------
-{component directory resources,
-    location = "resources"
-}
-
-{component file project.cprj,
-    location = "project.cprj"
-}
-
-
-
-

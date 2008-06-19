@@ -14,40 +14,21 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
-{manifest COM.CURL.CDK.DATA-SERVICES,
-    version = "0.1"}
+{define-class public AMFBody
+  field package constant target-uri:String
+  field public constant response-uri:String
+  field package constant length:int
+  field public constant data:any
 
-|| core modules
-|| --------------------
-{component package COM.CURL.CDK.DATA-OBJECT,
-    location = "data-object/load.scurl"
+  {constructor public {default
+                          target-uri:String = "",
+                          response-uri:String = "",
+                          length:int = AMF0Serializer.UNKNOWN_CONTENT_LENGTH,
+                          data:any
+                      }
+    set self.target-uri = target-uri
+    set self.response-uri = response-uri
+    set self.length = length
+    set self.data = data
+  }
 }
-
-{component package COM.CURL.CDK.RECORDSET-FOR,
-    location = "recordset-for/load.scurl"
-}
-
-{component package COM.CURL.CDK.AMF,
-    location = "amf/load.scurl"
-}
-
-|| documentation
-|| --------------------
-{component directory docs,
-    location = "docs"
-}
-
-|| localization
-|| --------------------
-{component directory resources,
-    location = "resources"
-}
-
-{component file project.cprj,
-    location = "project.cprj"
-}
-
-
-
-

@@ -14,40 +14,21 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
-{manifest COM.CURL.CDK.DATA-SERVICES,
-    version = "0.1"}
-
-|| core modules
-|| --------------------
-{component package COM.CURL.CDK.DATA-OBJECT,
-    location = "data-object/load.scurl"
+{define-class public final AMFHttpRequestData {inherits HttpRequestData}
+  field private constant bytes:ByteArray
+  field private constant _content-type:String
+  {constructor public {default
+                          bytes:ByteArray,
+                          content-type:String = "application/x-amf"
+                      }
+    {construct-super}
+    set self.bytes = bytes
+    set self._content-type = content-type
+  }
+  {getter public {content-type}:#String
+    {return self._content-type}
+  }
+  {method public {request-data}:ByteArray
+    {return self.bytes}
+  }
 }
-
-{component package COM.CURL.CDK.RECORDSET-FOR,
-    location = "recordset-for/load.scurl"
-}
-
-{component package COM.CURL.CDK.AMF,
-    location = "amf/load.scurl"
-}
-
-|| documentation
-|| --------------------
-{component directory docs,
-    location = "docs"
-}
-
-|| localization
-|| --------------------
-{component directory resources,
-    location = "resources"
-}
-
-{component file project.cprj,
-    location = "project.cprj"
-}
-
-
-
-
