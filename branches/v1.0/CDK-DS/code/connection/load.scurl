@@ -28,11 +28,23 @@
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.MESSAGES}
 
-{let public stop-watch:StopWatch = {new StopWatch}}
-{let public server-exec-plus-transfer-time:Time = 0s}
-{let public deserialization-time:Time = 0s}
-
 {include
     "ConnectionResponder.scurl",
     "CurlConnection.scurl"
+}
+
+|| gzip support
+{import * from CURL.IO.ZSTREAM}
+{define-proc {zstream-for in:HttpByteInputStream}:ByteInputStream
+    let (enc:String, enc?:bool) = 
+        {in.response-headers.get-if-exists "Content-Encoding"}
+    {return
+        {if enc? then
+            {InflateByteInputStream in,
+                compression-format = 
+                    {switch enc
+                     case "gzip" do CompressionFormat.gzip
+                     case "deflate" do CompressionFormat.zlib
+                     else {error {message Unexpected HTTP Content-Encoding: {value enc}}}}}
+         else in}}
 }

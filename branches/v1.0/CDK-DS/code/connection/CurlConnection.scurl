@@ -23,6 +23,9 @@
 
   let public response-uri-count:int = 1
 
+  || for gzip enablement
+  field public http-headers:#HttpRequestHeaders = null
+
   {constructor public {default}
   }
 
@@ -46,30 +49,45 @@
   {method public {call
                      command:#String = null,
                      responder:#ConnectionResponder = null,
+                     async?:bool = true,
+                     ...:any
+                 }:void
+    {if async? then
+        {self.call-async
+            command = command,
+            responder = responder,
+            ...}
+     else
+        {self.call-sync
+            command = command,
+            responder = responder,
+            ...}
+    }
+  }
+  
+  {method public {call-async
+                     command:#String = null,
+                     responder:#ConnectionResponder = null,
                      ...:any
                  }:void
     {if-non-null u = self.uri then
-        let envelope:AMFEnvelope = {new AMFEnvelope}
-        let amf-body:AMFBody =
-            {new AMFBody,
-                target-uri = {if-non-null command then command else "null"},
-                response-uri = "/" & CurlConnection.response-uri-count,
-                length = AMF0Serializer.UNKNOWN_CONTENT_LENGTH,
-                {new {Array-of any}, {splice ...}}
-            }
-        {inc CurlConnection.response-uri-count}
-        {envelope.add-body amf-body}
+        
+        def (request-data, amf-body) =
+            {self.create-request
+                command = command,
+                {Array {splice ...}}}
 
-        let request-data:AMFHttpRequestData =
-            {new AMFHttpRequestData, {envelope.serialize}}
-        let http-file:HttpFile = {u.instantiate-File} asa HttpFile
         {if-debuggable
             {for x in ... do
                 {output "sending message: " & x}
             }}
+        
+        let http-file:HttpFile = {u.instantiate-File} asa HttpFile
         {http-file.http-async-read-open-byte
-            request-data = request-data,
             request-method = "post",
+            request-data = request-data,
+            request-headers = self.http-headers,
+            
             {on e:AsyncFileOpenEvent do
                 {if-non-null ex = e.exception then
                     {if-non-null responder then
@@ -89,48 +107,138 @@
                         {responder.status err}
                     }
                  else
-                    def response = e.stream asa ByteInputStream
-                    || Note: this will do blocking reads.
-                    def ret = {AMFEnvelope.deserialize response}
-                    def headers = ret.headers
-                    def bodies = ret.bodies
-                    || Remember to close the stream.
-                    {response.close}
+                    def envelope = 
+                        {with-open-streams
+                            in = e.stream asa HttpByteInputStream
+                         do
+                            {AMFEnvelope.deserialize
+                                {zstream-for in}
+                            }}
+                    
                     {if-non-null responder then
-                        || TODO: What can we reasonably expect in the envelope?
-                        ||       The responder's result handler takes a single
-                        ||       IMessage argument. Can we stop at one message
-                        ||       from bodies? What if it's an ErrorMessage? Can
-                        ||       the case exist where there are no messages?
-                        let msg:#IMessage = null
-                        {for body in bodies do
-                            set msg = {self.extract-message body.data}
-                            {if-non-null msg then
-                                || TODO: For now we're taking the first message
-                                ||       we find.
-                                {break}
-                            }
-                        }
-                        {type-switch msg
-                         case err:ErrorMessage do
-                            {responder.status err}
-                         case ack:AcknowledgeMessage do
-                            {responder.result ack}
-                         case cmd:CommandMessage do
-                            {responder.result cmd}
-                         else
-                            def err = {new ErrorMessage}
-                            set err.fault-code = "Unable to find a Message"
-                            set err.fault-string = "warn"
-                            set err.extended-data = bodies
-                            set err.root-cause = e
-                            {responder.status err}
-                        }
+                        {self.handle-response responder, envelope}
                     }
                 }
             }
         }
     }
+  }
+
+  {method public {call-sync
+                     command:#String = null,
+                     responder:#ConnectionResponder = null,
+                     ...:any
+                 }:void
+    {if-non-null u = self.uri then
+
+        def (request-data, amf-body) =
+            {self.create-request
+                command = command,
+                {Array {splice ...}}}
+        
+        def http-file = {u.instantiate-File} asa HttpFile
+        
+        {if-debuggable
+            {for x in ... do
+                {output "sending message: " & x}
+            }}
+
+        {try
+            def envelope = 
+                {with-open-streams in =
+                    {http-file.http-read-open-byte
+                        request-method = "post",
+                        request-data = request-data,
+                        request-headers = self.http-headers}
+                 do
+                    {AMFEnvelope.deserialize
+                        {zstream-for in}
+                    }}
+            
+            {if-non-null responder then
+                {self.handle-response responder, envelope}
+            }
+         catch ex:Exception do
+            {if-non-null responder then
+                def err = {new ErrorMessage}
+                set err.fault-code = "Client.Ping.Failed"
+                set err.fault-string = "error"
+                set err.fault-detail = ex.message
+                set err.root-cause = amf-body
+                {responder.status err}
+             else
+                {throw ex}
+            }
+        }
+    }
+  }
+
+  {method protected {handle-response
+                        responder:ConnectionResponder,
+                        envelope:AMFEnvelope
+                    }:void
+
+    def headers = envelope.headers
+    def bodies = envelope.bodies
+    || TODO: What can we reasonably expect in the envelope?
+    ||       The responder's result handler takes a single
+    ||       IMessage argument. Can we stop at one message
+    ||       from bodies? What if it's an ErrorMessage? Can
+    ||       the case exist where there are no messages?
+    let msg:#IMessage = null
+    {for body in bodies do
+        set msg = {self.extract-message body.data}
+        {if-non-null msg then
+            || TODO: For now we're taking the first message
+            ||       we find.
+            {break}
+        }
+    }
+    {type-switch msg
+     case err:ErrorMessage do
+        {responder.status err}
+     case ack:AcknowledgeMessage do
+        {responder.result ack}
+     case cmd:CommandMessage do
+        {responder.result cmd}
+     else
+        def err = {new ErrorMessage}
+        set err.fault-code = "Unable to find a Message"
+        set err.fault-string = "warn"
+        set err.extended-data = bodies
+        {responder.status err}
+    }
+  }
+  
+  {method protected {create-request
+                        command:#String = null,
+                        args:Array
+                    }:(AMFHttpRequestData, AMFBody)
+    def envelope =
+        {AMFEnvelope}
+    def amf-body =
+        {AMFBody
+            target-uri = {if-non-null command then command else "null"},
+            response-uri = "/" & CurlConnection.response-uri-count,
+            length = AMF0Serializer.UNKNOWN_CONTENT_LENGTH,
+            args}
+    {inc CurlConnection.response-uri-count}
+    {envelope.add-body amf-body}
+
+    def request-data =
+        {AMFHttpRequestData {envelope.serialize}}
+    {return request-data, amf-body}
+  }
+
+  {method protected {process-response-stream
+                        in:ByteInputStream
+                    }:AMFEnvelope
+    
+    || Deserialize.
+    || Note: this will do blocking reads.
+    def env = {AMFEnvelope.deserialize in}
+
+    {return env}
   }
 
   {method protected {host-and-port url:Url}:(String, uint16)
@@ -154,124 +262,4 @@
             {error {message Expected IMessage but got {value x}}}
         }}
   }
-  || TODO: This is ugly. Figure out an acceptable way to inspect an any. I think
-  ||       we're, unfortunately, stuck with what BlazeDS sends back.
-||--  {method protected {extract-message x:any}:#IMessage
-||--    {type-switch x
-||--     case msg:IMessage do
-||--        {return msg}
-||--     case amf-obj:DataObject do
-||--        {switch amf-obj.traits.name
-||--         case "flex.messaging.messages.ErrorMessage" do
-||--            def err = {new ErrorMessage}
-||--            set err.headers = amf-obj["headers"] asa {HashTable-of String, any}
-||--            set err.body = amf-obj["body"]
-||--            set err.message-id = amf-obj["messageId"] asa String
-||--            set err.client-id = amf-obj["clientId"] asa #String
-||--            set err.correlation-id =
-||--                {if-non-null d = amf-obj["correlationId"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set err.destination =
-||--                {if-non-null d = amf-obj["destination"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set err.timestamp = amf-obj["timestamp"] asa double
-||--            set err.time-to-live = amf-obj["timeToLive"] asa double
-||--            set err.fault-code = amf-obj["faultCode"] asa #String
-||--            set err.fault-string = amf-obj["faultString"] asa #String
-||--            set err.fault-detail = amf-obj["faultDetail"] asa #String
-||--            set err.extended-data = amf-obj["extendedData"]
-||--            set err.root-cause = amf-obj["rootCause"]
-||--            {return err}
-||--         case "flex.messaging.messages.AcknowledgeMessage" do
-||--            def ack = {new AcknowledgeMessage}
-||--            set ack.headers = amf-obj["headers"] asa {HashTable-of String, any}
-||--            set ack.body = amf-obj["body"]
-||--            set ack.message-id = amf-obj["messageId"] asa String
-||--            set ack.client-id = amf-obj["clientId"] asa #String
-||--            set ack.correlation-id =
-||--                {if-non-null d = amf-obj["correlationId"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set ack.destination =
-||--                {if-non-null d = amf-obj["destination"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set ack.time-to-live = amf-obj["timeToLive"] asa double
-||--            set ack.timestamp = amf-obj["timestamp"] asa double
-||--            || TODO: Still need to return the actual message data the server
-||--            ||       sent us.
-||--            {return ack}
-||--         case "flex.messaging.messages.CommandMessage" do
-||--            def command-message = {new CommandMessage}
-||--            set command-message.headers =
-||--                amf-obj["headers"] asa {HashTable-of String, any}
-||--            set command-message.body = amf-obj["body"] asa {Array-of any}
-||--            set command-message.message-id = amf-obj["messageId"] asa String
-||--            set command-message.client-id = amf-obj["clientId"] asa #String
-||--            set command-message.correlation-id =
-||--                {if-non-null d = amf-obj["correlationId"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set command-message.destination =
-||--                {if-non-null d = amf-obj["destination"] then
-||--                    d asa String
-||--                 else
-||--                    ""
-||--                }
-||--            set command-message.operation = amf-obj["operation"] asa uint
-||--            set command-message.timestamp = amf-obj["timestamp"] asa double
-||--            set command-message.time-to-live = amf-obj["timeToLive"] asa double
-||--            {return command-message}
-||--         else
-||--            let msg:#IMessage = null
-||--            {with-compiler-directives allow-any-calls? = true do
-||--                {try
-||--                    def collection = {x.to-Iterator}
-||--                    {for it in collection do
-||--                        set msg = {self.extract-message it}
-||--                        {if-non-null msg then
-||--                            {return msg}
-||--                        }
-||--                    }
-||--                 catch e:Exception do
-||--                    || Catch exceptions thrown when something doesn't support
-||--                    || {to-Iterator}.
-||--                    set msg = null
-||--                }
-||--            }
-||--            {return msg}
-||--        }
-||--     else
-||--        let msg:#IMessage = null
-||--        {with-compiler-directives allow-any-calls? = true do
-||--            {try
-||--                def collection = {x.to-Iterator}
-||--                {for it in collection do
-||--                    set msg = {self.extract-message it}
-||--                    {if-non-null msg then
-||--                        {return msg}
-||--                    }
-||--                }
-||--             catch e:Exception do
-||--                || Catch exceptions thrown when something doesn't support
-||--                || {to-Iterator}.
-||--                set msg = null
-||--            }
-||--        }
-||--        {return msg}
-||--    }
-||--    {return null}
-||--  }
 }
