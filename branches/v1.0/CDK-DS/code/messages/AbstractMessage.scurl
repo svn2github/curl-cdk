@@ -26,21 +26,17 @@
       "DSRemoteCredentialsCharset"
   let public constant REQUEST_TIMEOUT_HEADER:String = "DSRequestTimeout"
 
-  let private constant ALPHA_CHARS:{Array-of char} =
-      {new {Array-of char},
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
-      }
-  let private constant HAS_NEXT_FLAG:uint16 = 128
-  let private constant BODY_FLAG:uint16 = 1
-  let private constant CLIENT_ID_FLAG:uint16 = 2
-  let private constant DESTINATION_FLAG:uint16 = 4
-  let private constant HEADERS_FLAG:uint16 = 8
-  let private constant MESSAGE_ID_FLAG:uint16 = 16
-  let private constant TIMESTAMP_FLAG:uint16 = 32
-  let private constant TIME_TO_LIVE_FLAG:uint16 = 64
-  let private constant CLIENT_ID_BYTES_FLAG:uint16 = 1
-  let private constant MESSAGE_ID_BYTES_FLAG:uint16 = 2
+  let private constant ALPHA_CHARS:String = "0123456789ABCDEF"
+  let private constant HAS_NEXT_FLAG:uint8 = 128
+  let private constant BODY_FLAG:uint8 = 1
+  let private constant CLIENT_ID_FLAG:uint8 = 2
+  let private constant DESTINATION_FLAG:uint8 = 4
+  let private constant HEADERS_FLAG:uint8 = 8
+  let private constant MESSAGE_ID_FLAG:uint8 = 16
+  let private constant TIMESTAMP_FLAG:uint8 = 32
+  let private constant TIME_TO_LIVE_FLAG:uint8 = 64
+  let private constant CLIENT_ID_BYTES_FLAG:uint8 = 1
+  let private constant MESSAGE_ID_BYTES_FLAG:uint8 = 2
 
   {constructor public {default}
     {construct-super}
@@ -181,7 +177,7 @@
     def input = deserializer.input
     def flags-array = {AbstractMessage.read-flags input}
     {for flags key i in flags-array do
-        let reserved-position:uint16 = 0
+        let reserved-position:uint8 = 0
         {switch i
          case 0 do
             {if {bit-and flags, AbstractMessage.BODY_FLAG} != 0 then
@@ -236,12 +232,12 @@
         }
     }
   }
-  {define-proc protected {read-flags input:ByteInputStream}:{Array-of uint16}
+  {define-proc protected {read-flags input:ByteInputStream}:ByteArray
     let has-next-flag?:bool = true
-    def flags-array = {new {Array-of uint16}}
+    def flags-array = {ByteArray}
     let i:int = 0
     {while has-next-flag? do
-        let flags:uint16 = {input.read-one} asa uint16
+        def flags = {input.read-one}
 
         {flags-array.append flags}
 

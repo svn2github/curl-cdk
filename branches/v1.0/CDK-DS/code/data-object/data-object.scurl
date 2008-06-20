@@ -171,8 +171,8 @@
   }
 }
 {define-class public {OpenDataObject-of T:ClassType} {inherits StandardDataObject}
-  field constant data:T
-  field constant _traits:DataObjectTraits
+  field protected constant data:T
+  field private constant _traits:DataObjectTraits
   {getter public {traits}:DataObjectTraits
     {return self._traits}
   }
@@ -271,7 +271,7 @@
   }
   || change management
   || --------------------
-  field original-data:#T
+  field protected original-data:#T
   {getter public {pending-update?}:bool
     {return self.original-data != null}
   }
@@ -306,8 +306,8 @@
 }
 || ====================
 {define-class public SealedDataObject {inherits StandardDataObject}
-  field constant data:Array
-  field constant _traits:DataObjectTraits
+  field protected constant data:FastArray
+  field private constant _traits:DataObjectTraits
   {getter public {traits}:DataObjectTraits
     {return self._traits}
   }
@@ -318,7 +318,7 @@
     {assert not traits.dynamic?}
     set self._traits = traits
     def members = traits.members
-    def data = {Array.from-size members.size, null}
+    def data = {FastArray.from-size members.size, null}
     set self.data = data
     {if-non-null default-values then
         {for x key k in default-values do
@@ -350,7 +350,7 @@
   {constructor public {from-traits traits:DataObjectTraits}
     set self._traits = traits
     def members = traits.members
-    set self.data = {Array.from-size members.size, null}
+    set self.data = {FastArray.from-size members.size, null}
   }
   {getter public {size}:int
     {return self.data.size}
@@ -394,8 +394,9 @@
   }
   {method public {clone}:SealedDataObject
     def clone = {SealedDataObject.from-traits self.traits}
-    {for x key i in self.data do
-        set clone.data[i] = x}
+    {self.data.copy-into
+        clone.data, 0, 0, self.data.size
+    }
     {return clone}
   }
   || performance hacks
@@ -412,7 +413,7 @@
   }
   || change management
   || --------------------
-  field protected original-data:#Array
+  field protected original-data:#FastArray
   {getter public {pending-update?}:bool
     {return self.original-data != null}
   }
@@ -433,9 +434,9 @@
   {method public {revert}:void
     || NOTE: change propagation is damped by 'changed?' checks above
     {if-non-null original = self.original-data then
-        || duplicate original
-        {for x key i in original do
-            set self.data[i] = x}
+        {original.copy-into
+            self.data, 0, 0, original.size
+        }
         || now its the same
         set self.original-data = null}
   }
@@ -446,11 +447,11 @@
 }
 || ====================
 {define-class public StandardDataObjectTraits {inherits DataObjectTraits}
-  field constant _name:String
-  field constant _members:StringArray
-  field constant _dynamic?:bool
-  field constant _externalizable?:bool
-  field constant member-indices:{BucketHashTable-of String, int}
+  field private constant _name:String
+  field private constant _members:StringArray
+  field private constant _dynamic?:bool
+  field private constant _externalizable?:bool
+  field private constant member-indices:{BucketHashTable-of String, int}
   || TODO: should probably be interned
   {constructor public {default
                           name:String,

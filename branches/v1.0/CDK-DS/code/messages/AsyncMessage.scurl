@@ -39,7 +39,7 @@
     {super.read-external deserializer}
     def flags-array = {AbstractMessage.read-flags deserializer.input}
     {for flags key i in flags-array do
-        let reserved-position:uint16 = 0
+        let reserved-position:uint8 = 0
         {switch i
          case 0 do
             {if {bit-and flags, AsyncMessage.CORRELATION_ID_FLAG} != 0 then

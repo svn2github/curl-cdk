@@ -26,7 +26,7 @@
     {super.read-external deserializer}
     def flags-array = {AbstractMessage.read-flags deserializer.input}
     {for flags key i in flags-array do
-        let reserved-position:uint16 = 0
+        let reserved-position:uint8 = 0
         {if {bit-srl flags, reserved-position} != 0 then
             {for j = reserved-position below 6 do
                 {if {bit-and {bit-srl flags, j}, 1} != 0 then
