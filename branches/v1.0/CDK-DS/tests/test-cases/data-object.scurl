@@ -54,38 +54,38 @@
                   }:TestSuite
                 def suite =
                     {TestSuite name,
-                        {test-case "open construct",
+                        {test-case "construct",
                             def subject = {make-data  id = 1, name = "test"}
                             {TestCondition.assert
                                 subject["id"] == 1 and
                                 subject["name"] == "test"
                             }
                         },
-                        {test-case "open compare-equal",
+                        {test-case "compare-equal",
                             def subject = {make-data  id = 1, name = "test"}
                             def other = {make-data  id = 1, name = "test"}
                             {TestCondition.assert
                                 {subject.equal? other}}
                         },
-                        {test-case "open compare-unequal",
+                        {test-case "compare-unequal",
                             def subject = {make-data  id = 1, name = "test"}
                             def other = {make-data  id = 2, name = "test"}
                             {TestCondition.assert
                                 not {subject.equal? other}}
                         },
-                        {test-case "open compare-unequal-missing",
+                        {test-case "compare-unequal-missing",
                             def subject = {make-data  id = 1, name = "test"}
                             def other = {make-data  name = "test"}
                             {TestCondition.assert
                                 not {subject.equal? other}}
                         },
-                        {test-case "open compare-unequal-extra",
+                        {test-case "compare-unequal-extra",
                             def subject = {make-data  id = 1, name = "test"}
                             def other = {make-data  name = "test"}
                             {TestCondition.assert
                                 not {other.equal? subject}}
                         },
-                        {test-case "open clone",
+                        {test-case "clone",
                             def subject = {make-data  id = 1, name = "test"}
                             def other = {subject.clone}
                             {TestCondition.assert
@@ -101,6 +101,12 @@
                             {TestCondition.assert
                                 not {subject.set? "foo"}}
                         },
+                        {test-case "unspecified member set?",
+                            def subject = {make-data}
+                            def should-be-set? = {subject.traits.members.find "id"} >= 0
+                            {TestCondition.assert
+                                {subject.set? "id"} == should-be-set?}
+                        },
                         {test-case "iterator",
                             def subject = {make-data  id = 1, name = "test"}
                             def values = {subject.to-HashTable}
@@ -114,10 +120,19 @@
                     }
                 {return suite}}
         {TestSuite "properties",
-            {make-suite "Open",
+            {make-suite "Anonymous",
                 {proc {...}:DataObject
                     {return
                         {DataObject {splice ...}}}
+                }},
+            {make-suite "Open",
+                {proc {...}:DataObject
+                    def traits =
+                        {DataObjectTraits "Test",
+                            {StringArray "id", "name"}}
+                    {return
+                        {DataObject traits = traits,
+                            {splice ...}}}
                 }},
             {make-suite "Sealed",
                 {proc {...}:DataObject
