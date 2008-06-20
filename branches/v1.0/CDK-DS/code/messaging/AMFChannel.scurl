@@ -1,0 +1,236 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public AMFChannel {inherits CurlConnectionChannel}
+  field private ignore-net-status-events?:bool = false
+
+  field public result-handler:{proc-type {msg:IMessage}:void} =
+      {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
+  field public fault-handler:{proc-type {msg:IMessage}:void} =
+      {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
+
+  {constructor public {default id:#String = null, uri:#Url = null}
+    {construct-super id = id, uri = uri}
+    {self.init-handlers}
+  }
+
+  {getter public {polling?}:bool
+    {return self.poll-outstanding?}
+  }
+
+  {getter public {protocol}:String
+    {return "http"}
+  }
+
+  {method protected {internal-connect}:void
+    {super.internal-connect}
+    set self.ignore-net-status-events? = false
+
+    def message = {new CommandMessage}
+    {if-non-null self.credentials then
+        set message.operation = CommandMessage.LOGIN_OPERATION
+        set message.body = self.credentials
+     else
+        set message.operation = CommandMessage.CLIENT_PING_OPERATION
+    }
+
+    set message.headers[CommandMessage.MESSAGING_VERSION] =
+        self.messaging-version
+
+    {if {ServerConfig.needs-config? self} then
+        set message.headers[CommandMessage.NEEDS_CONFIG_HEADER] = true
+    }
+
+    {self.set-flex-client-id-on-message message}
+
+    def responder =
+        {new ConnectionResponder,
+            self.result-handler,
+            self.fault-handler
+        }
+    {if-non-null self.connection then
+        {self.connection.call command = null, responder = responder, message}
+     else
+        || TODO:
+    }
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    {if not rejected? then
+        def command-message = {new CommandMessage}
+        set command-message.operation = CommandMessage.DISCONNECT_OPERATION
+        {self.internal-send
+            {new AMFFireAndForgetResponder, command-message}
+        }
+    }
+    set self.connected? = false
+    {super.internal-disconnect rejected? = rejected?}
+  }
+
+  {method public {send agent:MessageAgent, message:IMessage}:void
+    {super.send agent, message}
+  }
+
+  {method protected {internal-send message-responder:MessageResponder}:void
+    {super.internal-send message-responder}
+  }
+
+  {method protected {get-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return {super.get-message-responder agent, message}}
+  }
+
+  {method protected {shutdown-net-connection}:void
+    || TODO:
+||--    {self._connection.remove-event-handler
+||--        SecurityErrorEvent.SecurityError,
+||--        self.security-error-handler
+||--    }
+||--    {self._connection.remove-event-handler
+||--        IOErrorEvent.IO_ERROR,
+||--        self.io-error-handler
+||--    }
+    set self.ignore-net-status-events? = true
+    {self.connection.close}
+  }
+
+  {method protected {init-handlers}:void
+    set self.result-handler =
+        {proc {msg:IMessage}:void
+            || TODO: Some ServerConfig stuff happens first.
+            {if {FlexClient.get-instance}.id == null and
+                {msg.headers.key-exists? AbstractMessage.FLEX_CLIENT_ID_HEADER}
+             then
+                set {FlexClient.get-instance}.id =
+                    msg.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER]
+                asa String
+            }
+            {self.connect-succeeded}
+            {type-switch msg
+             case err:ErrorMessage do
+                || Ignore
+             else
+                {if-non-null self.credentials then
+                    set self.authenticated? = true
+                }
+            }
+        }
+    set self.status-handler =
+        {proc {net-status-event:Event}:void
+            {if self.ignore-net-status-events? then
+                {return}
+            }
+||--            let channel-fault:#ChannelFaultEvent
+||--            let handled?:bool = true
+||--            {if-non-null net-status-event.info then
+||--                {if info.level == "error" then
+||--                    {if self.connected? then
+||--                        {if {info.code.find-string "Call.Failed"} != -1 then
+||--                            set channel-fault =
+||--                                {new ChannelFaultEvent,
+||--                                    ChannelFaultEvent.FAULT,
+||--                                    channel = self,
+||--                                    code = "Channel.Call.Failed",
+||--                                    level = info.level,
+||--                                    description = info.description,
+||--                                    root-cause = info
+||--                                }
+||--                            {self.enqueue-event channel-fault}
+||--                        }
+||--                        {self.internal-disconnect}
+||--                     else
+||--                        set channel-fault =
+||--                            {new ChannelFaultEvent,
+||--                                ChannelFaultEvent.FAULT,
+||--                                channel = self,
+||--                                code = "Channel.Connect.Failed",
+||--                                level = info.level,
+||--                                description = info.description,
+||--                                root-cause = info
+||--                            }
+||--                        {self.connect-failed channel-fault}
+||--                    }
+||--                 else
+||--                    {if not self.connected? then
+||--                        set handled =
+||--                            (info.level == "status" and
+||--                             {info.code.find-string "Connect.Closed"} != -1)
+||--                     else
+||--                        set handled? = false
+||--                    }
+||--                }
+||--             else
+||--                set handled? = false
+||--            }
+||--            {if not handled? then
+                {self.connect-failed
+                    {new ChannelFaultEvent,
+                        ChannelFaultEvent.FAULT,
+                        channel = self,
+                        code = "Channel.Connect.Failed",
+                        level = "error",
+                        description = "Invalid Url: " & self.endpoint
+                    }
+                }
+||--            }
+        }
+    set self.fault-handler =
+        {proc {msg:IMessage}:void
+            {type-switch msg
+             case err:ErrorMessage do
+                {if err.fault-code == "Client.Authentication" then
+                    || Connection succeeded, but authentication failed.
+                    {self.result-handler err}
+                    {self.enqueue-event
+                        {ChannelFaultEvent
+                            ChannelFaultEvent.FAULT,
+                            channel = self,
+                            code = err.fault-code,
+                            level = "warn",
+                            description = err.fault-detail,
+                            root-cause = err
+                        }
+                    }
+                 else
+                    {if {FlexClient.get-instance}.id == null and
+                        {msg.headers.key-exists?
+                            AbstractMessage.FLEX_CLIENT_ID_HEADER
+                        }
+                     then
+                        set {FlexClient.get-instance}.id =
+                            msg.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER]
+                        asa String
+                    }
+                    || TODO: Process features advertised by the server endpoint.
+                    {self.connect-failed
+                        {ChannelFaultEvent
+                            ChannelFaultEvent.FAULT,
+                            channel = self,
+                            code = "Channel.Ping.Failed",
+                            level = "error",
+                            description = err.fault-detail & "url: " & self.uri,
+                            root-cause = err
+                        }
+                    }
+                }
+             else
+                {throw {new Exception, "Unexpected message type"}}
+            }
+        }
+  }
+}

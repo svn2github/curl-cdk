@@ -1,0 +1,100 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public RemoteObject {inherits AbstractService}
+  field public source:#String
+
+  {constructor public {default endpoint:Url, destination:String, ...}
+    {construct-super
+        endpoint = endpoint,
+        destination = destination,
+        {on e:FaultEvent do
+            {self.on-fault-event e}
+        },
+        {on e:InvokeEvent do
+            {self.on-invoke-event e}
+        },
+        {on e:ResultEvent do
+            {self.on-result-event e}
+        },
+        {splice ...}
+    }
+  }
+
+  {method public {set-remote-credentials
+                     remote-username:#String,
+                     remote-password:#String,
+                     charset:#String = null
+                 }:void
+    {super.set-remote-credentials
+        remote-username, remote-password, charset = charset
+    }
+  }
+
+  {method public {on-fault-event e:FaultEvent}:void
+    {super.on-fault-event e}
+  }
+
+  {method public {on-invoke-event e:InvokeEvent}:void
+    {super.on-invoke-event e}
+  }
+
+  {method public {on-result-event e:ResultEvent}:void
+    {super.on-result-event e}
+  }
+
+  {method public {dispatch-event event:Event}:void
+||--    {super.enqueue-event event}
+||--    {if {self.has-event-listener? event.type} then
+        {super.enqueue-event event}
+||--     else
+||--        {type-switch event
+||--         case fe:FaultEvent do
+||--            {if not {self.has-token-responders? event} then
+||--                def reason = fe.fault.fault-string
+||--                {if self.document and
+||--                    {self.document.will-trigger ErrorEvent.ERROR}
+||--                 then
+||--                    def ee = {new ErrorEvent,
+||--                                 ErrorEvent.ERROR,
+||--                                 bubbles? = true,
+||--                                 cancelable? = true
+||--                             }
+||--                    set ee.text = reason
+||--                    {self.document.dispatch-event ee}
+||--                 else
+||--                    {throw {new FaultEvent, event}.fault}
+||--                }
+||--            }
+||--         case ee:ErrorEvent do
+||--            def reason = ee.text
+||--            {if self.document and
+||--                {self.document.will-trigger ErrorEvent.ERROR}
+||--             then
+||--                def err = {new ErrorEvent,
+||--                              ErrorEvent.ERROR,
+||--                              bubbles? = true,
+||--                              cancelable? = true
+||--                          }
+||--                set err.text = reason
+||--                {self.document.dispatch-event err}
+||--             else
+||--                {throw {new Exception, "No listener for event"}}
+||--            }
+||--        }
+||--    }
+  }
+}

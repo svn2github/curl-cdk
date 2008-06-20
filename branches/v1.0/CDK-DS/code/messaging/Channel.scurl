@@ -1,0 +1,329 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract Channel {inherits EventTarget}
+  field private _authenticated?:bool = false
+  field private authenticating?:bool = false
+  field private _channel-sets:{Array-of ChannelSet} =
+      {new {Array-of ChannelSet}}
+  field private _connected?:bool = false
+  field private connecting?:bool = false
+  field private owns-wait-guard?:bool = false
+  field private _endpoint:#String
+  field private failover-uris:#{Array-of Url}
+  field private _id:#String
+  field private protocol:#String
+  field private _reconnecting?:bool = false
+  field private _uri:#Url
+  field protected login-after-disconnect?:bool = false
+  field protected credentials:#String
+  field protected messaging-version:double = 1.0
+  field public connect-timeout:Time = -1s
+  field public request-timeout:Time = -1s
+
+  {constructor public {default id:#String = null, uri:#Url = null}
+    set self._id = id
+    set self._uri = uri
+  }
+
+  {getter public {endpoint}:#String
+    {return self._endpoint}
+  }
+
+  {getter public {channel-sets}:{Array-of ChannelSet}
+    {return self._channel-sets}
+  }
+
+  {getter public {uri}:#Url
+    {return self._uri}
+  }
+
+  {setter public {uri u:#Url}:void
+    set self._uri = u
+  }
+
+  {getter public {id}:#String
+    {return self._id}
+  }
+
+  {setter public {id s:#String}:void
+    set self._id = s
+  }
+
+  {getter public {authenticated?}:bool
+    {return self._authenticated?}
+  }
+
+  {setter public {authenticated? b?:bool}:void
+    {if self._authenticated? != b? then
+        set self._authenticated? = b?
+        {if not self._authenticated? then
+            set self.credentials = null
+        }
+        || TODO: Set authenticated for each channel-set in channel-sets
+        || TODO: Fire a PropertyChangeEvent
+    }
+  }
+
+  {getter protected {connected?}:bool
+    {return self._connected?}
+  }
+
+  {setter protected {connected? b?:bool}:void
+    {if self._connected? != b? then
+        set self._connected? = b?
+        || TODO: Fire a PropertyChangeEvent
+        {if not b? then
+            set self.authenticated? = false
+        }
+    }
+  }
+
+  {getter protected {reconnecting?}:bool
+    {return self._reconnecting?}
+  }
+
+  {setter protected {reconnecting? b?:bool}:void
+    {if self._reconnecting? != b? then
+        set self._reconnecting? = b?
+        || TODO: Fire a PropertyChangeEvent
+    }
+  }
+
+  {method protected {internal-connect}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-send
+                        message-responder:MessageResponder
+                    }:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {get-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return null}
+  }
+
+  {method public {set-credentials
+                     credentials:#String,
+                     agent:#MessageAgent = null,
+                     charset:#String = null
+                 }:void
+    def changed-credentials? = (credentials != self.credentials)
+
+    {if self.authenticating? and changed-credentials? then
+        {throw
+            {new Exception,
+                "Credentials cannot be set while authenticating or logging out."
+            }
+        }
+    }
+    {if self.authenticated? and changed-credentials? then
+        {throw
+            {new Exception,
+                "Credentials cannot be set when already authenticated. "&
+                "Logout must be performed before changing credentials."
+            }
+        }
+    }
+
+    set self.credentials = credentials
+
+    {if-non-null credentials then
+        {if self.connected? and changed-credentials? then
+            set self.authenticating? = true
+            def message = {new CommandMessage}
+            set message.operation = CommandMessage.LOGIN_OPERATION
+            set message.body = credentials
+            {if-non-null charset then
+                set message.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] =
+                    charset
+            }
+            || TODO:
+||--            {self.internal-send
+||--                {new AuthenticationMessageResponder, self.agent, message, self}
+||--            }
+        }
+    }
+  }
+
+  {method public {connect channel-set:ChannelSet}:void
+    let exists?:bool = false
+    {for cset in self._channel-sets do
+        {if cset == channel-set then
+            set exists? = true
+            {break}
+        }
+    }
+    {if not exists? then
+        {self._channel-sets.append channel-set}
+        {self.add-event-handler
+            {on e:ChannelEvent do
+                {switch e.type
+                 case ChannelEvent.CONNECT do
+                    {channel-set.channel-connect-handler e}
+                 case ChannelEvent.DISCONNECT do
+                    {channel-set.channel-disconnect-handler e}
+                }
+            }
+        }
+        {self.add-event-handler
+            {on e:ChannelFaultEvent do
+                {channel-set.channel-fault-handler e}
+            }
+        }
+    }
+    {if self._connected? then
+        {channel-set.channel-connect-handler
+            {new ChannelEvent,
+                ChannelEvent.CONNECT,
+                channel = self,
+                reconnecting? = false,
+                rejected? = false,
+                connected? = self.connected?
+            }
+        }
+     else
+        {if not self.connecting? then
+            set self.connecting? = true
+            {if self.connect-timeout > 0s then
+                || TODO: Start a timeout timer.
+            }
+            {if {FlexClient.get-instance}.id == null then
+                def flex-client = {FlexClient.get-instance}
+                {if not flex-client.wait-for-flex-client-id? then
+                    set flex-client.wait-for-flex-client-id? = true
+                    set self.owns-wait-guard? = true
+                    {self.internal-connect}
+                 else
+                    || TODO: When the PropertyChangeEvents are in, swap this
+                    ||       {internal-connect} for the commented out code.
+                    {self.internal-connect}
+||--                    {flex-client.add-event-handler
+||--                        {on e:PropertyChangeEvent do
+||--                            {switch e.type
+||--                             case PropertyChangeEvent.PROPERTY_CHANGE do
+||--                                {self.flex-client-wait-handler e}
+||--                            }
+||--                        }
+||--                    }
+                }
+             else
+                {self.internal-connect}
+            }
+        }
+    }
+  }
+
+  {method public {disconnect channel-set:ChannelSet}:void
+    || TODO:
+  }
+
+  {method public {logout agent:#MessageAgent = null}:void
+  }
+
+  {method public {send agent:MessageAgent, message:IMessage}:void
+    {if message.destination.empty? then
+        {if agent.destination.empty? then
+            {throw {new Exception, "InvalidDestinationError"}}
+         else
+            set message.destination = agent.destination
+        }
+    }
+
+    set message.headers[AbstractMessage.ENDPOINT_HEADER] = self._id
+
+    let responder:#MessageResponder =
+        {self.get-message-responder agent, message}
+    {if-non-null responder then
+        {self.initialize-request-timeout responder}
+        {self.internal-send responder}
+     else
+        {throw {new Exception, "IllegalOperationError"}}
+    }
+  }
+
+  {method protected {connect-succeeded}:void
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    || TODO: shutdownConnectTimer()
+    set self.connecting? = false
+    || TODO: ServerConfig and agent configuration stuff.
+    set self.connected? = true
+    || TODO: set self._failover-index = -1
+    {self.enqueue-event
+        {new ChannelEvent,
+            ChannelEvent.CONNECT,
+            channel = self,
+            reconnecting? = self.reconnecting?
+        }
+    }
+    set self.reconnecting? = false
+  }
+
+  {method protected {connect-failed event:ChannelFaultEvent}:void
+    || TODO: shutdownConnectTimer()
+    set self.connected? = false
+    {if not event.rejected? then ||and {self.should-attempt-failover?}
+        set self.connecting? = true
+        || TODO: {self.failover}
+     else
+        {if self.owns-wait-guard? then
+            set self.owns-wait-guard? = false
+            set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+        }
+        set self.connecting? = false
+    }
+    {if self.reconnecting? then
+        set event.reconnecting? = true
+    }
+    {self.enqueue-event event}
+  }
+
+  {method protected {initialize-request-timeout responder:MessageResponder}:void
+    def message = responder.message
+    {if {message.headers.key-exists? AbstractMessage.REQUEST_TIMEOUT_HEADER}
+     then
+        {responder.start-request-timeout
+            message.headers[AbstractMessage.REQUEST_TIMEOUT_HEADER]
+        }
+     else
+        {responder.start-request-timeout self.request-timeout}
+    }
+  }
+
+||--  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
+||--    || TODO:
+||--  }
+
+  {method protected {set-flex-client-id-on-message message:IMessage}:void
+    set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
+        {if-non-null id = {FlexClient.get-instance}.id then
+            id
+         else
+            FlexClient.NULL_FLEXCLIENT_ID
+        }
+  }
+}

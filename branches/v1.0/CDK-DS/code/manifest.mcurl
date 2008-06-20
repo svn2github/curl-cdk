@@ -32,6 +32,26 @@
     location = "amf/load.scurl"
 }
 
+{component package COM.CURL.CDK.IO,
+    location = "io/load.scurl"
+}
+
+{component package COM.CURL.CDK.RPC,
+    location = "rpc/load.scurl"
+}
+
+{component package COM.CURL.CDK.CONNECTION,
+    location = "connection/load.scurl"
+}
+
+{component package COM.CURL.CDK.MESSAGING,
+    location = "messaging/load.scurl"
+}
+
+{component package COM.CURL.CDK.MESSAGES,
+    location = "messages/load.scurl"
+}
+
 || documentation
 || --------------------
 {component directory docs,

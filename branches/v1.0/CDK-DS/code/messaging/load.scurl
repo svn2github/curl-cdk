@@ -16,7 +16,7 @@
 
 {curl 6.0 package}
 
-{package COM.CURL.CDK.AMF,
+{package COM.CURL.CDK.MESSAGING,
     version = "0.1",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
@@ -25,33 +25,37 @@
 }
 
 {import * from CURL.GUI.STANDARD}
-{import * from CURL.IO.MARSHAL}
-{import * from CURL.LANGUAGE.REFLECTION}
-{import * from CURL.LANGUAGE.REGEXP}
-
-{import * from COM.CURL.CDK.DATA-OBJECT}
-{import public
-    DataObject
- from COM.CURL.CDK.DATA-OBJECT}
-
-{import * from COM.CURL.CDK.IO}
-
-|| TODO: proper registration, outside this package (?)
+{import * from CURL.IO.SOCKET}
+{import * from CURL.UTIL.BASE64}
 {import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.AMF}
+{import * from COM.CURL.CDK.CONNECTION}
 
 {include
-    "adaptor.scurl",
-    "AMF0Deserializer.scurl",
-    "AMF0Serializer.scurl",
-    "AMF3Deserializer.scurl",
-    "AMF3Serializer.scurl",
-    "AMFBody.scurl",
-    "AMFEnvelope.scurl",
-    "AMFHeader.scurl",
-    "AMFHttpRequestData.scurl",
-    "AMFXmlDocument.scurl",
-    "constants.scurl",
-    "externalizable.scurl",
-    "object-mapping.scurl",
-    "references.scurl"
+    "AbstractConsumer.scurl",
+    "AbstractProducer.scurl",
+    "AMFChannel.scurl",
+    "AMFFireAndForgetResponder.scurl",
+    "Channel.scurl",
+    "ChannelEvent.scurl",
+    "ChannelFaultEvent.scurl",
+    "ChannelSet.scurl",
+    "Consumer.scurl",
+    "ConsumerMessageDispatcher.scurl",
+    "CurlConnectionChannel.scurl",
+    "CurlConnectionMessageResponder.scurl",
+    "FlexClient.scurl",
+    "HttpChannel.scurl",
+    "MessageAckEvent.scurl",
+    "MessageAgent.scurl",
+    "MessageEvent.scurl",
+    "MessageFaultEvent.scurl",
+    "MessageResponder.scurl",
+    "MessagingException.scurl",
+    "PendingSend.scurl",
+    "PollCommandMessageResponder.scurl",
+    "PollingChannel.scurl",
+    "PollSyncMessageResponder.scurl",
+    "Producer.scurl",
+    "ServerConfig.scurl"
 }

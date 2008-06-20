@@ -1,0 +1,254 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract AbstractInvoker {inherits EventTarget}
+  field public async?:bool = false
+  field protected _result:any
+  field protected _async-request:AsyncRequest
+  field protected result-handler:{proc-type {x:any}:void} =
+      {uninitialized-value-for-type {proc-type {x:any}:void}}
+  field protected fault-handler:{proc-type {x:any}:void} =
+      {uninitialized-value-for-type {proc-type {x:any}:void}}
+  field protected result:any
+  field protected response-headers:#{Array-of any}
+  field protected make-objects-bindable?:bool = true
+  field protected active-calls:ActiveCalls
+
+  {constructor public {default}
+    set self._async-request = {new AsyncRequest}
+    {self.init-handlers}
+    set self.active-calls = {new ActiveCalls}
+  }
+
+  {getter public {last-result}:any
+    {return self._result}
+  }
+
+  {getter protected {async-request}:AsyncRequest
+    {return self._async-request}
+  }
+
+  {setter protected {async-request ar:AsyncRequest}:void
+    set self._async-request = ar
+  }
+
+  {method public {cancel id:#String = null}:#AsyncToken
+    {if-non-null id then
+        {return {self.active-calls.remove-call id}}
+     else
+        {return {self.active-calls.cancel-last}}
+    }
+  }
+
+  || Sets the result property of the invoker to null.
+  {method public {clear-result}:void
+    set self._result = null
+  }
+
+  {method protected {invoke
+                        message:IMessage,
+                        token:#AsyncToken = null
+                    }:#AsyncToken
+    {if self.async? then
+        {return {self.async-invoke message, token = token}}
+     else
+        {dump "\n\n\nTODO: Synchronous Invocation not yet supported\n\n\n"}
+        {return null}
+    }
+  }
+
+  {method protected {async-invoke
+                        message:IMessage,
+                        token:#AsyncToken = null
+                    }:#AsyncToken
+    {if token == null then
+        set token = {new AsyncToken, message}
+     else
+        set token.message = message
+    }
+
+    {self.active-calls.add-call message.message-id, {non-null token}}
+
+    {try
+        {self.async-request.invoke
+            message,
+            {new Responder,
+                self.result-handler,
+                self.fault-handler
+            }
+        }
+        {self.dispatch-rpc-event
+            {new InvokeEvent,
+                InvokeEvent.INVOKE,
+                token = token,
+                message = message
+            }
+        }
+     catch me:MessagingException do
+        def fault =
+            {new Fault,
+                "Invoke failed",
+                me.message,
+                fault-detail = "Cannot connect to destination: "
+                & self.async-request.destination
+            }
+        def async-dispatcher =
+            {new AsyncDispatcher,
+                {proc {args:Arguments}:void
+                    {for it in args do
+                        {type-switch it
+                         case event:AbstractEvent do
+                            {self.dispatch-rpc-event event}
+                        }
+                    }
+                },
+                {Arguments
+                    {new FaultEvent,
+                        FaultEvent.FAULT,
+                        fault = fault,
+                        token = token,
+                        message = message
+                    }
+                },
+                10ms
+            }
+     catch e:Exception do
+        def fault = {new Fault, "Invoke failed", e.message}
+        def async-dispatcher =
+            {new AsyncDispatcher,
+                {proc {args:Arguments}:void
+                    {for it in args do
+                        {type-switch it
+                         case event:AbstractEvent do
+                            {self.dispatch-rpc-event event}
+                        }
+                    }
+                },
+                {Arguments
+                    {new FaultEvent,
+                        FaultEvent.FAULT,
+                        fault = fault,
+                        token = token,
+                        message = message
+                    }
+                },
+                10ms
+            }
+    }
+    {return token}
+  }
+
+  {method protected {init-handlers}:void
+    set self.result-handler =
+        {proc {data:any}:void
+            {type-switch data
+             case event:MessageEvent do
+                def token = {self.pre-handle event}
+                {if-non-null token then
+                    {if-non-null msg = event.message then
+                        {if {self.process-result msg, token} then
+                            || TODO: Dispatch
+                            ||       {new flash.events.EventBINDING_RESULT}
+                            def result-event =
+                                {new ResultEvent,
+                                    ResultEvent.RESULT,
+                                    result = self.result,
+                                    token = token,
+                                    message = event.message
+                                }
+                            set result-event.headers = self.response-headers
+                            {self.dispatch-rpc-event result-event}
+                        }
+                    }
+                 else
+                    {return}
+                }
+            }
+        }
+    set self.fault-handler =
+        {proc {info:any}:void
+            {type-switch info
+             case event:MessageFaultEvent do
+                def message-event =
+                    {new MessageEvent,
+                        MessageEvent.MESSAGE,
+                        message = event.message
+                    }
+                def token = {self.pre-handle message-event}
+                {if token == null and
+                    not (event.message asa AsyncMessage).correlation-id.empty?
+                    and
+                    event.fault-code != "Client.Authentication"
+                 then
+                    {return}
+                }
+                def fault = {new Fault,
+                                {if-non-null fc = event.fault-code then
+                                    fc
+                                 else
+                                    ""
+                                },
+                                {if-non-null fs = event.fault-string then
+                                    fs
+                                 else
+                                    ""
+                                },
+                                fault-detail = event.fault-detail
+                            }
+                def fault-event = {new FaultEvent,
+                                      FaultEvent.FAULT,
+                                      fault = fault,
+                                      token = token,
+                                      message = event.message
+                                  }
+                set fault-event.headers = self.response-headers
+                {self.dispatch-rpc-event fault-event}
+            }
+        }
+  }
+
+  {method protected {dispatch-rpc-event event:AbstractEvent}:void
+    {event.call-token-responders}
+||--    {if not {event.is-default-prevented?} then
+        {self.enqueue-event event}
+||--    }
+  }
+
+  {method private {pre-handle event:MessageEvent}:#AsyncToken
+    {return
+        {self.active-calls.remove-call
+            (event.message asa AsyncMessage).correlation-id
+        }
+    }
+  }
+
+  {method private {process-result message:IMessage, token:AsyncToken}:bool
+
+    def body = message.body
+
+    || TODO:
+||--    {if self.make-objects-bindable? and
+||--        body != null and
+||--        {self.get-qualified-class-name body}
+||--     then
+||--        set self.result = {new ObjectProxy, body}
+||--     else
+        set self.result = body
+||--    }
+
+    {return true}
+  }
+}

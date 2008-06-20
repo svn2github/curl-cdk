@@ -1,0 +1,341 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public ChannelSet {inherits EventTarget}
+  field private _authenticated?:bool = false
+  field private _connected?:bool = false
+  field private connecting?:bool = false
+  field private clustered?:bool = false
+  field private _configured?:bool = false
+  || TODO: Implement a setter that checks configured? then removes existing
+  ||       channels and adds new channels.
+  field private channels:{Array-of #Channel}
+  field private _channel-ids:#{Array-of #String}
+  field private _current-channel:#Channel
+  field private current-channel-index:int = -1
+  field private _message-agents:{Array-of MessageAgent}
+  field private credentials:#String
+  field private credentials-charset:#String
+  field private pending-messages:{HashTable-of IMessage, any}
+  field private pending-sends:{Array-of PendingSend}
+
+  {constructor public {default
+                          channel-ids:#{Array-of #String} = null
+||--                          , clustered-with-load-balancing?:bool = false
+                      }
+    {construct-super}
+    {if-non-null channel-ids then
+        set self._channel-ids = channel-ids
+        set self.channels = {new {Array-of #Channel}}
+        {if-non-null ids = self._channel-ids then
+            {for id in ids do
+                {self.channels.append null}
+            }
+        }
+        set self._configured? = true
+     else
+        set self.channels = {new {Array-of #Channel}}
+        set self._configured? = false
+    }
+    set self._message-agents = {new {Array-of MessageAgent}}
+    set self.pending-messages = {new {HashTable-of IMessage, any}}
+    set self.pending-sends = {new {Array-of PendingSend}}
+  }
+
+  {getter public {configured?}:bool
+    {return self._configured?}
+  }
+
+  {getter public {connected?}:bool
+    {return self._connected?}
+  }
+
+  {getter public {channel-ids}:#{Array-of #String}
+    {if-non-null self._channel-ids then
+        {return self._channel-ids}
+     else
+        def ids = {new {Array-of #String}}
+        {for channel in self.channels do
+            {if-non-null channel then
+                {ids.append channel.id}
+             else
+                {ids.append null}
+            }
+        }
+        {return ids}
+    }
+  }
+
+  {getter public {current-channel}:#Channel
+    {return self._current-channel}
+  }
+
+  {setter public {current-channel channel:#Channel}:void
+    set self._current-channel = channel
+  }
+
+  {getter public {message-agents}:{Array-of MessageAgent}
+    {return self._message-agents}
+  }
+
+  {getter public {authenticated?}:bool
+    {return self._authenticated?}
+  }
+
+  {method public {set-authenticated?
+                     b?:bool,
+                     credentials:#String = null,
+                     notify-agents?:bool = true
+                 }:void
+    {if self._authenticated? != b? then
+        set self._authenticated? = b?
+        {if notify-agents? then
+            {for agent in self.message-agents do
+                {agent.set-authenticated? b?, credentials = credentials}
+            }
+        }
+        || TODO: Fire a PropertyChangeEvent
+    }
+  }
+
+  {method public {connect agent:#MessageAgent}:void
+    {if-non-null agent then
+        {if {self._message-agents.find agent} == -1 then
+            {self._message-agents.append agent}
+            {agent.internal-set-channel-set self}
+            {self.add-event-handler
+                {on e:ChannelEvent do
+                    {switch e.type
+                     case ChannelEvent.CONNECT do
+                        {agent.channel-connect-handler e}
+                     case ChannelEvent.DISCONNECT do
+                        {agent.channel-disconnect-handler e}
+                    }
+                }
+            }
+            {self.add-event-handler
+                {on e:ChannelFaultEvent do
+                    {agent.channel-fault-handler e}
+                }
+            }
+            {if self.connected? then
+                {agent.channel-connect-handler
+                    {new ChannelEvent,
+                        ChannelEvent.CONNECT,
+                        channel = self.current-channel,
+                        reconnecting? = false,
+                        rejected? = false,
+                        connected? = self.connected?
+                    }
+                }
+            }
+        }
+    }
+  }
+
+  {method public {disconnect agent:MessageAgent}:void
+  }
+
+  {method public {disconnect-all}:void
+  }
+
+  {method public {login
+                     username:#String,
+                     password:#String,
+                     charset:#String = null
+                 }:void
+  }
+
+  {method public {logout agent:#MessageAgent = null}:void
+  }
+
+  {method public {send agent:MessageAgent, message:IMessage}:void
+    {if self.connected? then
+        || TODO: Clustering?
+        {if-non-null self.current-channel then
+            {self.current-channel.send agent, message}
+        }
+     else
+        {if not {self.pending-messages.key-exists? message} then
+            set self.pending-messages[message] = true
+            {self.pending-sends.append {new PendingSend, agent, message}}
+        }
+        {if not self.connecting? then
+            {if self.current-channel == null or
+                self.current-channel-index == -1
+             then
+                {self.hunt}
+            }
+            {type-switch self.current-channel
+             case ccc:CurlConnectionChannel do
+                || TODO: Flex has a special case for NetConnectionChannels that
+                ||       accounts for some reconnection idyosyncrasies. For now,
+                ||       we're just connecting the channel.
+                {self.connect-channel}
+             case n:Null do
+                {return}
+             else
+                {self.connect-channel}
+            }
+        }
+    }
+  }
+
+  {method private {hunt}:bool
+    {if self.channels.empty? then
+        {throw {new Exception, "NoChannelAvailableError"}}
+    }
+    {inc self.current-channel-index}
+    {if self.current-channel-index >= self.channels.size then
+        set self.current-channel-index = -1
+        {return false}
+    }
+||--    {if self.current-channel-index > 0 then
+||--        set self.hunting? = true
+||--    }
+    {if self.configured? then
+        {if-non-null self.channels[self.current-channel-index] then
+            set self.current-channel = self.channels[self.current-channel-index]
+         else
+            || TODO: This implementation iterates over the channels, but the
+            ||       Flex implementation does it differently. Figure out what's
+            ||       different.
+            {if-non-null channel-ids = self.channel-ids then
+                {for id in channel-ids do
+                    {if-non-null id then
+                        set self.current-channel = {ServerConfig.get-channel id}
+                        || TODO: Apply other channel properties found in the
+                        ||       channel configuration (services-config.xml),
+                        ||       such as <polling-enabled>.
+                        {if-non-null self.current-channel then
+                            {break}
+                        }
+                    }
+                }
+                {if-non-null c = self.current-channel then
+                    {self.current-channel.set-credentials self.credentials}
+                    set self.channels[self.current-channel-index] = c
+                 else
+                    {throw {new Exception, "NoChannelAvailableError"}}
+                }
+             else
+                {throw {new Exception, "NoChannelAvailableError"}}
+            }
+        }
+     else
+        set self.current-channel = self.channels[self.current-channel-index]
+    }
+    {return true}
+  }
+
+  {method public {set-credentials
+                     credentials:#String,
+                     agent:#MessageAgent = null,
+                     charset:#String = null
+                 }:void
+    set self.credentials = credentials
+    {for channel in self.channels do
+        {channel.set-credentials
+            self.credentials,
+            agent = agent,
+            charset = charset
+        }
+    }
+  }
+
+  {method public {add-channel channel:Channel}:void
+    {if {self.channels.find channel} != -1 then
+        {return}
+    }
+    {if self.configured? then
+        {throw {new Exception, "Cannot Add Channels When Configured"}}
+    }
+    {self.channels.append channel}
+    {if-non-null self.credentials then
+        {channel.set-credentials
+            self.credentials,
+            agent = null,
+            charset = self.credentials-charset
+        }
+    }
+  }
+
+  {method public {remove-channel channel:Channel}:void
+    || TODO:
+  }
+
+  {method protected {connect-channel}:void
+    {if not self.connected? and not self.connecting? then
+        set self.connecting? = true
+        {self.current-channel.connect self}
+        {self.current-channel.add-event-handler
+            {on e:MessageEvent do
+                {self.message-handler e}
+            }
+        }
+    }
+  }
+
+||--  {method protected {dispatch-rpc-event event:AbstractEvent}:void
+||--    {event.call-token-responders}
+||--    {self.enqueue-event event}
+||--  }
+
+  {method protected {message-handler event:MessageEvent}:void
+    {self.enqueue-event event}
+  }
+
+  {method protected {channel-connect-handler e:ChannelEvent}:void
+    set self.connecting? = false
+    set self._connected? = true
+    {while not self.pending-sends.empty? do
+        def ps = self.pending-sends[0]
+        {if-non-null m = ps.message then
+            {self.pending-messages.remove m, error-if-missing? = false}
+        }
+        {type-switch ps.message
+         case cm:CommandMessage do
+            {if not ps.agent.config-requested? and
+                ps.agent.needs-config? and
+                cm.operation == CommandMessage.CLIENT_PING_OPERATION
+             then
+                set cm.headers[CommandMessage.NEEDS_CONFIG_HEADER] = true
+                set ps.agent.config-requested? = true
+            }
+        }
+        {if-non-null a = ps.agent then
+            {if-non-null m = ps.message then
+                {self.send a, m}
+            }
+        }
+        {self.pending-sends.remove 0}
+    }
+    || TODO: Handle hunt
+    || TODO: Refire, but why?
+    {self.enqueue-event e}
+    || TODO: Fire PropertyChangeEvent
+  }
+
+  {method protected {channel-disconnect-handler e:ChannelEvent}:void
+    {dump "TODO: ChannelSet.channel-disconnect-handler"}
+    || TODO:
+  }
+
+  {method protected {channel-fault-handler e:ChannelFaultEvent}:void
+    {dump "TODO: ChannelSet.channel-fault-handler"}
+    || TODO:
+  }
+}

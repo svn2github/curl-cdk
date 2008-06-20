@@ -311,7 +311,8 @@
     || TODO: proper registration, outside this package (?)
     def class-type:#ClassType =
         {switch trait.name
-||--         case "flex.messaging.messages.AcknowledgeMessage" do AcknowledgeMessage
+         case "flex.messaging.messages.AcknowledgeMessage" do AcknowledgeMessage
+         case "flex.messaging.messages.ErrorMessage" do ErrorMessage
          else null}
     
     {if class-type == null then

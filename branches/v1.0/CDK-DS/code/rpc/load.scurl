@@ -16,7 +16,7 @@
 
 {curl 6.0 package}
 
-{package COM.CURL.CDK.AMF,
+{package COM.CURL.CDK.RPC,
     version = "0.1",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
@@ -25,33 +25,28 @@
 }
 
 {import * from CURL.GUI.STANDARD}
-{import * from CURL.IO.MARSHAL}
-{import * from CURL.LANGUAGE.REFLECTION}
-{import * from CURL.LANGUAGE.REGEXP}
-
-{import * from COM.CURL.CDK.DATA-OBJECT}
-{import public
-    DataObject
- from COM.CURL.CDK.DATA-OBJECT}
-
-{import * from COM.CURL.CDK.IO}
-
-|| TODO: proper registration, outside this package (?)
+{import * from CURL.IO.SOCKET}
+{import * from COM.CURL.CDK.AMF}
+{import * from COM.CURL.CDK.MESSAGING}
 {import * from COM.CURL.CDK.MESSAGES}
 
-{include
-    "adaptor.scurl",
-    "AMF0Deserializer.scurl",
-    "AMF0Serializer.scurl",
-    "AMF3Deserializer.scurl",
-    "AMF3Serializer.scurl",
-    "AMFBody.scurl",
-    "AMFEnvelope.scurl",
-    "AMFHeader.scurl",
-    "AMFHttpRequestData.scurl",
-    "AMFXmlDocument.scurl",
-    "constants.scurl",
-    "externalizable.scurl",
-    "object-mapping.scurl",
-    "references.scurl"
+{include 
+    "AbstractEvent.scurl",
+    "AbstractInvoker.scurl",
+    "AbstractOperation.scurl",
+    "AbstractService.scurl",
+    "ActiveCalls.scurl",
+    "AsyncDispatcher.scurl",
+    "AsyncRequest.scurl",
+    "AsyncToken.scurl",
+    "Fault.scurl",
+    "FaultEvent.scurl",
+    "HttpService.scurl",
+    "InvokeEvent.scurl",
+    "IResponder.scurl",
+    "Operation.scurl",
+    "RemoteObject.scurl",
+    "Responder.scurl",
+    "ResultEvent.scurl",
+    "WebService.scurl"
 }

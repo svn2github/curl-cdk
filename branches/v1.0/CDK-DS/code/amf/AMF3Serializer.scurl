@@ -51,10 +51,11 @@
         {output.write-one AMF3Marker.object-marker.value}
         {self.write-object trait}
 
-||--     case msg:AbstractMessage do
-||--        {output.write-one AMF3Marker.object-marker.value}
-||--||--        {self.write-message msg}
-||--        {self.write-object msg}
+     case msg:AbstractMessage do
+        || TODO: proper registration, outside this package (?)
+        {output.write-one AMF3Marker.object-marker.value}
+||--        {self.write-message msg}
+        {self.write-object msg}
 
      case ext:Externalizable do
         {output.write-one AMF3Marker.object-marker.value}

@@ -1,0 +1,84 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract IMessage
+  field protected _body:any
+  field protected _client-id:#String
+  field protected _destination:String = ""
+  field protected _headers:{HashTable-of String, any}
+  field protected _message-id:String
+  field protected _timestamp:double
+  field protected _time-to-live:double
+
+  {constructor public {default}
+    set self._body = {new {HashTable-of String, any}}
+    set self._headers = {new {HashTable-of String, any}}
+    set self._message-id = {AbstractMessage.create-uid}
+  }
+
+  {getter public {client-id}:#String
+    {return self._client-id}
+  }
+
+  {setter public {client-id s:#String}:void
+    set self._client-id = s
+  }
+
+  {getter public {destination}:String
+    {return self._destination}
+  }
+
+  {setter public {destination s:String}:void
+    set self._destination = s
+  }
+
+  {getter public {message-id}:String
+    {return self._message-id}
+  }
+
+  {setter public {message-id s:String}:void
+    set self._message-id = s
+  }
+
+  {getter public {timestamp}:double
+    {return self._timestamp}
+  }
+
+  {setter public {timestamp d:double}:void
+    set self._timestamp = d
+  }
+
+  {getter public {time-to-live}:double
+    {return self._time-to-live}
+  }
+
+  {setter public {time-to-live d:double}:void
+    set self._time-to-live = d
+  }
+
+  {getter public abstract {body}:any}
+  {setter public abstract {body body:any}:void}
+  {getter public abstract {headers}:{HashTable-of String, any}}
+  {setter public abstract {headers headers:{HashTable-of String, any}}:void}
+
+  {method public abstract {get-header name:String}:any}
+  {method public abstract {set-header name:String, value:any}:void}
+
+  {method public {to-String}:String
+    let buf:StringBuf = {new StringBuf}
+    {return {format out = buf, "%s", self._body}}
+  }
+}

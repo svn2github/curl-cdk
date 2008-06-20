@@ -24,14 +24,20 @@
 
   {factory package {default obj:Object}:ObjectAdaptor
     def apt = {type-switch obj
+                  
                case ext:Externalizable do
                   {ExternalizableObjectAdaptor ext}
-||--               case msg:AbstractMessage do
-||--                  {MessageAdaptor msg}
+                  
+               case msg:AbstractMessage do
+                  || TODO: proper registration, outside this package (?)                  
+                  {MessageAdaptor msg}
+                  
                case ao:DataObject do
                   {AMFObjectAdaptor ao}
+                  
                case h:{HashTable-of String, any} do
                   {HashTableAdaptor h}
+                  
                else
                   {DefaultObjectAdaptor obj}
               }
@@ -52,10 +58,7 @@
   }
 
   {getter package {has-dynamic?}:bool
-    {if-non-null dynamics = self.dynamics then
-        {return (not dynamics.empty?)} || TODO: WRONG
-    }
-    {return false}
+    {return self.dynamics != null}
   }
 
   {getter package abstract {dynamics}:#{HashTable-of String, any}}
@@ -181,6 +184,7 @@
   }
 
   {getter package {name}:String
+    || TODO: proper registration, outside this package (?)
     {return "flex.messaging.messages." & self.type.name}
   }
 }

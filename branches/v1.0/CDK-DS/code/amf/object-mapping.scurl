@@ -101,16 +101,17 @@
         {self.config-for-messages}}
   }
 
+  || TODO: proper registration, outside this package (?)
   {method private {config-for-messages}:void
-    || desrialize
-||--    {self.for-deserialize.set
-||--        "DSK", AcknowledgeMessageExt}
+    || deserialize
+    {self.for-deserialize.set
+        "DSK", AcknowledgeMessageExt}
     {self.for-deserialize.set
         "flex.messaging.io.ArrayCollection", ArrayCollection}
 
     || serialize
-||--    {self.for-serialize.set
-||--        AcknowledgeMessageExt, "DSK"}
+    {self.for-serialize.set
+        AcknowledgeMessageExt, "DSK"}
     {self.for-serialize.set
         ArrayCollection, "flex.messaging.io.ArrayCollection"}
 
