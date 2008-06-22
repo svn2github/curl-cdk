@@ -22,15 +22,20 @@
 {import * from COM.CURL.CDU.CURL-UNIT-UI}
 ||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
 
+|| ===== \\
 {import * from CURL.IDE.COVERAGE}
 {import COM.CURL.CDK.DATA-OBJECT}
+{import COM.CURL.CDK.RECORDSET-FOR}
+{import COM.CURL.CDK.AMF}
 {def start-coverage =
     {CommandButton
         label = "Start Coverage",
         {on Action do
             {coverage-enable}
             {coverage-instrument
-                COM.CURL.CDK.DATA-OBJECT
+                COM.CURL.CDK.DATA-OBJECT,
+                COM.CURL.CDK.RECORDSET-FOR,
+                COM.CURL.CDK.AMF
             }
             {coverage-start}
         }}
@@ -43,6 +48,7 @@
             {coverage-view {coverage-results}}
         }}
 } 
+|| ===== //
 
 {document-style PlainDocument}
 {set-document-properties hstretch? = true, vstretch? = true}

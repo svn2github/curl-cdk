@@ -25,9 +25,19 @@
 }
 
 {import * from CURL.GUI.STANDARD}
+{import * from CURL.IO.JSON}
 {import * from COM.CURL.CDK.RECORDSET-FOR}
 
 {include
     "data-object.scurl",
     "data-binding.scurl"
+}
+
+{define-class public DataObjectException {inherits Exception}
+  {constructor public {default msg:String}
+    {construct-super msg}
+  }
+}
+{define-proc public {data-exception msg:String}:never-returns
+    {throw {DataObjectException msg}}
 }

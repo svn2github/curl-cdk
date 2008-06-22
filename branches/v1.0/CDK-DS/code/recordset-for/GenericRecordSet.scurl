@@ -196,14 +196,10 @@
   }
   {method public {revert}:void
     {self.ensure-modifiable}
-    let modified?:bool =
-        {if-non-null data = self._original-data then
-            {for x key k in data do
-                {self.internal-set k, x}}
-            set self._original-data = null
-            true
-         else 
-            false}
+    {if-non-null data = self._original-data then
+        {for x key k in data do
+            {self.internal-set k, x}}
+        set self._original-data = null}
     {switch self.state 
      case RecordState.appended do
         {self.internal-remove}
@@ -246,7 +242,7 @@
     set self._state = state
   }
   field _original-data:#RecordData 
-  {method {preserve-data}:void
+  {method protected {preserve-data}:void
     {if self._original-data == null then
         let data:RecordData = {RecordData}
         {for f in self.record-set.fields do

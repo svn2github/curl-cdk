@@ -40,9 +40,15 @@
   {getter public {empty?}:bool
     {return self.size == 0}
   }
+  || conversion
+  {method public abstract {to-HashTable}:{HashTable-of String, any}}
+  {method public abstract {to-RecordData}:RecordData}
+  {method public abstract {to-JsonObject}:JsonObject}
+  
   || performance hacks
   {method public abstract {set-internal index:int, val:any}:void}
-  
+
+  || construction
   {factory public {default ...}:StandardDataObject
     {return
         {StandardDataObject {splice ...}}}
@@ -65,13 +71,6 @@
 ||--            {StandardDataObject.from-traits traits}}}
 ||--  }
   || =====
-  {method public {to-HashTable}:{HashTable-of String, any}
-    def xs = {{HashTable-of String, any} efficient-size = self.size}
-    {for x key k in self do
-        set xs[k] = x}
-    {return xs}
-  }
-  || TODO: fix hack in AMF3Deserializer for AMFEnvelope, which expects HashTable but gets DataObject
 }
 {define-class public abstract DataObjectTraits
   {getter public abstract {name}:String}
@@ -123,6 +122,27 @@
                 default-values = default-values,
                 {splice ...}}
         }}
+  }
+  || construction
+  || ----------
+  {method public {to-HashTable}:{HashTable-of String, any}
+    def xs = {{HashTable-of String, any} efficient-size = self.size}
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
+  }
+  {method public {to-RecordData}:RecordData
+    def xs = {RecordData}
+    set xs.efficient-size = self.size
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
+  }
+  {method public {to-JsonObject}:JsonObject
+    def xs = {JsonObject efficient-size = self.size}
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
   }
   || common
   || ----------
@@ -208,10 +228,10 @@
                         || NOTE: not alternating key
                         {self.add-event-handler x}
                         null
-                     else {error {lmessage DataObject key must be String or int, not {type-of x}}}}
+                     else {data-exception {lmessage DataObject key must be String or int, not {type-of x}}}}
             }}}
     {if-non-null key then
-        {error {lmessage DataObject key '{value key}' has no value}}}
+        {data-exception {lmessage DataObject key '{value key}' has no value}}}
   }
   {getter public {size}:int
     {return self.data.size}
@@ -231,7 +251,7 @@
     {if not self.traits.dynamic?
         and not set?
      then
-        {error {message Can not add member '{value key}': {value self} is not dynamic?}}}
+        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
     let changed?:bool = not set? or self[key] != val
     {if changed? then
         {self.preserve-original-data}
@@ -244,7 +264,7 @@
     {if ||not self.traits.dynamic? and
         {self.traits.members.find key} >= 0
      then
-        {error {message Can not remove member '{value key}': {value self} declares it static.}}}
+        {data-exception {message Can not remove member '{value key}': {value self} declares it static.}}}
     let changed?:bool = {self.set? key}
     {if changed? then
         {self.preserve-original-data}
@@ -342,10 +362,10 @@
                         || NOTE: not alternating key
                         {self.add-event-handler x}
                         null
-                     else {error {lmessage DataObject key must be String, not {type-of x}}}}
+                     else {data-exception {lmessage DataObject key must be String, not {type-of x}}}}
             }}}
     {if-non-null key then
-        {error {lmessage DataObject key '{value key}' has no value}}}
+        {data-exception {lmessage DataObject key '{value key}' has no value}}}
   }
   {constructor public {from-traits traits:DataObjectTraits}
     set self._traits = traits
@@ -358,7 +378,7 @@
   {method public {get key:String}:any
     def index = {self.index-for key}
     {if index < 0 then
-        {error {message Key '{value key}' not found in {value self}}}}
+        {data-exception {message Key '{value key}' not found in {value self}}}}
     {return self.data[index]}
   }
   {method public {get-if-exists key:String}:(any, bool)
@@ -375,8 +395,8 @@
   {method public {set key:String, val:any}:void
     def index = {self.index-for key}
     {if index < 0 then
-        {error {message Can not add member '{value key}': {value self} is not dynamic?}}}
-    let changed?:bool = self[key] != val
+        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
+    let changed?:bool = self.data[index] != val
     {if changed? then
         {self.preserve-original-data}
         set self.data[index] = val
@@ -384,10 +404,10 @@
         {self.trigger-data-changed key}}
   }
   {method public {unset key:String}:void
-    {error {message Can not remove member '{value key}': {value self} is not dynamic?}}
+    {data-exception {message Can not remove member '{value key}': {value self} is not dynamic?}}
   }
   {method public {to-Iterator}:{Iterator-of any}
-    {return {self.data.to-Iterator}}
+    {return {{FastArray-Iterator-of any} self.data}}
   }
   {method public {keys-to-Iterator}:{Iterator-of String}
     {return {self.traits.members.to-Iterator}}
@@ -420,7 +440,7 @@
   {method public {get-original key:String}:any
     def index = {self.index-for key}
     {if index < 0 then
-        {error {message Key '{value key}' not found in {value self}}}}
+        {data-exception {message Key '{value key}' not found in {value self}}}}
     {return
         {if-non-null original = self.original-data then
             original[index]
@@ -443,6 +463,57 @@
   {method final inline {preserve-original-data}:void
     {if self.original-data == null then
         set self.original-data = {self.data.clone}}
+  }
+}
+|| ====================
+{define-class public abstract DataObjectProxy
+  {getter public abstract {subject}:Object}
+}
+{define-class public abstract DynamicDataObject {inherits DataObject, DataObjectProxy}
+  {factory public implicit
+    {from-JsonObject subject:JsonObject, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of JsonObject}
+            subject, {splice ...}}}
+  }
+  {factory public implicit
+    {from-RecordData subject:RecordData, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of RecordData}
+            subject, {splice ...}}}
+  }
+  {factory public implicit
+    {default subject:{HashTable-of String, any}, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of {HashTable-of String, any}}
+            subject, {splice ...}}}
+  }
+}
+{define-class public {DynamicDataObject-of T:ClassType}
+  {inherits {OpenDataObject-of T}, DynamicDataObject}
+  {constructor public {default
+                          subject:T,
+                          traits:DataObjectTraits = DataObjectTraits.anonymous,
+                          ...}
+    {construct-super.{OpenDataObject-of T} traits, subject}
+    {self.process-rest-args {splice ...}}
+  }
+  {getter public {subject}:T
+    {return self.data}
+  }
+  || NOTE: subject does no change management
+  || - call this to propagate changes from subject
+  {method public {subject-changed
+                     || specific properties that changed
+                     ...:String
+                 }:void
+    {if {count-arguments ...} > 0 then
+        {for k in ... do
+            {self.trigger-data-changed k}}
+     else
+        {for key k in self do
+            {self.trigger-data-changed k}}
+    }
   }
 }
 || ====================
@@ -542,7 +613,7 @@
         {self.inconsistent-traits-error}}
   }
   {method {inconsistent-traits-error}:never-returns
-    {error {message {this-class}: requires {value self.traits} data}}
+    {data-exception {message {this-class}: requires {value self.traits} data}}
   }
 }
 {define-class public DataObjectRecord {inherits GenericRecord}
@@ -553,12 +624,26 @@
     set self.subject = subject
     {construct-super record-set}
   }
-  || implementation
+  || GenericRecord protocol
   {method protected {internal-get k:String}:any
     {return self.subject[k]}
   }
   {method protected {internal-set k:String, x:any}:void
     set self.subject[k] = x
+  }
+  || implementation:
+  || - use DataObject change management
+  || - bypass GenericRecord change management
+  {method public {commit}:void
+    {self.subject.commit}
+    {super.commit}
+  }
+  {method public {revert}:void
+    {self.subject.revert}
+    {super.revert}
+  }
+  {method protected {preserve-data}:void
+    || NOTE: done in DataObject
   }
 }
 {define-class public DataObjectRecordFields {inherits DefaultRecordFields}
@@ -628,7 +713,14 @@
     set self.data = data
     {construct-super {splice ...}}
   }
-  || for testing
+  {method public {clone}:ExtendedArray
+    def other = {ExtendedArray efficient-size = self.size}
+    {for x in self do
+        {other.append x}}
+    {if-non-null data = self.data then
+        set other.data = {data.clone}}
+    {return other}
+  }
   {method public {equal? other:{Sequence-of any}}:bool
     {type-switch other
      case other:ExtendedArray do
@@ -637,10 +729,34 @@
                 {if-non-null other-data = other.data then
                     {data.equal? other-data}                     
                  else false}
-             else other.data != null}
+             else other.data == null}
         {if not equal? then
             {return false}}}
     {return
         {super.equal? other}}
+  }
+}
+|| support 
+|| ====================
+{define-class {FastArray-Iterator-of T:Type} {inherits {Iterator-of T}}
+  field constant subject:{FastArray-of T}
+  field index:int
+  {constructor {default subject:{FastArray-of T}}
+    set self.subject = subject
+    {self.reset}
+  }
+  {method public {reset}:void
+    set self.index = 0
+  }
+  {method public {read-one}:(T, bool)
+    def index = self.index
+    def subject = self.subject
+    {return
+        {if index < subject.size then
+            {inc self.index}
+            (subject[index], false)
+         else
+            ({uninitialized-value-for-type T}, true)
+        }}
   }
 }
