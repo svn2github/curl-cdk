@@ -83,6 +83,9 @@
             }}
         
         let http-file:HttpFile = {u.instantiate-File} asa HttpFile
+        
+        {stop-watch.start}
+        
         {http-file.http-async-read-open-byte
             request-method = "post",
             request-data = request-data,
@@ -111,9 +114,16 @@
                         {with-open-streams
                             in = e.stream asa HttpByteInputStream
                          do
-                            {AMFEnvelope.deserialize
+||--                            || parses HTTP stream directly
+||--                            || - most efficient, but combines transfer and parse
+||--                            ||   time
+||--                            {self.process-response-stream {zstream-for in}}
+                            || reads HTTP stream entirely, then parses
+                            || - demarcates transfer and parse time
+                            {self.process-response-stream-after-full-read
                                 {zstream-for in}
-                            }}
+                            }
+                        }
                     
                     {if-non-null responder then
                         {self.handle-response responder, envelope}
@@ -142,6 +152,8 @@
             {for x in ... do
                 {output "sending message: " & x}
             }}
+        
+        {stop-watch.start}
 
         {try
             def envelope = 
@@ -151,9 +163,15 @@
                         request-data = request-data,
                         request-headers = self.http-headers}
                  do
-                    {AMFEnvelope.deserialize
+||--                || parses HTTP stream directly
+||--                || - most efficient, but combines transfer and parse time
+||--                {self.process-response-stream {zstream-for in}}
+                    || reads HTTP stream entirely, then parses
+                    || - demarcates transfer and parse time
+                    {self.process-response-stream-after-full-read
                         {zstream-for in}
-                    }}
+                    }
+                }
             
             {if-non-null responder then
                 {self.handle-response responder, envelope}
@@ -237,7 +255,61 @@
     || Deserialize.
     || Note: this will do blocking reads.
     def env = {AMFEnvelope.deserialize in}
+    
+    || Deserialization complete.
+    {stop-watch.stop}
+    || Update the deserialization time.
+    {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
 
+    || Reset the stop watch.
+    {stop-watch.reset}
+    {return env}
+  }
+
+  || NOTE: delays parsing until all bytes arrive
+  {method protected {process-response-stream-after-full-read
+                        in:ByteInputStream
+                    }:AMFEnvelope
+    
+    || We need to read all the bytes to account for the transfer time, so read
+    || the entire stream before we stop the stop-watch. This incurs some memory
+    || overhead that we don't want to time, but garbage collection might intrude
+    || somewhere along the way.
+    || Note that we don't have to do this in production code.
+    || Note that we can't use the arrival of the AsyncFileOpenEvent as the
+    || signal that server execution is complete because of the some latency
+    || inherent in the event mechanism. So we'll continue to collect the server
+    || execution and transfer times together.
+    || Note that this sequence of timing happens twice, once for the
+    || CommandMessage ping and again for the RemotingMessage itself. Flex
+    || doesn't incur this additional ping overhead once the Flex app knows it is
+    || connected.
+
+    def bytes = {in.read}
+    || Server Execution & Transfer complete
+    {stop-watch.stop}
+    || Update the server exec and transfer time.
+    {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
+    || Reset the stop watch.
+    {stop-watch.reset}
+    
+    || Reconstruct the stream.
+    def response = {ByteArrayInputStream bytes}
+    
+    || Start timing the deserialization.
+    {stop-watch.start}
+    
+    || Deserialize.
+    || Note: this will do blocking reads.
+    def env = {AMFEnvelope.deserialize response}
+    
+    || Deserialization complete.
+    {stop-watch.stop}
+    || Update the deserialization time.
+    {inc deserialization-time, {stop-watch.elapsed}}
+
+    || Reset the stop watch.
+    {stop-watch.reset}
     {return env}
   }
 
