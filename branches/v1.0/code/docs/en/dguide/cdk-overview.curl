@@ -55,11 +55,11 @@
 }
 
 {heading level=2,
-    What's New in CDK 0.9
+    What's New in CDK 1.0
 }
 
 {paragraph
-    This is a preview of the first CDK Release.
+    This is the first CDK Release.
 
     {preliminary
         This preview contains preliminary versions of new features. 
@@ -69,9 +69,9 @@
 }
 
 {paragraph
-    This CDK Preview Release is for use with Curl API Version 6.0.
+    This CDK Release is for use with Curl API Version 6.0.
     
-    CDK Preview Release packages are marked as version 0.9.
+    CDK Preview Release packages are marked as version 1.0.
     
     {itemize
         {item
