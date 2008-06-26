@@ -1,0 +1,70 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| ==================== \\
+|| support
+{define-proc public {test-compare x:any, y:any}:bool
+    def tx = {type-of x}
+    def ty = {type-of y}
+    || NOTE: messy, partial attempt at "deep equal?"
+    || TODO: better attempt
+    {return
+        {if tx.primitive? then
+            x == y
+         elseif
+            ({tx.subtype-of? Array} and {ty.subtype-of? Array}) or
+            ({tx.subtype-of? {HashTable-of String, any}} and {ty.subtype-of? {HashTable-of String, any}})
+         then
+            {with-compiler-directives allow-any-calls? = true do
+                x.size == y.size and
+                {value
+                    let eq?:bool = true
+                    {for xi key i in x do
+                        {if not {test-compare xi, y[i]} then
+                            set eq? = false
+                            {break}}}
+                    eq?} }                       
+         elseif {tx.subtype-of? DataObject} and {ty.subtype-of? DataObject} then
+            {with-compiler-directives allow-any-calls? = true do
+                x.size == y.size and
+                || TODO: traits
+                {value
+                    let eq?:bool = true
+                    {for xk key k in x do
+                        {if not {test-compare xk, y[k]} then
+                            set eq? = false
+                            {break}}}
+                    eq?} }                       
+         else
+            tx == ty and
+            {type-switch tx
+             case tx:ClassType do
+                {with-compiler-directives allow-any-calls? = true,
+                    allow-implicit-any-casts? = true
+                 do
+                    {if-non-null {tx.get-method "equal?"} then
+                        {x.equal? y}
+                     else x == y}}
+             else x == y
+            }}}
+}
+{define-proc public {hex-encode bs:ByteArray}:String    
+    let buf:StringBuf = {StringBuf}
+    {for b in bs do
+        {format out = buf, "%02X", b}}
+    {return {buf.to-String}}
+}
+|| ==================== //

@@ -1,0 +1,81 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public HttpService {inherits AbstractInvoker}
+  field public channel-set:#ChannelSet
+  field public content-type:String = "x-www-form-urlencoded"
+  field public destination:#String
+  field public headers:#Object
+  field public method:String = "GET"
+  field public request:#Object
+  field public request-timeout:int
+  field public result-format:#String
+  field public root-url:#Url
+  field public url:#Url
+  field public use-proxy?:bool = false
+
+  let public constant CONTENT_TYPE_FORM:String =
+      "application/x-www-form-urlencoded"
+  let public constant CONTENT_TYPE_XML:String = "application/xml"
+  let public constant DEFAULT_DESTINATION_HTTP:String = "DefaultHTTP"
+  let public constant DEFAULT_DESTINATION_HTTPS:String = "DefaultHTTPS"
+  let public constant ERROR_DECODING:String = "Client.CouldNotDecode"
+  let public constant ERROR_ENCODING:String = "Client.CouldNotEncode"
+  let public constant ERROR_URL_REQUIRED:String = "Client.URLRequired"
+  let public constant RESULT_FORMAT_ARRAY:String = "array"
+  let public constant RESULT_FORMAT_E4X:String = "e4x"
+  let public constant RESULT_FORMAT_FLASHVARS:String = "flashvars"
+  let public constant RESULT_FORMAT_OBJECT:String = "object"
+  let public constant RESULT_FORMAT_TEXT:String = "text"
+  let public constant RESULT_FORMAT_XML:String = "xml" 
+
+  {constructor public {default
+                          root-url:#Url = null,
+                          destination:#String = null
+                      }
+    set self.root-url = root-url
+    set self.destination = destination
+  }
+
+  {method public {disconnect}:void
+  }
+
+  {method public {logout}:void
+  }
+
+  {method public {send parameters:#Object = null}:AsyncToken
+    {if-non-null u = self.root-url then
+        {with-open-streams in = {read-open u} do
+            let (buf:StringBuf, n:int) = {in.read-one-string}
+            set self._result = {buf.to-String}
+        }
+    }
+    || TODO: Need to handle parameters, the various formats & error conditions,
+    ||       make use of HttpRequestMessage, call {AbstractInvoker.invoke}
+    ||       (which is incomplete because the handlers, {AsyncRequest.invoke},
+    ||       and {Producer.send} are not implemented yet).
+    {return {new AsyncToken, {new AcknowledgeMessage}}}
+  }
+
+  {method public {set-credentials username:#String, password:#String}:void
+  }
+
+  {method public {set-remote-credentials
+                     remote-username:#String,
+                     remote-password:#String
+                 }:void
+  }
+}

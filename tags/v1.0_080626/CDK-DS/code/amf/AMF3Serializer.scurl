@@ -1,0 +1,343 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{let package constant max-uint29:int = 0x1FFFFFFF}
+{let package constant max-int29:int = 0xFFFFFFF}
+{let package constant min-int29:int = -0x10000000}
+
+{define-class public open AMF3Serializer {inherits AMFSerializer}
+
+  field private constant references:AMF3References
+
+  {constructor public {default output:ByteOutputStream}
+    {construct-super output}
+    set self.references = {AMF3References}
+  }
+
+  {method public open {write-one obj:any}:void
+    let output:ByteOutputStream = self.output
+    
+    {type-switch obj
+     case n:Null do
+        {output.write-one AMF3Marker.null-marker.value}
+
+     case b:bool do
+        {output.write-one 
+            {if b then
+                AMF3Marker.true-marker.value
+            else
+                AMF3Marker.false-marker.value
+            }
+        }
+
+     case s:String do
+        {output.write-one AMF3Marker.string-marker.value}
+        {self.write-string s}
+
+     case trait:DataObject do
+        {output.write-one AMF3Marker.object-marker.value}
+        {self.write-object trait}
+
+     case msg:AbstractMessage do
+        || TODO: proper registration, outside this package (?)
+        {output.write-one AMF3Marker.object-marker.value}
+||--        {self.write-message msg}
+        {self.write-object msg}
+
+     case ext:Externalizable do
+        {output.write-one AMF3Marker.object-marker.value}
+        {self.write-object ext}
+
+     case array:{Array-of any} do
+        {output.write-one AMF3Marker.array-marker.value}
+        {self.write-array array}
+        
+     case hash:{HashTable-of String, any} do
+        {output.write-one AMF3Marker.object-marker.value}
+        {self.write-object hash}
+
+     case b-array:ByteArray do
+        {output.write-one AMF3Marker.byte-array-marker.value}
+        {self.write-byte-array b-array}
+
+     case dt:DateTime do
+        {output.write-one AMF3Marker.date-marker.value}
+        {self.write-date dt}
+
+     case axd:AMFXmlDocument do
+        {output.write-one AMF3Marker.xml-doc-marker.value}
+        {self.write-xml-doc axd.xml}
+
+     case d:double do
+        {self.write-double d}
+
+     else
+        || FIXME: number? is true for char...
+        {if {number? obj} then
+            {self.write-amf-integer (obj asa int)}
+         elseif obj isa Object and {exist-stuff? {type-of obj}.name} then
+            {output.write-one AMF3Marker.object-marker.value}
+            {self.write-object (obj asa Object)}
+         else
+            {output.write-one AMF3Marker.undefined-marker.value}
+        }
+    }
+  }
+
+  {method public open {write-amf-integer i:int}:void
+    {if i < min-int29 or i > max-int29 then
+        {self.write-double i}
+     else
+        {self.output.write-one AMF3Marker.integer-marker.value}
+        {self.write-29-bit-integer i}
+    }
+  }
+
+  {method public open {write-29-bit-integer i:int}:void
+
+    def low-mask = 0x7F
+    def next-sign = 0x80
+    
+    def bit-shift =
+        {proc {quantity:int}:int
+            {return
+                {bit-or {bit-and {bit-srl i, quantity}, low-mask}, next-sign}}
+        }
+
+    {switch i using <
+     case 0x0 do
+        {self.write-masked-int {bit-shift 22}}
+        {self.write-masked-int {bit-shift 15}}
+        {self.write-masked-int {bit-shift 8}}
+        {self.write-masked-int {bit-and i, 0xFF}}
+     case 0x80 do
+        {self.write-masked-int i}
+     case 0x4000 do
+        {self.write-masked-int {bit-shift 7}}
+        {self.write-masked-int {bit-and i, low-mask}}
+     case 0x200000 do
+        {self.write-masked-int {bit-shift 14}}
+        {self.write-masked-int {bit-shift 7}}
+        {self.write-masked-int {bit-and i, low-mask}}
+     else
+        {self.write-masked-int {bit-shift 22}}
+        {self.write-masked-int {bit-shift 15}}
+        {self.write-masked-int {bit-shift 8}}
+        {self.write-masked-int {bit-and i, 0xFF}}
+    }
+  }
+  {method private {write-masked-int i:int}:void 
+    def masked-i = {bit-and 0xFF, i}
+    {self.output.write-one (masked-i asa byte)}
+  }
+
+  {method public open {write-double d:double}:void
+    {self.output.write-one AMF3Marker.double-marker.value}
+    {marshal-out-double self.output, d}
+  }
+
+  {method public open {write-string str:String}:void
+    || reference
+    def ref-index = {self.references.get-string-index str}
+    {if ref-index != -1 then
+        {self.write-reference-marker ref-index}
+     else
+        || inline
+        {self.write-inline-string str}
+    }
+  }
+  {method private {write-inline-string str:String}:void
+    def ce = CharEncoding.utf8
+    def out = {ByteVec max-size = str.size * ce.transcode-max-expansion-factor}
+    def (in-used, out-made) = {encode-characters str, out, ce}
+    {self.write-length out-made}
+    {for b in out do
+        {self.output.write-one b}
+    }
+  }
+  {method private {write-reference-marker index:int}:void
+    def ref-index = {bit-or {bit-sll index, 1}, 0x0}
+    {self.write-29-bit-integer ref-index}
+  }
+  {method private {write-length length:int}:void
+    {if length < max-uint29 then
+        def val = {bit-or {bit-sll length, 1}, 0x01}
+        {self.write-29-bit-integer val}
+     else
+        {error "length is too long!"}
+    }
+  }
+  
+  {method public open {write-xml-doc xml:String}:void
+    def ref-index = {self.references.get-object-index xml}
+    {if ref-index != -1 then
+        {self.write-reference-marker ref-index}
+     else
+        {self.write-inline-string xml}
+    }
+  }
+
+  {method public open {write-date dt:DateTime}:void
+    def ref-index = {self.references.get-object-index dt}
+    {if ref-index != -1 then
+        {self.write-reference-marker ref-index}
+     else
+        {self.write-length 0}
+        let elasped-seconds:double = 
+            ((dt.data.epoch-second -
+              DateTimeData.epoch-simple.epoch-second) asa double +
+             dt.data.fraction) * 1000.0
+        {marshal-out-double self.output, elasped-seconds}
+    }
+  }
+
+  {method public open {write-array array:{Array-of any}}:void
+    def ref-index = {self.references.get-object-index array}
+    {if ref-index != -1 then
+        {self.write-reference-marker ref-index}
+     else
+        {self.write-length array.size}
+        {self.write-string ""}
+        {for val in array do
+            {self.write-one val}
+        }
+    }
+  }
+
+  {method public open {write-object obj:Object}:void
+    def or-index = {self.references.get-object-index obj}
+    {if or-index != -1 then
+        {self.write-reference-marker or-index}
+        {return}
+    }
+    def adpt = {ObjectAdaptor obj}
+
+    {if adpt.externalizable? then
+        {self.write-externalizable adpt}
+     else
+        {self.write-inner-object adpt}
+    }
+  }
+  
+  {method protected open {write-externalizable adpt:ObjectAdaptor}:void
+    def trait = {adpt.create-trait}
+    {self.references.get-trait-index trait}
+    
+    {self.output.write-one 0x7}
+    {self.write-string trait.name}
+    {(adpt.object asa Externalizable).write-externalizable self}
+  }
+  
+  {method public open {write-inner-object adpt:ObjectAdaptor}:void
+    def trait = {adpt.create-trait}
+    def trait-index = {self.references.get-trait-index trait}
+    
+    {if trait-index != -1 then
+        {self.write-29-bit-integer
+            {bit-or {bit-sll trait-index, 2}, 0x1}
+        }
+     else
+        def s-num = trait.members.size
+        def dynamic-flg = {if trait.dynamic? then 0x8 else 0x0}
+        def type = {bit-or {bit-sll s-num, 4}, dynamic-flg, 0x3}
+        
+        {self.write-29-bit-integer type}
+        {self.write-string trait.name}
+        {for member in trait.members do
+            {self.write-string {self.javafy-name member}}
+        }
+    }
+    {for member in trait.members do
+        {self.write-one {adpt.get-value member}}
+    }
+    {if trait.dynamic? and adpt.dynamics != null then
+        {for val key k in {non-null adpt.dynamics} do
+            {self.write-string k}
+            {self.write-one val}
+        }
+        {self.write-string ""}
+    }
+  }
+
+||--  {method public open {write-message msg:AbstractMessage}:void
+||--    def or-index = {self.references.get-object-index msg}
+||--    {if or-index != -1 then
+||--        {self.write-reference-marker or-index}
+||--        {return}
+||--    }
+||--    def members = {({type-of msg} asa ClassType).get-members
+||--                      filter = ClassMember.get-property-filter
+||--                  }
+||--    def property-names = {new {Array-of String}}
+||--    def property-values = {new {Array-of any}}
+||--    {for member in members do
+||--        def name = {self.javafy-name member.name}
+||--        {if {property-names.find name} == -1 then
+||--            {property-names.append name}
+||--            {property-values.append {(member asa Property).get-value msg}}
+||--        }
+||--    }
+||--    def property-count = property-names.size
+||--    || TODO: Can we try to use externalizable and dynamic?
+||--    let object-info:int = {bit-or 0x03, {bit-sll property-count, 4}}
+||--    {self.write-29-bit-integer object-info asa int}
+||--    {self.write-string "flex.messaging.messages." & {type-of msg}.name}
+||--    def trait = {new AMFObject, class-name = {type-of msg}.name}
+||--    {for property in property-names do
+||--        {trait.set-keyword property}
+||--        {self.write-string property}
+||--    }
+||--    {self.references.add-trait trait}
+||--    {for value key i in property-values do
+||--        {self.write-one value}
+||--        {trait.set property-names[i], value}
+||--    }
+||--    {self.references.add-object trait}
+||--  }
+
+||--  {method public open {write-xml xml:String}:void
+||--    {self.write-xml-doc xml}
+||--  }
+
+  {method public open {write-byte-array array:ByteArray}:void
+    def ref-index = {self.references.get-object-index array}
+    {if ref-index != -1 then
+        {self.write-reference-marker ref-index}
+     else
+        {self.write-length array.size}
+        {self.output.write array}
+    }
+  }
+
+  {method protected {javafy-name name:String}:String
+    def buf = {new StringBuf, name}
+    def index = {buf.find '-'}
+    {if index != -1 then
+        {if index < buf.size - 1 then
+            let c:char = buf[index + 1]
+            def c-buf = {new StringBuf}
+            {c-buf.append c}
+            {c-buf.to-upper}
+            def new-c = {c-buf.to-String}[0]
+            set buf[index + 1] = new-c
+        }
+        {buf.remove index}
+        {return {self.javafy-name {buf.to-String}}}
+     else
+        {return name}
+    }
+  }
+}

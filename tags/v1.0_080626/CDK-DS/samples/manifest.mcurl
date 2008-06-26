@@ -1,0 +1,8 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| Maintained by: Curl Solutions
+{curl 6.0 manifest}
+
+{delegate-to COM.CURL.CDK.DATA-SERVICES,
+    location = "../code/manifest.mcurl"
+}

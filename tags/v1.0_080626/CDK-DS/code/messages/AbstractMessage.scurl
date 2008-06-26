@@ -1,0 +1,330 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract AbstractMessage {inherits IMessage}
+  field private client-id-bytes:#ByteArray
+  field private message-id-bytes:#ByteArray
+
+  let public constant FLEX_CLIENT_ID_HEADER:String = "DSId"
+  let public constant DESTINATION_CLIENT_ID_HEADER:String = "DSDstClientId"
+  let public constant ENDPOINT_HEADER:String = "DSEndpoint"
+  let public constant REMOTE_CREDENTIALS_HEADER:String = "DSRemoteCredentials"
+  let public constant REMOTE_CREDENTIALS_CHARSET_HEADER:String =
+      "DSRemoteCredentialsCharset"
+  let public constant REQUEST_TIMEOUT_HEADER:String = "DSRequestTimeout"
+
+  let private constant ALPHA_CHARS:String = "0123456789ABCDEF"
+  let private constant HAS_NEXT_FLAG:uint8 = 128
+  let private constant BODY_FLAG:uint8 = 1
+  let private constant CLIENT_ID_FLAG:uint8 = 2
+  let private constant DESTINATION_FLAG:uint8 = 4
+  let private constant HEADERS_FLAG:uint8 = 8
+  let private constant MESSAGE_ID_FLAG:uint8 = 16
+  let private constant TIMESTAMP_FLAG:uint8 = 32
+  let private constant TIME_TO_LIVE_FLAG:uint8 = 64
+  let private constant CLIENT_ID_BYTES_FLAG:uint8 = 1
+  let private constant MESSAGE_ID_BYTES_FLAG:uint8 = 2
+
+  {constructor public {default}
+    {construct-super}
+  }
+
+  {getter public {body}:any
+    {return self._body}
+  }
+  {setter public {body body:any}:void
+    set self._body = body
+  }
+  {getter public {headers}:{HashTable-of String, any}
+    {return self._headers}
+  }
+  {setter public {headers headers:{HashTable-of String, any}}:void
+    {for item key k in headers do
+        {with-compiler-directives allow-implicit-any-casts? = true do
+            {self.set-header k, item}
+        }
+    }
+  }
+
+  {method public {get-header name:String}:any
+      {if {self.headers.key-exists? name} then
+          {with-compiler-directives allow-implicit-any-casts? = true do
+              {return self._headers[name]}
+          }
+       else
+          {return null}
+      }
+  }
+  {method public {set-header name:String, value:any}:void
+      {if-non-null value then
+          set self._headers[name] = value
+       else
+          {self.headers.remove name, error-if-missing? = false}
+      }
+  }
+
+  {define-proc public {create-uid}:String
+    let uid:StringBuf = {new StringBuf}
+    def rand = {new Random}
+
+    {for i:int = 0 below 8 do
+        def code-index = {rand.next-in-range 0, 15}
+        {uid.append AbstractMessage.ALPHA_CHARS[code-index]}
+    }
+
+    {for i:int = 0 below 3 do
+        {uid.append '-'}
+        {for j:int = 0 below 4 do
+            def code-index = {rand.next-in-range 0, 15}
+            {uid.append AbstractMessage.ALPHA_CHARS[code-index]}
+        }
+    }
+
+    {uid.append '-'}
+
+    def time = {new DateTime}.data.epoch-second
+    || Note: time is the number of milliseconds since 1970,
+    || which is currently more than one trillion.
+    || BlazeDS uses the low 8 hex digits of this number in the UID.
+    || Just in case the system clock has been reset to
+    || Jan 1-4, 1970 (in which case this number could have only
+    || 1-7 hex digits), we pad on the left with 7 zeros
+    || before taking the low digits.
+    def hex-time = {new StringBuf, {format "%x", time}}
+    {hex-time.to-upper}
+    def base-time-str = ("0000000" & hex-time)
+    def time-str = {base-time-str.substr base-time-str.size - 8, 8}
+
+    {for i:int = 0 below 8 do
+        {uid.append {time-str.get i}}
+    }
+
+    {for i:int = 0 below 4 do
+        def code-index = {rand.next-in-range 0, 15}
+        {uid.append AbstractMessage.ALPHA_CHARS[code-index]}
+    }
+
+    {return {uid.to-String}}
+  }
+
+  {define-proc public {uid-from-ByteArray ba:ByteArray}:String
+    {if ba.size >= 16 then
+        def chars:{Array-of char} = {new {Array-of char}}
+        let index:uint = 0
+        {for i:int = 0 below 16 do
+            {if i == 4 or i == 6 or i == 8 or i == 10 then
+                {chars.append 45} || Hyphen char code
+            }
+            let b:int = {ba.get i}
+            let char-code-index:int = {bit-srl {bit-and b, 0xF0}, 4}
+            {chars.append AbstractMessage.ALPHA_CHARS[char-code-index]}
+            set char-code-index = {bit-and b, 0x0F}
+            {chars.append AbstractMessage.ALPHA_CHARS[char-code-index]}
+        }
+        {return {String {splice chars}}}
+    }
+    {return ""}
+  }
+  {define-proc public {uid-to-ByteArray uid:#String}:#ByteArray
+    {if {AbstractMessage.is-uid? uid} then
+        def result = {ByteArray}
+        {for i:int = 0 below uid.size do
+            {if uid[i] == '-' then
+                {continue}}
+            def h1 = {digit uid[i], 16}
+            {inc i}
+            def h2 = {digit uid[i], 16}
+            {result.append
+                ({bit-and {bit-or {bit-sll h1, 4}, h2}, 0xFF} asa byte)
+            }
+        }
+        {return result}
+    }
+    {return null}
+  }
+
+  {define-proc public {is-uid? uid:#String}:bool
+    {if uid != null and uid.size == 36 then
+        {for c key i in {non-null uid} do
+            {if i == 8 or i == 13 or i == 18 or i == 23 then
+                {if c != '-' then
+                    {return false}
+                }
+             elseif (c < 48 or c > 70 or (c > 57 and c < 65)) then
+                {return false}
+            }
+        }
+        {return true}
+    }
+    {return false}
+  }
+
+  || A convenience method for deserializing externalizable AbstractMessages.
+  {method public {read-external deserializer:AMFDeserializer}:void
+    def input = deserializer.input
+    def flags-array = {AbstractMessage.read-flags input}
+    {for flags key i in flags-array do
+        let reserved-position:uint8 = 0
+        {switch i
+         case 0 do
+            {if {bit-and flags, AbstractMessage.BODY_FLAG} != 0 then
+                set self.body = {deserializer.read-one}
+            }
+            {if {bit-and flags, AbstractMessage.CLIENT_ID_FLAG} != 0 then
+                set self.client-id = {deserializer.read-one} asa String
+            }
+            {if {bit-and flags, AbstractMessage.DESTINATION_FLAG} != 0 then
+                set self.destination = {deserializer.read-one} asa String
+            }
+            {if {bit-and flags, AbstractMessage.HEADERS_FLAG} != 0 then
+                def headers = {deserializer.read-one}
+                set self.headers =
+                    {type-switch headers
+                     case h:DataObject do {h.to-HashTable}
+                     else headers asa {HashTable-of String, any}}
+            }
+            {if {bit-and flags, AbstractMessage.MESSAGE_ID_FLAG} != 0 then
+                set self.message-id = {deserializer.read-one} asa String
+            }
+            {if {bit-and flags, AbstractMessage.TIMESTAMP_FLAG} != 0 then
+                set self.timestamp = {deserializer.read-one} asa double
+            }
+            {if {bit-and flags, AbstractMessage.TIME_TO_LIVE_FLAG} != 0 then
+                set self.time-to-live = {deserializer.read-one} asa double
+            }
+            set reserved-position = 7
+         case 1 do
+            {if {bit-and flags, AbstractMessage.CLIENT_ID_BYTES_FLAG} != 0 then
+                set self.client-id-bytes = {deserializer.read-one} asa ByteArray
+                {if-non-null bytes = self.client-id-bytes then
+                    set self.client-id =
+                        {AbstractMessage.uid-from-ByteArray bytes}
+                }
+            }
+            {if {bit-and flags, AbstractMessage.MESSAGE_ID_BYTES_FLAG} != 0 then
+                set self.message-id-bytes = {deserializer.read-one} asa ByteArray
+                {if-non-null bytes = self.message-id-bytes then
+                    set self.message-id =
+                        {AbstractMessage.uid-from-ByteArray bytes}
+                }
+            }
+            set reserved-position = 2
+        }
+        {if {bit-srl flags, reserved-position} != 0 then
+            {for j = reserved-position below 6 do
+                {if {bit-and {bit-srl flags, j}, 1} != 0 then
+                    {deserializer.read-one}
+                }
+            }
+        }
+    }
+  }
+  {define-proc protected {read-flags input:ByteInputStream}:ByteArray
+    let has-next-flag?:bool = true
+    def flags-array = {ByteArray}
+    let i:int = 0
+    {while has-next-flag? do
+        def flags = {input.read-one}
+
+        {flags-array.append flags}
+
+        {if {bit-and flags, AbstractMessage.HAS_NEXT_FLAG} != 0 then
+            set has-next-flag? = true
+         else
+            set has-next-flag? = false
+        }
+        {inc i}
+    }
+    {return flags-array}
+  }
+
+  {method public open {write-external serializer:AMFSerializer}:void
+    let flags:int = 0
+
+    {if self.client-id-bytes == null and self.client-id != null then
+        set self.client-id-bytes =
+            {AbstractMessage.uid-to-ByteArray {non-null self.client-id}}
+    }
+    {if self.message-id-bytes == null then
+        set self.message-id-bytes =
+            {AbstractMessage.uid-to-ByteArray self.message-id}
+    }
+    {if self.body != null then
+        set flags = {bit-or flags, AbstractMessage.BODY_FLAG}
+    }
+    {if self.client-id != null and self.client-id-bytes == null then
+        set flags = {bit-or flags, AbstractMessage.CLIENT_ID_FLAG}
+    }
+    {if not self.destination.empty? then
+        set flags = {bit-or flags, AbstractMessage.DESTINATION_FLAG}
+    }
+    {if not self.headers.empty? then
+        set flags = {bit-or flags, AbstractMessage.HEADERS_FLAG}
+    }
+    {if not self.message-id.empty? and self.message-id-bytes == null then
+        set flags = {bit-or flags, AbstractMessage.MESSAGE_ID_FLAG}
+    }
+    {if self.timestamp != 0 then
+        set flags = {bit-or flags, AbstractMessage.TIMESTAMP_FLAG}
+    }
+    {if self.time-to-live != 0 then
+        set flags = {bit-or flags, AbstractMessage.TIME_TO_LIVE_FLAG}
+    }
+    {if self.client-id-bytes != null or self.message-id-bytes != null then
+        set flags = {bit-or flags, AbstractMessage.HAS_NEXT_FLAG}
+    }
+    {serializer.output.write-one (flags asa uint8)}
+
+    set flags = 0
+
+    {if self.client-id-bytes != null then
+        set flags = {bit-or flags, AbstractMessage.CLIENT_ID_BYTES_FLAG}
+    }
+    {if self.message-id-bytes != null then
+        set flags = {bit-or flags, AbstractMessage.MESSAGE_ID_BYTES_FLAG}
+    }
+    {if flags != 0 then
+        {serializer.output.write-one (flags asa uint8)}
+    }
+    {if-non-null body = self.body then
+        {serializer.write-one body}
+    }
+    {if self.client-id != null and self.client-id-bytes == null then
+        {serializer.write-one self.client-id}
+    }
+    {if not self.destination.empty? then
+        {serializer.write-one self.destination}
+    }
+    {if not self.headers.empty? then
+        {serializer.write-one self.headers}
+    }
+    {if not self.message-id.empty? and self.message-id-bytes == null then
+        {serializer.write-one self.message-id}
+    }
+    {if self.timestamp != 0 then
+        {serializer.write-one self.timestamp}
+    }
+    {if self.time-to-live != 0 then
+        {serializer.write-one self.time-to-live}
+    }
+    {if-non-null client-id-bytes = self.client-id-bytes then
+        {serializer.write-one client-id-bytes}
+    }
+    {if-non-null message-id-bytes = self.message-id-bytes then
+        {serializer.write-one message-id-bytes}
+    }
+  }
+}

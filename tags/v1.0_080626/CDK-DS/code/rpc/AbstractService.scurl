@@ -1,0 +1,170 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract AbstractService {inherits EventTarget}
+  field protected _channel-set:#ChannelSet
+  field public endpoint:#Url
+  field public _operations:{Array-of AbstractOperation} =
+      {new {Array-of AbstractOperation}}
+  field protected _request-timeout:Time
+  field protected async-request:AsyncRequest
+
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:#String = null,
+                          ...
+                      }
+    {construct-super {splice ...}}
+
+    set self.endpoint = endpoint
+
+    set self.async-request = {new AsyncRequest}
+    {if-non-null destination then
+        set self.async-request.destination = destination
+    }
+    set self.operations = {new {Array-of AbstractOperation}}
+  }
+
+  {getter public {channel-set}:#ChannelSet
+    {return self.async-request.channel-set}
+  }
+
+  {setter public {channel-set cs:#ChannelSet}void
+    {if self.channel-set != cs then
+        set self.async-request.channel-set = cs
+    }
+  }
+
+  {getter public {destination}:String
+    {return self.async-request.destination}
+  }
+
+  {setter public {destination d:String}:void
+    set self.async-request.destination = d
+  }
+
+  {getter public {operations}:{Array-of AbstractOperation}
+    {return self._operations}
+  }
+
+  {setter public {operations operations:{Array-of AbstractOperation}}:void
+    {for operation in operations do
+        {operation.set-service self}
+||--        {if operation.name == null or operation.name.empty? then
+||--            set operation.name = ???
+||--        }
+        set operation.async-request = self.async-request
+    }
+    set self._operations = operations
+  }
+
+  {getter public {request-timeout}:Time
+    {return self.async-request.request-timeout}
+  }
+
+  {setter public {request-timeout t:Time}void
+    {if self.request-timeout != t then
+        set self.async-request.request-timeout = t
+    }
+  }
+
+  {method public {disconnect}:void
+    {self.async-request.disconnect}
+  }
+
+  {method public {logout}:void
+    {self.async-request.logout}
+  }
+
+  {method public {set-credentials
+                     username:#String,
+                     password:#String,
+                     charset:#String = null
+                 }:void
+    {self.async-request.set-credentials username, password, charset = charset}
+  }
+
+  {method public {set-remote-credentials
+                     remote-username:#String,
+                     remote-password:#String,
+                     charset:#String = null
+                 }:void
+    {self.async-request.set-remote-credentials
+        remote-username, remote-password, charset = charset
+    }
+  }
+
+  {method public {send name:String, async?:bool = false, ...:any}:void
+    {if-non-null u = self.endpoint then
+        def operation = {self.get-operation name}
+        set operation.async? = async?
+        {operation.send ...}
+||--        {if not async? then
+||--            {self.invoke-method name, ...}
+||--         else
+||--            {self.async-invoke-method name, ...}
+||--        }
+    }
+  }
+
+  {method public {get-operation name:String}:AbstractOperation
+    let operation:#AbstractOperation
+    {for op in self.operations do
+        {if op.name == name then
+            set operation = op
+            {break}
+        }
+    }
+    {if operation == null then
+        set operation = {new Operation, remote-object = self, name = name}
+        {self.operations.append {non-null operation}}
+        set operation.async-request = self.async-request
+    }
+    {return {non-null operation}}
+  }
+
+  || This provides a hook for custom event pre-processing.
+  {method public {dispatch-event event:Event}:void
+    {self.enqueue-event event}
+  }
+
+  {method protected {has-token-responders? event:Event}:bool
+    {type-switch event
+     case ae:AbstractEvent do
+        {if-non-null ae.token then
+            {if {ae.token.has-responder?} then
+                {return true}
+            }
+        }
+    }
+    {return false}
+  }
+
+  {method public {to-String}:String
+    def buf = {new StringBuf}
+    {buf.concat "AbstractService:\n"}
+    {buf.concat "\tendpoint = " & self.endpoint}
+    {buf.concat "\tdestination = " & self.destination}
+    {buf.concat "\toperations [" & self.operations.size & "]"}
+    {for op key i:int in self.operations do
+        {buf.concat "\t\t" & i & ": " & op.name}
+    }
+    {return {buf.to-String}}
+  }
+  {method public {on-fault-event e:FaultEvent}:void}
+  {method public {on-invoke-event e:InvokeEvent}:void}
+  {method public {on-result-event e:ResultEvent}:void}
+}

@@ -1,0 +1,64 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public ChannelEvent {inherits Event}
+  field public type:String
+  field public bubbles?:bool
+  field public cancelable?:bool
+  field public connected?:bool
+  field public reconnecting?:bool
+  field public rejected?:bool
+  field public channel:#Channel
+
+  let public constant CONNECT:String = "channelConnect"
+  let public constant DISCONNECT:String = "channelDisconnect"
+
+  {constructor public {default
+                          type:String,
+                          bubbles?:bool = false,
+                          cancelable?:bool = false,
+                          channel:#Channel = null,
+                          reconnecting?:bool = false,
+                          rejected?:bool = false,
+                          connected?:bool = false
+                      }
+    set self.type = type
+    set self.bubbles? = bubbles?
+    set self.cancelable? = cancelable?
+    set self.channel = channel
+    set self.reconnecting? = reconnecting?
+    set self.rejected? = rejected?
+    set self.connected? = connected?
+  }
+
+  {method public {clone}:Event
+    {return
+        {new ChannelEvent,
+            self.type,
+            bubbles? = self.bubbles?,
+            cancelable? = self.cancelable?,
+            channel = self.channel,
+            reconnecting? = self.reconnecting?,
+            rejected? = self.rejected?,
+            connected? = self.connected?
+        }
+    }
+  }
+
+  {method public {to-String}:String
+    {return {format "%s", self}}
+  }
+}

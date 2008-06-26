@@ -1,0 +1,708 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.DATA-OBJECT}
+
+||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
+{include "support.scurl"}
+
+{import * from CURL.GUI.STANDARD}
+{import * from CURL.IO.JSON}
+
+|| TODO
+|| --------------------
+|| extensibility
+
+
+{TestSuite "DataObject",
+    
+    || property semantics
+    || --------------------
+    {value
+        def make-suite =
+            {proc {name:String,
+                   make-data:{proc-type {...}:DataObject}
+                  }:TestSuite
+                def suite =
+                    {TestSuite name,
+                        {test-case "construct",
+                            def subject = {make-data id = 1, name = "test"}
+                            {TestCondition.assert
+                                subject["id"] == 1 and
+                                subject["name"] == "test"
+                            }
+                        },
+                        {test-case "compare-equal",
+                            def subject = {make-data id = 1, name = "test"}
+                            def other = {make-data id = 1, name = "test"}
+                            {TestCondition.assert
+                                {subject.equal? other}}
+                        },
+                        {test-case "compare-unequal",
+                            def subject = {make-data id = 1, name = "test"}
+                            def other = {make-data id = 2, name = "test"}
+                            {TestCondition.assert
+                                not {subject.equal? other}}
+                        },
+                        {test-case "compare-unequal-missing",
+                            def subject = {make-data id = 1, name = "test"}
+                            def other = {make-data  name = "test"}
+                            {TestCondition.assert
+                                not {subject.equal? other}}
+                        },
+                        {test-case "compare-unequal-extra",
+                            def subject = {make-data id = 1, name = "test"}
+                            def other = {make-data  name = "test"}
+                            {TestCondition.assert
+                                not {other.equal? subject}}
+                        },
+                        {test-case "clone",
+                            def subject = {make-data id = 1, name = "test"}
+                            def other = {subject.clone}
+                            {TestCondition.assert
+                                {subject.equal? other}}
+                        },
+                        {test-case "set?",
+                            def subject = {make-data id = 1, name = "test"}
+                            {TestCondition.assert
+                                {subject.set? "id"}}
+                        },
+                        {test-case "not set?",
+                            def subject = {make-data id = 1, name = "test"}
+                            {TestCondition.assert
+                                not {subject.set? "foo"}}
+                        },
+                        {test-case "unspecified member set?",
+                            def subject = {make-data}
+                            def should-be-set? = {subject.traits.members.find "id"} >= 0
+                            {TestCondition.assert
+                                {subject.set? "id"} == should-be-set?}
+                        },
+                        {test-case "get-if-exists",
+                            def subject = {make-data id = 1, name = "test"}
+                            def (name, name?) = {subject.get-if-exists "name"}
+                            {TestCondition.assert
+                                name? and name == "test"}
+                        },
+                        {test-case "unspecified get-if-exists",
+                            def subject = {make-data id = 1}
+                            def (foo, foo?) = {subject.get-if-exists "foo"}
+                            {TestCondition.assert
+                                not foo? and foo == null}
+                        },
+                        {test-case "iterator",
+                            def subject = {make-data "id", 1, "name", "test"}
+                            def values = {subject.to-HashTable}
+                            def result = {{HashTable-of String, any}}
+                            {for x key k in subject do
+                                set result[k] = x}
+                            {TestCondition.assert
+                                {test-compare result, values}}
+                        }
+                    }
+                {return suite}}
+        {TestSuite "properties",
+            {make-suite "Anonymous",
+                {proc {...}:DataObject
+                    {return
+                        {DataObject {splice ...}}}
+                }},
+            {make-suite "Open",
+                {proc {...}:DataObject
+                    def traits =
+                        {DataObjectTraits "Test",
+                            {StringArray "id", "name"}}
+                    {return
+                        {DataObject traits = traits,
+                            {splice ...}}}
+                }},
+            {make-suite "Sealed",
+                {proc {...}:DataObject
+                    def traits =
+                        {DataObjectTraits "Test",
+                            dynamic? = false,
+                            {StringArray "id", "name"}}
+                    {return
+                        {DataObject traits = traits,
+                            {splice ...}}}
+                }}
+        }},
+
+    || descriptive metadata
+    || --------------------
+    {TestSuite "traits",
+        {test-case "anonymous",
+            def subject =
+                {DataObjectTraits "", {StringArray}}
+            {TestCondition.assert
+                subject.name.empty? and
+                subject.members.empty? and
+                subject.dynamic? and
+                not subject.externalizable?}
+        },
+        {test-case "anonymous compare",
+            def subject =
+                {DataObjectTraits "", {StringArray}}
+            {TestCondition.assert
+                {subject.equal? DataObjectTraits.anonymous}}
+        },
+        {test-case "sealed",
+            def subject =
+                {DataObjectTraits "Test",
+                    dynamic? = false,
+                    {StringArray "id", "name"}}
+            {TestCondition.assert
+                subject.name == "Test" and
+                {subject.members.equal? {StringArray "id", "name"}} and
+                not subject.dynamic? and
+                not subject.externalizable?}
+        },
+        {test-case "sealed compare",
+            def subject =
+                {DataObjectTraits "Test",
+                    dynamic? = false,
+                    {StringArray "id", "name"}}
+            def other =
+                {DataObjectTraits "Test",
+                    dynamic? = false,
+                    {StringArray "id", "name"}}
+            {TestCondition.assert
+                {subject.equal? other}}
+        },
+        {test-case "open",
+            def subject =
+                {DataObjectTraits "Test",
+                    {StringArray "id", "name"}}
+            {TestCondition.assert
+                subject.name == "Test" and
+                {subject.members.equal? {StringArray "id", "name"}} and
+                subject.dynamic? and
+                not subject.externalizable?}
+        },
+        {test-case "open compare",
+            def subject =
+                {DataObjectTraits "Test",
+                    {StringArray "id", "name"}}
+            def other =
+                {DataObjectTraits "Test",
+                    {StringArray "id", "name"}}
+            {TestCondition.assert
+                {subject.equal? other}}
+        }
+    },
+    {value
+        def make-sealed =
+            {proc {...}:DataObject
+                def traits =
+                    {DataObjectTraits "Test",
+                        dynamic? = false,
+                        {StringArray "id", "name"}}
+                {return
+                    {DataObject traits = traits,
+                        id = 1,
+                        name = "test"}}}
+        def make-open =
+            {proc {...}:DataObject
+                def traits =
+                    {DataObjectTraits "Test",
+                        {StringArray "id", "name"}}
+                {return
+                    {DataObject traits = traits,
+                        id = 1,
+                        name = "test"}}}
+        {TestSuite "Strictness",
+            {TestSuite "Sealed",
+                {test-case "unset existing",
+                    def subject = {make-sealed}
+                    {require-exception DataObjectException do
+                        {subject.unset "id"}}
+                },
+                {test-case "unset new",
+                    def subject = {make-sealed}
+                    {require-exception DataObjectException do
+                        {subject.unset "foo"}}
+                },
+                {test-case "set existing",
+                    def subject = {make-sealed}
+                    set subject["id"] = 2
+                    {TestCondition.assert
+                        subject["id"] == 2}
+                },
+                {test-case "set new",
+                    def subject = {make-sealed}
+                    {require-exception DataObjectException do
+                        set subject["foo"] = "bar"}
+                }
+            },
+            {TestSuite "Open",
+                {test-case "unset existing",
+                    def subject = {make-open}
+                    {require-exception DataObjectException do
+                        {subject.unset "id"}}
+                },
+                {test-case "unset new",
+                    def subject = {make-open}
+                    {subject.unset "foo"}
+                    {TestCondition.assert
+                        not {subject.set? "foo"}}
+                },
+                {test-case "set existing",
+                    def subject = {make-open}
+                    set subject["id"] = 2
+                    {TestCondition.assert
+                        subject["id"] == 2}
+                },
+                {test-case "set new",
+                    def subject = {make-open}
+                    set subject["foo"] = "bar"
+                    {TestCondition.assert
+                        subject["foo"] == "bar"}
+                }
+            }
+        }},
+    || change management
+    || --------------------
+    {value
+        def make-suite =
+            {proc {name:String,
+                   make-data:{proc-type {...}:DataObject}
+                  }:TestSuite
+                def suite =
+                    {TestSuite name,
+                        {test-case "change pending",
+                            def subject = {make-data id = 1, name = "test"}
+                            set subject["id"] = 2
+                            {TestCondition.assert
+                                subject.pending-update? and
+                                subject["id"] == 2}
+                        },
+                        {test-case "change original",
+                            def subject = {make-data id = 1, name = "test"}
+                            set subject["id"] = 2
+                            {TestCondition.assert
+                                {subject.get-original "id"} == 1 and
+                                subject["id"] == 2}
+                        },
+                        {test-case "change commit",
+                            def subject = {make-data id = 1, name = "test"}
+                            set subject["id"] = 2
+                            {subject.commit}
+                            {TestCondition.assert
+                                not subject.pending-update? and
+                                subject["id"] == 2}
+                        },
+                        {test-case "change revert",
+                            def subject = {make-data id = 1, name = "test"}
+                            set subject["id"] = 2
+                            {subject.revert}
+                            {TestCondition.assert
+                                not subject.pending-update? and
+                                subject["id"] == 1}
+                        },
+                        || TODO: consider DWIM 
+||--                        {test-case "change undo",
+||--                            def subject = {make-data id = 1, name = "test"}
+||--                            set subject["id"] = 2
+||--                            set subject["id"] = 1
+||--                            {TestCondition.assert
+||--                                not subject.pending-update? and
+||--                                subject["id"] == 1}
+||--                        },
+                        {test-case "change noop",
+                            def subject = {make-data id = 1, name = "test"}
+                            set subject["id"] = 1
+                            {TestCondition.assert
+                                not subject.pending-update? and
+                                subject["id"] == 1}
+                        }
+                    }
+                {return suite}}
+        {TestSuite "change management",
+            {make-suite "Open",
+                {proc {...}:DataObject
+                    {return
+                        {DataObject {splice ...}}}
+                }},
+            {make-suite "Sealed",
+                {proc {...}:DataObject
+                    def traits =
+                        {DataObjectTraits "Test",
+                            dynamic? = false,
+                            {StringArray "id", "name"}}
+                    {return
+                        {DataObject traits = traits,
+                            {splice ...}}}
+                }}
+        }},
+
+    || data access - RecordSet
+    || --------------------
+    {TestSuite "recordset",
+        {test-case "recordset",
+            def traits =
+                {DataObjectTraits "Test",
+                    dynamic? = false,
+                    {StringArray "id", "name"}}
+            def subject =
+                {DataObject traits = traits,
+                    id = 1, name = "test"}
+            def rs =
+                {DataObjectRecordSet subject.traits}
+            {with rs.batch-events? = true do
+                {rs.append subject}
+                {rs.commit}}
+            def r = {{rs.to-Iterator}.read-one}
+            {TestCondition.assert
+                subject["id"] == r["id"] and
+                subject["name"] == r["name"]}
+        },
+        {test-case "recordset typed",
+            def traits =
+                {DataObjectTraits "Test",
+                    dynamic? = false,
+                    {StringArray "id", "name"}}
+            def subject =
+                {DataObject traits = traits,
+                    id = 1, name = "test"}
+            def rs =
+                {DataObjectRecordSet subject.traits,
+                    type-info = subject}
+            {with rs.batch-events? = true do
+                {rs.append subject}
+                {rs.commit}}
+            def r = {{rs.to-Iterator}.read-one}
+            {TestCondition.assert
+                subject["id"] == r["id"] and
+                subject["name"] == r["name"]}
+        }
+    },
+    || data access - RecordSet chenge management
+    || --------------------
+    {value
+        def make-rs =
+            {proc {}:DataObjectRecordSet
+                def traits =
+                    {DataObjectTraits "Test",
+                        dynamic? = false,
+                        {StringArray "id", "name"}}
+                def subject =
+                    {DataObject traits = traits,
+                        id = 1, name = "test"}
+                def rs =
+                    {DataObjectRecordSet subject.traits}
+                {with rs.batch-events? = true do
+                    {rs.append subject}
+                    {rs.commit}}
+                {return rs}}
+        {TestSuite "recordset modification",
+            {test-case "record change pending",
+                def rs = {make-rs}
+                def record = {{rs.to-Iterator}.read-one} asa DataObjectRecord
+                def subject = record.subject
+                set record["id"] = 2
+                {TestCondition.assert
+                    rs.pending-update? and
+                    record.pending-update? and
+                    subject.pending-update? and
+                    record["id"] == 2 and
+                    subject["id"] == 2}
+            },
+            {test-case "data change pending",
+                def rs = {make-rs}
+                || ========== \\
+                || === HACK: notification from subject
+                {for r in rs do
+                    {(r asa DataObjectRecord).subject.add-event-handler
+                        {on e:DataObjectChanged do
+                            def k = e.selector
+                            def x = e.subject
+                            set r[k] = x[k]}
+                    }}
+                || ========== //
+                def record = {{rs.to-Iterator}.read-one} asa DataObjectRecord
+                def subject = record.subject
+                set subject["id"] = 2
+                {dispatch-events false} || NOTE: enqueued event
+                {TestCondition.assert
+                    rs.pending-update? and
+                    record.pending-update? and
+                    subject.pending-update? and
+                    record["id"] == 2 and
+                    subject["id"] == 2}
+            },
+            {test-case "record change commit",
+                def rs = {make-rs}
+                def record = {{rs.to-Iterator}.read-one} asa DataObjectRecord
+                def subject = record.subject
+                set record["id"] = 2
+                {rs.commit}
+                {TestCondition.assert
+                    || DataObject
+                    not subject.pending-update? and
+                    subject["id"] == 2 and
+                    || recordset
+                    not rs.pending-update? and
+                    not record.pending-update? and
+                    record["id"] == 2}
+            },
+            {test-case "record change revert",
+                def rs = {make-rs}
+                def record = {{rs.to-Iterator}.read-one} asa DataObjectRecord
+                def subject = record.subject
+                set record["id"] = 2
+                {rs.revert}
+                {TestCondition.assert
+                    || DataObject
+                    not subject.pending-update? and
+                    subject["id"] == 1 and
+                    || recordset
+                    not rs.pending-update? and
+                    not record.pending-update? and
+                    record["id"] == 1}
+            }
+        }
+    },
+    || data access - DataBinding
+    || --------------------
+    {TestSuite "binding",
+        {test-case "binding initial",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "name"}}
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding refresh",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "name"}}
+            set subject["name"] = "changed"
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding update",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "name"}}
+            set display.value = "changed"
+            {display.update-data-binding "value"}
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding revert",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "name"}}
+            set subject["name"] = "changed"
+            {dispatch-events false} || NOTE: enqueued event
+            {subject.revert}
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding adaptation initial",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "id",
+                        {format x:int as
+                            {String x}}}}
+            {TestCondition.assert
+                subject["id"] == {display.value.to-int}}
+        },
+        {test-case "binding adaptation refresh",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "id",
+                        {format x:int as
+                            {String x}}}}
+            set subject["id"] = 2
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["id"] == {display.value.to-int}}
+        },
+        {test-case "binding adaptation update",
+            def subject = {DataObject id = 1, name = "test"}
+            def display =
+                {TextField
+                    data-binding-context = {DataObjectDataBindingContext subject},
+                    {bind value to "id",
+                        {parse x:String as
+                            {x.to-int}},
+                        {format x:int as
+                            {String x}}}}
+            set display.value = "2"
+            {display.update-data-binding "value"}
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["id"] == {display.value.to-int}}
+        },
+        {test-case "binding typed initial",
+            def traits = {DataObjectTraits "Test", {StringArray "id", "name"}}
+            def subject = {DataObject traits = traits, id = 1, name = "test"}
+            def fields = {DataObjectRecordFields traits, type-info = subject}
+            def display =
+                {TextField
+                    data-binding-context =
+                        {DataObjectDataBindingContext subject,
+                            fields = fields},
+                    {bind value to "name"}}
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding typed refresh",
+            def traits = {DataObjectTraits "Test", {StringArray "id", "name"}}
+            def subject = {DataObject traits = traits, id = 1, name = "test"}
+            def fields = {DataObjectRecordFields traits, type-info = subject}
+            def display =
+                {TextField
+                    data-binding-context =
+                        {DataObjectDataBindingContext subject,
+                            fields = fields},
+                    {bind value to "name"}}
+            set subject["name"] = "changed"
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["name"] == display.value}
+        },
+        {test-case "binding typed update",
+            def traits = {DataObjectTraits "Test", {StringArray "id", "name"}}
+            def subject = {DataObject traits = traits, id = 1, name = "test"}
+            def fields = {DataObjectRecordFields traits, type-info = subject}
+            def display =
+                {TextField
+                    data-binding-context =
+                        {DataObjectDataBindingContext subject,
+                            fields = fields},
+                    {bind value to "name"}}
+            set display.value = "changed"
+            {display.update-data-binding "value"}
+            {dispatch-events false} || NOTE: enqueued event
+            {TestCondition.assert
+                subject["name"] == display.value}
+        }
+    },
+    || conversion - Curl
+    || --------------------
+    {TestSuite "conversion",
+        {TestSuite "from",
+            {test-case "HashTable",
+                def subject =
+                    {{HashTable-of String, any} "id",  1, "name", "test"}
+                def result = subject asa DynamicDataObject
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            },
+            {test-case "RecordData",
+                def subject = {RecordData id = 1, name = "test"}
+                def result = subject asa DynamicDataObject
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            },
+            {test-case "JsonObject",
+                def subject = {JsonObject "id",  1, "name", "test"}
+                def result = subject asa DynamicDataObject
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            }},
+        {TestSuite "to",
+            {test-case "HashTable",
+                def subject = {DataObject id = 1, name = "test"}
+                def result = {subject.to-HashTable}
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            },
+            {test-case "RecordData",
+                def subject = {DataObject id = 1, name = "test"}
+                def result = {subject.to-RecordData}
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            },
+            {test-case "JsonObject",
+                def subject = {DataObject id = 1, name = "test"}
+                def result = {subject.to-JsonObject}
+                {TestCondition.assert
+                    subject.size == result.size and
+                    subject["id"] == result["id"] and
+                    subject["name"] == result["name"]}
+            }}
+    },
+    || extensibility
+    || --------------------
+
+    || ECMA Array
+    || --------------------
+    {TestSuite "ExtendedArray",
+        {test-case "array",
+            def subject = {ExtendedArray 0, 1}
+            {TestCondition.assert
+                subject.size == 2 and
+                subject[0] == 0 and
+                subject[1] == 1}
+        },
+        {test-case "data",
+            def subject =
+                {ExtendedArray 0, 1,
+                    data = {DataObject note = "whatever"}}
+            {TestCondition.assert
+                subject.size == 2 and
+                subject[0] == 0 and
+                subject[1] == 1 and
+                subject.data["note"] == "whatever"}
+        },
+        {test-case "array clone",
+            def subject =  {ExtendedArray 0, 1}
+            def other =  {subject.clone}
+            {TestCondition.assert
+                {subject.equal? other}}
+        },
+        {test-case "data clone",
+            def subject =
+                {ExtendedArray 0, 1,
+                    data = {DataObject note = "whatever"}}
+            def other =  {subject.clone}
+            {TestCondition.assert
+                {subject.equal? other}}
+        }
+    },
+    || DONE
+    {test-case "END",
+        true}
+
+}

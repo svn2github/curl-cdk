@@ -1,0 +1,52 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{include "simple-explorer.scurl"}
+{include "authorization.scurl"}
+
+{value
+    || words database
+    def db = {SQLiteDatabase null}
+    {db.execute "CREATE TABLE words (word TEXT NOT NULL PRIMARY KEY);"}
+    {SQLiteStatement.import-csv db, "words", {url "Nouns.txt"}}
+
+    || authorization policy: disallow modification or schema changes
+    def policy = 
+        {AuthorizationPolicy 
+            "READ", "OK",
+            "SELECT", "OK",
+            "FUNCTION", "OK"}
+    
+    || explorer
+    def display =
+        {QueryDisplay db,
+            policy = policy,
+            width = 8in,
+            height = 4in}
+    
+    || start with slow query !
+    {display.query-panel.set-value-with-events
+        "SELECT prefix AS k, s.word AS sword, p.word AS pword FROM
+  (SELECT substr(word,length(word)-1,2) AS suffix, word FROM words WHERE word LIKE 'a%') s,
+  (SELECT substr(word,0,2) AS prefix, word FROM words) p
+WHERE prefix=suffix ORDER BY k"}
+    display
+}

@@ -1,0 +1,28 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "6.0",
+    compiler-directives = "careful? = true",
+    use-style-sheets? = false,
+    style-package-name = "COM.CURL.GUI.STYLED-CONTROLS",
+    style-sheet-name = "DEFAULT-STYLE-SHEET",
+    {target
+        name = "deploy",
+        target-url-name = "c:\\curl\\DB-EXPLORER",
+        {package-transform "COM.CURL.CDK.DB-EXPLORER\u0000package\u0000load.scurl", copy? = true},
+        {resource-transform "stylesheet.scurl\u0000file\u0000stylesheet.scurl", copy? = true},
+        {resource-transform "DB-STYLE-SHEET\u0000file\u0000stylesheet.scurl", copy? = true},
+        {assembly-transform "COM.CURL.CDK", use-path? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
+        {resource-transform "start.curl\u0000file\u0000start.curl", copy? = true},
+        {resource-transform "start.curl\u0000resource\u0000start.curl", copy? = true},
+        {assembly-transform "COM.CURL.GUI.STYLED", use-path? = true},
+        {package-transform "COM.CURL.CDK.DB-DISPLAY\u0000package\u0000load.scurl", copy? = true},
+        {resource-transform "DBX-STYLE-SHEET\u0000file\u0000stylesheet.scurl", copy? = true}
+    },
+    {file-setting "start.curl", start-file? = true}
+}

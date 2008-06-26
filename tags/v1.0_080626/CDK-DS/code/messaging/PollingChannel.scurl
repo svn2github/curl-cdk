@@ -1,0 +1,254 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public PollingChannel {inherits Channel}
+  field protected _polling-enabled?:bool = true
+  field protected should-poll?:bool = true
+  field protected _polling-interval:Time =
+      PollingChannel.DEFAULT_POLLING_INTERVAL
+  field protected _piggy-backing-enabled?:bool = false
+  field protected poll-outstanding?:bool = false
+  field protected polling-ref:int = -1
+  field protected _timer:#Timer
+
+  let protected constant DEFAULT_POLLING_INTERVAL:Time = 3000ms
+
+  {constructor public {default id:#String = null, uri:#Url = null}
+    {construct-super id = id, uri = uri}
+    set self._polling-enabled? = true
+    set self.should-poll? = false
+    {if {self.timer-required?} then
+        set self._polling-interval = PollingChannel.DEFAULT_POLLING_INTERVAL
+        set self._timer = {new Timer,
+                              enabled? = false,
+                              interval = self._polling-interval,
+                              repeat = 1,
+                              {on TimerEvent do
+                                  {self.internal-poll}
+                              }
+                          }
+    }
+  }
+
+  {getter public {polling-enabled?}:bool
+    {return self._polling-enabled?}
+  }
+
+  {setter public {polling-enabled? b?:bool}:void
+    set self._polling-enabled? = b?
+    {if not b? and
+        ({self.timer-running?} or
+         (not {self.timer-running?} and self._polling-interval == 0s))
+     then
+        {self.stop-polling}
+     elseif b? and self.should-poll? and not {self.timer-running?} then
+        {self.start-polling}
+    }
+  }
+
+  {getter public {polling-interval}:Time
+    {if-non-null self._timer then
+        {return self._polling-interval}
+     else
+        {return 0s}
+    }
+  }
+
+  {setter public {polling-interval t:Time}:void
+    {if t == 0s then
+        set self._polling-interval = t
+        {if-non-null self._timer then
+            {self._timer.disable}
+        }
+        {if self.should-poll? then
+            {self.start-polling}
+        }
+     elseif t > 0s then
+        {if-non-null self._timer then
+            set self._polling-interval = t
+            set self._timer.interval = self.polling-interval
+            {if not self._timer.enabled? and self.should-poll? then
+                {self.start-polling}
+            }
+        }
+     else
+        {throw {new Exception, "Negative polling interval is not allowed."}}
+    }
+  }
+
+  {getter public {piggy-backing-enabled?}:bool
+    {return self._piggy-backing-enabled?}
+  }
+
+  {setter public {piggy-backing-enabled? b?:bool}:void
+    set self._piggy-backing-enabled? = b?
+  }
+
+  {method public {timer-required?}:bool
+    {return true}
+  }
+
+  {method public {timer-running?}:bool
+    {return self._timer != null and self._timer.enabled?}
+  }
+
+  {method public {enable-polling}:void
+    {inc self.polling-ref}
+    {if self.polling-ref == 0 then
+        {self.start-polling}
+    }
+  }
+
+  {method public {disable-polling}:void
+    {dec self.polling-ref}
+    {if self.polling-ref < 0 then
+        {self.stop-polling}
+    }
+  }
+
+  {method public {poll}:void
+    {self.internal-poll}
+  }
+
+  {method public {poll-failed rejected?:bool = false}:void
+    {self.internal-disconnect rejected? = rejected?}
+  }
+
+  {method protected {start-polling}:void
+    {if self._polling-enabled? then
+        set self.should-poll? = true
+        {self.poll}
+    }
+  }
+
+  {method protected {stop-polling}:void
+    {if-non-null self._timer then
+        {self._timer.disable}
+    }
+    set self.polling-ref = -1
+    set self.should-poll? = false
+    set self.poll-outstanding? = false
+  }
+
+  {method protected {internal-connect}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    {self.stop-polling}
+    {super.internal-disconnect rejected? = rejected?}
+  }
+
+  {method protected {internal-poll event:#Event = null}:void
+    {if not self.poll-outstanding? then
+        {if {self.timer-running?} then
+            {self._timer.disable}
+        }
+        def command-message = {new CommandMessage}
+        set command-message.operation = CommandMessage.POLL_OPERATION
+        {try
+            {self.internal-send
+                {new PollCommandMessageResponder, null, command-message, self}
+            }
+            set self.poll-outstanding? = true
+         catch e:Exception do
+            {self.stop-polling}
+            {throw e}
+        }
+    }
+  }
+
+  {method public {send agent:MessageAgent, message:IMessage}:void
+    let piggy-back?:bool = false
+    {type-switch message
+     case cm:CommandMessage do
+        || Nothing
+     else
+        {if not self.poll-outstanding? and self.piggy-backing-enabled? then
+            {if self.should-poll? then
+                set piggy-back? = true
+             else
+                def consumer-dispatcher =
+                    {ConsumerMessageDispatcher.get-instance}
+                {if {consumer-dispatcher.is-channel-used-for-subscriptions?
+                        self}
+                 then
+                    set piggy-back? = true
+                }
+            }
+        }
+    }
+    {if piggy-back? then
+        {self.internal-poll}
+    }
+    {super.send agent, message}
+    {if piggy-back? then
+        def msg = {new CommandMessage}
+        set msg.operation = CommandMessage.POLL_OPERATION
+        {try
+            {self.internal-send
+                {new PollCommandMessageResponder, null, msg, self}
+            }
+         catch e:Exception do
+            {self.stop-polling}
+            {throw e}
+        }
+    }
+  }
+
+  {method protected {internal-send message-responder:MessageResponder}:void
+    || This method intentionally left blank. Subclasses need to override this
+    || method for any specific behavior.
+  }
+
+  {method protected {get-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    let responder:#MessageResponder = null
+    {type-switch message
+     case cm:CommandMessage do
+        {switch cm.operation
+         case
+            CommandMessage.SUBSCRIBE_OPERATION,
+            CommandMessage.UNSUBSCRIBE_OPERATION
+         do
+            set responder = {self.get-poll-sync-message-responder agent, cm}
+         case CommandMessage.POLL_OPERATION do
+            set responder = {new PollCommandMessageResponder, agent, cm, self}
+        }
+    }
+    {if-non-null responder then
+        {return responder}
+     else
+        {return {self.get-default-message-responder agent, message}}
+    }
+  }
+
+  {method protected {get-poll-sync-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return null}
+  }
+
+  {method protected {get-default-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return {super.get-message-responder agent, message}}
+  }
+}

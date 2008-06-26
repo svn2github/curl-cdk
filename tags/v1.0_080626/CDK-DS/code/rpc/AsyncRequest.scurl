@@ -1,0 +1,82 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public AsyncRequest {inherits Producer}
+  field private pending-requests:{HashTable-of String, IResponder}
+
+  {constructor public {default}
+    set self.pending-requests = {new {HashTable-of String, IResponder}}
+    {construct-super}
+  }
+
+  {method public {acknowledge
+                        ack:AcknowledgeMessage,
+                        message:IMessage
+                    }:void
+    let error?:bool = false
+    {if {ack.headers.key-exists? AcknowledgeMessage.ERROR_HINT_HEADER} then
+        set error? = ack.headers[AcknowledgeMessage.ERROR_HINT_HEADER] asa bool
+    }
+    {super.acknowledge ack, message}
+    {if not error? then
+        def id = ack.correlation-id
+        {if {self.pending-requests.key-exists? id} then
+            def responder = self.pending-requests[id]
+            {self.pending-requests.remove id, error-if-missing? = false}
+            {responder.result
+                {new MessageEvent,
+                    MessageEvent.RESULT,
+                    message = ack
+                }
+            }
+        }
+    }
+  }
+
+  {method public {fault
+                     err:ErrorMessage,
+                     message:IMessage
+                 }:void
+    {super.fault err, message}
+    {if self.ignore-fault? then
+        {return}
+    }
+    def id = message.message-id
+    {if {self.pending-requests.key-exists? id} then
+        def responder = self.pending-requests[id]
+        {self.pending-requests.remove id, error-if-missing? = false}
+        {responder.fault
+            {new MessageFaultEvent,
+                MessageFaultEvent.FAULT,
+                message = err
+            }
+        }
+    }
+  }
+
+  {method protected {invoke
+                        message:IMessage,
+                        responder:IResponder
+                    }:void
+    set self.pending-requests[message.message-id] = responder
+    {self.send message}
+  }
+
+  {method public {hasPendingRequestForMessage msg:IMessage}:bool
+    def id = msg.message-id
+    {return {self.pending-requests.key-exists? id}}
+  }
+}
