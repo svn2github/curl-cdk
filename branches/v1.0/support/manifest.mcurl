@@ -16,7 +16,7 @@
 
 {curl 6.0 manifest}
 {manifest COM.CURL.CDK.SUPPORT,
-    version = "0.9"}
+    version = "1.0"}
 
 || libraries
 || --------------------
@@ -25,10 +25,6 @@
 
 {delegate-to COM.CURL.CDU,
     location = "../lib/CDU/manifest.mcurl"}
-
-|| NOTE: not used yet
-||--{delegate-to COM.CURL.GUI.STYLED,
-||--    location = "../lib/COM.CURL.GUI.STYLED-6.0-pcurl-en/manifest.mcurl"}
 
 || test infrastructure
 || --------------------

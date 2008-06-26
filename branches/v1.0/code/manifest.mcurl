@@ -16,7 +16,7 @@
 
 {curl 6.0 manifest}
 {manifest COM.CURL.CDK,
-    version = "0.9"}
+    version = "1.0"}
 
 || core modules
 || --------------------
