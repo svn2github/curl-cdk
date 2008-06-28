@@ -14,8 +14,6 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl-file-attributes character-encoding = "windows-latin-1"}
-
 {define-class public abstract open AMFSerializer
 
   field public constant output:ByteOutputStream
