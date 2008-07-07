@@ -16,6 +16,31 @@
 
 || ==================== \\
 || support
+{import * from COM.CURL.CDK.AMF}
+{import * from CURL.LANGUAGE.REFLECTION}
+
+{define-proc {association-type? t:Type}:bool
+    {return
+        {type-switch t
+         case t:ClassType do
+            {if-non-null g = {t.get-getter "element-type"} then
+                g.type == Type
+             else false}
+         else false}}
+}
+{define-proc {object-as-data x:Object}:DataObject
+    def xs = {{HashTable-of String, any}}
+    def t = {type-of x} asa ClassType
+    {for m in {t.get-members filter = ClassMember.field-filter} do
+        {type-switch m
+         case p:Property do
+            def k = p.name
+            def v = {p.get-value x}
+            set xs[k] = v
+        }}
+    {return xs asa DynamicDataObject}
+}
+
 {define-proc public {test-compare x:any, y:any}:bool
     def tx = {type-of x}
     def ty = {type-of y}
@@ -24,10 +49,14 @@
     {return
         {if tx.primitive? then
             x == y
+         elseif {tx.subtype-of? ExtendedArray} then
+            {if {ty.subtype-of? ExtendedArray} then
+                {x.equal? y}
+             else false}
          elseif
-            ({tx.subtype-of? Array} and {ty.subtype-of? Array}) or
-            ({tx.subtype-of? {HashTable-of String, any}} and {ty.subtype-of? {HashTable-of String, any}})
+            {association-type? tx} and {association-type? ty}
          then
+            || TODO: tx == ty
             {with-compiler-directives allow-any-calls? = true do
                 x.size == y.size and
                 {value
@@ -36,7 +65,7 @@
                         {if not {test-compare xi, y[i]} then
                             set eq? = false
                             {break}}}
-                    eq?} }                       
+                    eq?}}                       
          elseif {tx.subtype-of? DataObject} and {ty.subtype-of? DataObject} then
             {with-compiler-directives allow-any-calls? = true do
                 x.size == y.size and
@@ -47,7 +76,20 @@
                         {if not {test-compare xk, y[k]} then
                             set eq? = false
                             {break}}}
-                    eq?} }                       
+                    eq?}}
+         elseif tx == AMFXmlDocument and ty == AMFXmlDocument then
+            x.xml == y.xml
+         elseif tx == AMFHeader and ty == AMFHeader then
+            x.name == y.name and
+            x.must-understand? == y.must-understand? and
+            x.value == y.value
+         elseif tx == AMFBody and ty == AMFBody then
+            x.target-uri == y.target-uri and
+            x.response-uri == y.response-uri and
+            {test-compare x.data, y.data}
+         elseif tx == AMFEnvelope and ty == AMFEnvelope then
+            {test-compare x.headers, y.headers} and
+            {test-compare x.bodies, y.bodies}
          else
             tx == ty and
             {type-switch tx
@@ -57,7 +99,12 @@
                  do
                     {if-non-null {tx.get-method "equal?"} then
                         {x.equal? y}
-                     else x == y}}
+                     else x == y or
+                        {value
+                            def dx = {object-as-data x}
+                            def dy = {object-as-data y}
+                            {test-compare dx, dy}}
+                    }}
              else x == y
             }}}
 }
