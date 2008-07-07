@@ -293,6 +293,8 @@
     def class-type:#ClassType =
         {switch trait.name
          case "flex.messaging.messages.AcknowledgeMessage" do AcknowledgeMessage
+         case "flex.messaging.messages.CommandMessage" do CommandMessage
+         case "flex.messaging.messages.RemotingMessage" do RemotingMessage
          case "flex.messaging.messages.ErrorMessage" do ErrorMessage
          else null}
     
