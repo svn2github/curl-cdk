@@ -93,7 +93,8 @@
     }
   }
 
-  {method public open {read-xml-document}:String
+  || TODO: adapter for XDMDocument
+  {method public open {read-xml-document}:Object
     def type = {self.read-integer}
     def (inline?, n) = {self.check-reference type}
 
@@ -103,12 +104,12 @@
                 {self.input.read n = n}.underlying-FastArray,
                 CharEncoding.utf8
             }
-        {if not chars.empty? then
-            {self.references.add-object chars}
-        }
-        {return chars}
+        def xml = {AMFXmlDocument chars}
+        {self.references.add-object xml}
+        
+        {return xml}
      else
-        {return {self.references.get-object n} asa String}
+        {return {self.references.get-object n}}
     }
   }
 
@@ -285,28 +286,8 @@
         {error "bad handler"}
     }
   }
-
+  
   {method protected open {read-default-object trait:DataObjectTraits}:#Object
-||--    def class-path = trait.name
-||--    def idx = {class-path.find
-||--                  '.',
-||--                  search-direction = SearchDirection.backward,
-||--                  starting-index = (class-path.size - 1)
-||--              }
-||--    def class-name =
-||--        {if idx != -1 then
-||--            {class-path.tail idx + 1}
-||--         else
-||--            class-path
-||--        }
-||--    let class-type:#ClassType
-||--    {for p in {ObjectMapper.get-mapper}.refered-packages do
-||--        def (val, found?) = {p.lookup class-name}
-||--        {if found? then
-||--            set class-type = val asa ClassType
-||--            {break}
-||--        }
-||--    }
     || EXPERIMENTAL
     || TODO: proper registration, outside this package (?)
     def class-type:#ClassType =
@@ -325,25 +306,25 @@
     {if-non-null c = {class-type.get-constructor "default"} then
         def instance = {c.new} asa Object
         {self.references.add-object instance}
-        {for member in trait.members do
-            def pval = {self.read-one}
-            {if-non-null property =
-                {class-type.get-property-for-set {self.curlfy-name member}}
-             then
-                {type-switch pval
-                 case pval:Null do
-                    || ignore
-                 case pval:DataObject do
-                    {property.set-value instance,
-                        {if property.type == {HashTable-of String, any} then
-                            {pval.to-HashTable}
-                         else
-                            pval}}
-                 else
-                    {property.set-value instance, pval}
+            {for member in trait.members do
+                def pval = {self.read-one}
+                {if-non-null property =
+                    {class-type.get-property-for-set {self.curlfy-name member}}
+                 then
+                    {type-switch pval
+                     case pval:Null do
+                        || ignore
+                     case pval:DataObject do
+                        {property.set-value instance,
+                            {if property.type == {HashTable-of String, any} then
+                                {pval.to-HashTable}
+                             else
+                                pval}}
+                     else
+                        {property.set-value instance, pval}
+                    }
                 }
             }
-        }
         {return instance}
     }
     {return null}

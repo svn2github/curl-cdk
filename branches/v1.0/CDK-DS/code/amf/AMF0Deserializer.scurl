@@ -204,7 +204,11 @@
     }
   }
 
-  {method public open {read-xml-document}:String
-     {return {self.read-string long? = true}}
+  || TODO: adapter for XDMDocument
+  {method public open {read-xml-document}:Object
+    def chars = {self.read-string long? = true}
+    def xml = {AMFXmlDocument chars}
+    {return xml}
   }
+
 }

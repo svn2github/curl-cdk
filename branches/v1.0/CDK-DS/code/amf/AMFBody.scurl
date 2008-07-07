@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 {define-class public AMFBody
-  field package constant target-uri:String
+  field public constant target-uri:String
   field public constant response-uri:String
   field package constant length:int
   field public constant data:any

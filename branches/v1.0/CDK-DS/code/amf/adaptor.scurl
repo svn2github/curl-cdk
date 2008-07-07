@@ -23,24 +23,25 @@
   }
 
   {factory package {default obj:Object}:ObjectAdaptor
-    def apt = {type-switch obj
-                  
-               case ext:Externalizable do
-                  {ExternalizableObjectAdaptor ext}
-                  
-               case msg:AbstractMessage do
-                  || TODO: proper registration, outside this package (?)                  
-                  {MessageAdaptor msg}
-                  
-               case ao:DataObject do
-                  {AMFObjectAdaptor ao}
-                  
-               case h:{HashTable-of String, any} do
-                  {HashTableAdaptor h}
-                  
-               else
-                  {DefaultObjectAdaptor obj}
-              }
+    def apt =
+        {type-switch obj
+            
+         case ext:Externalizable do
+            {ExternalizableObjectAdaptor ext}
+            
+         case msg:AbstractMessage do
+            || TODO: proper registration, outside this package (?)                  
+            {MessageAdaptor msg}
+            
+         case ao:DataObject do
+            {AMFObjectAdaptor ao}
+            
+         case h:{HashTable-of String, any} do
+            {HashTableAdaptor h}
+            
+         else
+            {DefaultObjectAdaptor obj}
+        }
     {return apt}
   }
 
@@ -87,7 +88,7 @@
   }
 
   {getter package {dynamics}:#{HashTable-of String, any}
-    {return null}
+    {return self.hashtable}
   }
 
   {getter private {hashtable}:{HashTable-of String, any}
@@ -100,9 +101,7 @@
 
   {method package {create-trait}:DataObjectTraits
     def trait = {super.create-trait}
-    {for member in {self.hashtable.keys-to-Iterator} do
-        {trait.members.append member}
-    }
+    || NOTE: assume no static members
     {return trait}
   }
 
@@ -126,12 +125,21 @@
     def trait = self.typed-object.traits
     {return trait}
   }
+  
+  {getter package {has-dynamic?}:bool
+    {return self.typed-object.traits.dynamic?}
+  }
 
   {getter package {dynamics}:#{HashTable-of String, any}
+    def obj = self.typed-object
+    def traits = obj.traits
     {return
-        {type-switch self.typed-object
-         case x:OpenDataObject do
-            {x.to-HashTable}
+        {if traits.dynamic? then
+            || TODO: inefficient: better use Iterator
+            def xs = {obj.to-HashTable}
+            {xs.filter-keys
+                {fn k => {traits.index-for k} < 0}}
+            xs
          else null}}
   }
 

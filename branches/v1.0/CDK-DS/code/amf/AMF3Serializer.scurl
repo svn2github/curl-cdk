@@ -61,6 +61,11 @@
         {output.write-one AMF3Marker.object-marker.value}
         {self.write-object ext}
 
+     case array:ExtendedArray do
+        || TODO:
+        {output.write-one AMF3Marker.array-marker.value}
+        {self.write-array array}
+
      case array:{Array-of any} do
         {output.write-one AMF3Marker.array-marker.value}
         {self.write-array array}
@@ -263,10 +268,12 @@
     {for member in trait.members do
         {self.write-one {adpt.get-value member}}
     }
-    {if trait.dynamic? and adpt.dynamics != null then
-        {for val key k in {non-null adpt.dynamics} do
-            {self.write-string k}
-            {self.write-one val}
+    {if trait.dynamic? then
+        {if-non-null dynamics = adpt.dynamics then
+            {for val key k in dynamics do
+                {self.write-string k}
+                {self.write-one val}
+            }
         }
         {self.write-string ""}
     }
