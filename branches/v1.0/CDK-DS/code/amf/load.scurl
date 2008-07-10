@@ -26,6 +26,7 @@
 
 {import * from CURL.GUI.STANDARD}
 {import * from CURL.IO.MARSHAL}
+{import * from CURL.IO.JSON}
 {import * from CURL.LANGUAGE.REFLECTION}
 {import * from CURL.LANGUAGE.REGEXP}
 
@@ -36,11 +37,11 @@
 
 {import * from COM.CURL.CDK.IO}
 
-|| TODO: proper registration, outside this package (?)
-{import * from COM.CURL.CDK.MESSAGES}
+|| NOTE: for adapter registration
+{import COM.CURL.CDK.MESSAGES}
 
 {include
-    "adaptor.scurl",
+||--    "adaptor.scurl",
     "AMF0Deserializer.scurl",
     "AMF0Serializer.scurl",
     "AMF3Deserializer.scurl",

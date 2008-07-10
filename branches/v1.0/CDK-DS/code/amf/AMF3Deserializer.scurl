@@ -18,10 +18,14 @@
 {define-class public open AMF3Deserializer {inherits AMFDeserializer}
 
   field private constant references:AMF3References
+  field private constant mapper:AMFObjectAdapters
 
-  {constructor public {default input:ByteInputStream}
-    {construct-super input}
+  {constructor public {default
+                          input:ByteInputStream,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard}
     set self.references = {AMF3References}
+    set self.mapper = mapper
+    {construct-super input}
   }
 
   {method public open {read-one}:any
@@ -33,8 +37,7 @@
          case AMF3Marker.false-marker.value do      false
          case AMF3Marker.true-marker.value do       true
          case AMF3Marker.integer-marker.value do    {self.read-integer}
-         case AMF3Marker.double-marker.value do
-            {marshal-in-double self.input}
+         case AMF3Marker.double-marker.value do     {marshal-in-double self.input}
          case AMF3Marker.string-marker.value do     {self.read-string}
          case AMF3Marker.xml-doc-marker.value do    {self.read-xml-document}
          case AMF3Marker.date-marker.value do       {self.read-date}
@@ -73,7 +76,7 @@
     {return result}
   }
 
-  || ream amf3 strings.
+  || read amf3 strings.
   {method public {read-string}:String
     def type = {self.read-integer}
     def (inline?, n) = {self.check-reference type}
@@ -137,11 +140,10 @@
     }
   }
 
-||--  {method public open {read-xml}:String
-||--    || Can we parse e4x syntax?
-||--||--    {error "Unsupported xml types"}
-||--    {return {self.read-xml-document}}
-||--  }
+  {method public open {read-xml}:Object
+    || TODO: whats the difference? 
+    {return {self.read-xml-document}}
+  }
 
   {method public open {read-array}:Object
     def type = {self.read-integer}
@@ -210,12 +212,17 @@
     def class-name = trait.name
     
     {if trait.externalizable? then
+        
+        || externalized
         {return {self.read-externalizable class-name}}
      else
+
+        || specialized adapter
         {if-non-null ret = {self.read-default-object trait} then
             {return ret}
         }
-        
+
+        || DataObject
         def obj = {DataObject.from-traits trait}
         {self.references.add-object obj}
 
@@ -264,83 +271,60 @@
   }
 
   {method protected open {read-externalizable class-name:String}:Object
-    def mapper = {ObjectMapper.get-mapper}.for-deserialize
-    {assert
-        {mapper.key-exists? class-name},
-        "Need handlers"
-    }
-    {type-switch mapper[class-name]
-     case ct:ClassType do
-        {assert {ct.subtype-of? Externalizable}}
-        def ext = {{ct.get-constructor "default"}.new} asa Externalizable
-        {self.references.add-object ext}
-        {ext.read-externalizable self}
-        {return ext}
-
-     case prc:{proc-type {AMF3Deserializer, ByteInputStream}:DataObject} do
-        def ret = {prc self, self.input}
-        {self.references.add-object ret}
-        {return ret}
-
+    def (class, class?) =
+        {self.mapper.class-for class-name}
+    {if class? and {class.subtype-of? Externalizable} then
+        {with-compiler-directives allow-any-calls? = true,
+            allow-implicit-any-casts? = true
+         do
+            def ext = {class}
+            {self.references.add-object ext}
+            {ext.read-externalizable self}
+            {return ext}}
      else
-        {error "bad handler"}
+        {error {message No handler for {value class-name}}}
     }
   }
   
-  {method protected open {read-default-object trait:DataObjectTraits}:#Object
-    || EXPERIMENTAL
-    || TODO: proper registration, outside this package (?)
-    def class-type:#ClassType =
-        {switch trait.name
-         case "flex.messaging.messages.AcknowledgeMessage" do AcknowledgeMessage
-         case "flex.messaging.messages.CommandMessage" do CommandMessage
-         case "flex.messaging.messages.RemotingMessage" do RemotingMessage
-         case "flex.messaging.messages.ErrorMessage" do ErrorMessage
-         else null}
+  {method protected open {read-default-object traits:DataObjectTraits}:#Object
+    || specialized factory registered for this type
+    def (factory, factory?) =
+        {self.mapper.factory-for traits.name}
     
-    {if class-type == null then
+    {if not factory? then
         {return null}
     }
-    || This also needs to deal with the "default" constructor not having
-    || the right number of args.  And maybe the mapper could have a
-    || prefered constructor name in it, and could allow supplying all
-    || field values as ... in the constructor.
-    {if-non-null c = {class-type.get-constructor "default"} then
-        def instance = {c.new} asa Object
-        {self.references.add-object instance}
-            {for member in trait.members do
-                def pval = {self.read-one}
-                {if-non-null property =
-                    {class-type.get-property-for-set {self.curlfy-name member}}
-                 then
-                    {type-switch pval
-                     case pval:Null do
-                        || ignore
-                     case pval:DataObject do
-                        {property.set-value instance,
-                            {if property.type == {HashTable-of String, any} then
-                                {pval.to-HashTable}
-                             else
-                                pval}}
-                     else
-                        {property.set-value instance, pval}
-                    }
-                }
-            }
-        {return instance}
-    }
-    {return null}
-  }
+    
+    def obj = {factory}
+    {self.references.add-object obj}
 
-  {method public {curlfy-name name:String}:String
-    || FIXME: do this more cheaply, by not using regexp, or caching
-    || a compiled regexp, and by combining the two replacements.
-    let curl-name:String =
-        {regexp-subst |"([a-z])([A-Z])"|, name, "\\1-\\2", replace-all?=true}
-    set curl-name =
-        {regexp-subst |"([A-Z]{2,})([a-z])"|, curl-name, "\\1-\\2", replace-all?=true}
-    set curl-name = {curl-name.to-lower-clone}
-    {return curl-name}
+    {type-switch obj
+        
+     case obj:Externalizable do
+        || use externalizer if possible
+        {obj.read-externalizable self}
+
+     else
+        || by reflection
+||--        || NOTE: this is SLOW
+||--        def type = {type-of obj} asa ClassType
+||--        {for member in traits.members do
+||--            def pval = {self.read-one}
+||--            {if-non-null property =
+||--                {type.get-property-for-set {curlify-name member}}
+||--             then
+||--                {type-switch pval
+||--                 case pval:Null do
+||--                    || ignore
+||--                 else
+||--                    {property.set-value obj, pval}
+||--                }
+||--            }
+||--        }
+        def reader = {self.mapper.reader-for traits.name}
+        {reader obj, self}
+    }
+    {return obj}
   }
   
   {method private final inline {check-reference type:int}:(flag?:bool, n:int)

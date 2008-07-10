@@ -29,9 +29,9 @@
          case ext:Externalizable do
             {ExternalizableObjectAdaptor ext}
             
-         case msg:AbstractMessage do
-            || TODO: proper registration, outside this package (?)                  
-            {MessageAdaptor msg}
+||--         case msg:AbstractMessage do
+||--            || TODO: proper registration, outside this package (?)                  
+||--            {MessageAdaptor msg}
             
          case ao:DataObject do
             {AMFObjectAdaptor ao}
@@ -50,11 +50,10 @@
   }
 
   {getter package {name}:String
-    def mapper = {ObjectMapper.get-mapper}.for-serialize
     def type = self.type
-    def (ret, found?) = {mapper.get-if-exists type}
+    def (traits, traits?) = {AMFMapper.standard.traits-for-class.get-if-exists type}
     {return
-        {if found? then ret else type.name}
+        {if traits? then traits.name else type.name}
     }
   }
 
@@ -99,11 +98,11 @@
     {return ""}
   }
 
-  {method package {create-trait}:DataObjectTraits
-    def trait = {super.create-trait}
-    || NOTE: assume no static members
-    {return trait}
-  }
+||--  {method package {create-trait}:DataObjectTraits
+||--    def trait = {super.create-trait}
+||--    || NOTE: assume no static members
+||--    {return trait}
+||--  }
 
   {method package {get-value key:String}:any
     {return self.hashtable[key]}
@@ -185,17 +184,17 @@
   }
 }
 
-{define-class package MessageAdaptor {inherits DefaultObjectAdaptor}
-
-  {constructor package {default obj:Object}
-    {construct-super obj}
-  }
-
-  {getter package {name}:String
-    || TODO: proper registration, outside this package (?)
-    {return "flex.messaging.messages." & self.type.name}
-  }
-}
+||--{define-class package MessageAdaptor {inherits DefaultObjectAdaptor}
+||--
+||--  {constructor package {default obj:Object}
+||--    {construct-super obj}
+||--  }
+||--
+||--  {getter package {name}:String
+||--    || TODO: proper registration, outside this package (?)
+||--    {return "flex.messaging.messages." & self.type.name}
+||--  }
+||--}
 
 
 {define-class package ExternalizableObjectAdaptor {inherits ObjectAdaptor}
@@ -208,10 +207,10 @@
     {return null}
   }
 
-  {method package {create-trait}:DataObjectTraits
-    def trait = {super.create-trait}
-    {return trait}
-  }
+||--  {method package {create-trait}:DataObjectTraits
+||--    def trait = {super.create-trait}
+||--    {return trait}
+||--  }
 
   {method package {get-value key:String}:any
     {return null}

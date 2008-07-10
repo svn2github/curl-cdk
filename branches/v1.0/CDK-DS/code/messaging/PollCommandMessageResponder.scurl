@@ -150,7 +150,7 @@
                     }:AsyncMessage
     def async-message = {new AsyncMessage}
     set async-message.headers =
-        amf-obj["headers"] asa {HashTable-of String, any}
+        amf-obj["headers"] asa IMessageHeaders
     set async-message.body = amf-obj["body"]
     set async-message.message-id = amf-obj["messageId"] asa String
     set async-message.client-id = amf-obj["clientId"] asa #String
