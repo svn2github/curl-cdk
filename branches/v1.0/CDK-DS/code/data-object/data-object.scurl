@@ -164,6 +164,17 @@
     {wrap-object-description out = out, self,
         description = {message '{value self.traits.name}' ({value self.size})}}
   }
+  || Association-of compatibility
+  || --------------------
+  || TODO: eliminate when IMessageHeaders curlified
+  {method public {key-exists? k:String}:bool
+    {return {self.set? k}}
+  }
+  {method public {remove k:String, error-if-missing?:bool = true}:void
+    {if error-if-missing? and not {self.set? k} then
+        {error {lmessage Key not found: {value k} in {value self}}}}
+    {self.unset k}
+  }
 }
 || ====================
 {define-class public OpenDataObject 
@@ -319,7 +330,7 @@
         || now its the same
         set self.original-data = null}
   }
-  {method final inline {preserve-original-data}:void
+  {method protected {preserve-original-data}:void
     {if self.original-data == null then
         set self.original-data = {self.data.clone}}
   }
@@ -460,7 +471,7 @@
         || now its the same
         set self.original-data = null}
   }
-  {method final inline {preserve-original-data}:void
+  {method protected {preserve-original-data}:void
     {if self.original-data == null then
         set self.original-data = {self.data.clone}}
   }
