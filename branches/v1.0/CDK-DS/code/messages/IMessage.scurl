@@ -18,14 +18,14 @@
   field protected _body:any
   field protected _client-id:#String
   field protected _destination:String = ""
-  field protected _headers:{HashTable-of String, any}
+  field protected _headers:IMessageHeaders
   field protected _message-id:String
   field protected _timestamp:double
   field protected _time-to-live:double
 
   {constructor public {default}
     set self._body = {new {HashTable-of String, any}}
-    set self._headers = {new {HashTable-of String, any}}
+    set self._headers = {IMessageHeaders}
     set self._message-id = {AbstractMessage.create-uid}
   }
 
@@ -71,8 +71,8 @@
 
   {getter public abstract {body}:any}
   {setter public abstract {body body:any}:void}
-  {getter public abstract {headers}:{HashTable-of String, any}}
-  {setter public abstract {headers headers:{HashTable-of String, any}}:void}
+  {getter public abstract {headers}:IMessageHeaders}
+  {setter public abstract {headers headers:IMessageHeaders}:void}
 
   {method public abstract {get-header name:String}:any}
   {method public abstract {set-header name:String, value:any}:void}

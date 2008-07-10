@@ -16,7 +16,7 @@
 
 {define-class public AbstractProducer {inherits MessageAgent}
   field public auto-connect?:bool = true
-  field public default-headers:#{HashTable-of String, any}
+  field public default-headers:#IMessageHeaders
   field public reconnect-attempts:int = 0
   field public reconnect-interval:Time = 0ms
   field private connect-message:#CommandMessage

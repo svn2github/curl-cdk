@@ -39,3 +39,12 @@
     "IMessage.scurl",
     "RemotingMessage.scurl"
 }
+
+||--{def public IMessageHeaders =
+||--    {HashTable-of String, any}
+||--}
+
+{def public IMessageHeaders =
+    StandardDataObject
+}
+

@@ -24,9 +24,8 @@
   let private constant CORRELATION_ID_BYTES_FLAG:uint = 2
 
   {constructor public {default
-                          body:{Array-of any} = {new {Array-of any}},
-                          headers:{HashTable-of String, any} =
-                              {new {HashTable-of String, any}}
+                          body:Array = {Array},
+                          headers:IMessageHeaders = {IMessageHeaders}
                       }
     {construct-super}
     set self.correlation-id = ""
