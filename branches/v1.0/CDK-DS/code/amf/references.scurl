@@ -117,14 +117,7 @@
   }
 
   {method public open {get-object-index obj:Object}:int
-    def ret = {self.cached-objects.find
-                  || Use reference only when same objects
-||--                  equality-proc = {proc {x:Object, y:Object}:bool
-||--                                      def aec = {AMFEqualityChecker}
-||--                                      {return {aec.equal? x, y}}
-||--                                  },
-                  obj
-              }
+    def ret = {self.cached-objects.find obj}
     {if ret == -1 then
         {self.add-object obj}
     }
