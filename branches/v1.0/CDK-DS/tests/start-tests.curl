@@ -27,6 +27,7 @@
 {import COM.CURL.CDK.DATA-OBJECT}
 {import COM.CURL.CDK.RECORDSET-FOR}
 {import COM.CURL.CDK.AMF}
+{import COM.CURL.CDK.IO}
 {def start-coverage =
     {CommandButton
         label = "Start Coverage",
@@ -35,11 +36,12 @@
             {coverage-instrument
                 COM.CURL.CDK.DATA-OBJECT,
                 COM.CURL.CDK.RECORDSET-FOR,
-                COM.CURL.CDK.AMF
+                COM.CURL.CDK.AMF,
+                COM.CURL.CDK.IO
             }
             {coverage-start}
         }}
-} stop
+}
 {def stop-coverage =
     {CommandButton
         label = "Stop Coverage",
@@ -54,10 +56,10 @@
 {set-document-properties hstretch? = true, vstretch? = true}
 
 {value
-    let target:RecordSetTestTarget = {RecordSetTestTarget}
+    def target = {RecordSetTestTarget}
     set TestTarget.current = target
 
-    let suite:TestSuite =
+    def suite =
         {TestSuite "main",
             
             || prelude

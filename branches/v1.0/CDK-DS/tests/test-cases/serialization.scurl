@@ -18,6 +18,7 @@
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.MESSAGES}
 ||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
+|| TODO: move to support package
 {include "support.scurl"}
 
 {define-proc {test-one-amf3 this:any}:(any, ByteArray)
@@ -88,7 +89,13 @@
                 -0x0FFFFFFF,
                 -0x10000000,
                 -0x20000000,
+                -0x100000,
+                -0x200000,
+                0x4000,
+                0x200000 - 1,
+                0x200000,
                 12.34,
+                12.34f,
                 "abc",
                 "",
                 null,
@@ -129,21 +136,29 @@
                 {Array x1, x2},
                 {Array x1, x2, x1, x2},
                 {ArrayCollection x1, x2, x1, x2},
-                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
-                || TODO: this fails test-compare, because types are incongruent
+                || TODO: not yet implemented
+||--                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
+                || NOTE: this "works" but fails test-compare, because types are incongruent
+                || TODO: special test for association types that return as DataObject
 ||--                h,
                 h asa DynamicDataObject,
                 || TODO: XDM adapter
                 {AMFXmlDocument xml},
                 null
             }
+        || duplicates every item
+        def xs2 = {xs.clone}
+        {xs2.concat xs}
         {TestSuite "structures",
             {round-trip-tests "AMF3", xs},
             {round-trip-tests "AMF0",
                 {xs.filter-clone
                     {fn x => not x isa ByteArray}
                 },
-                test-one = test-one-amf0}
+                test-one = test-one-amf0},
+            || tests refs by duplicating every structure test
+            {round-trip-tests "AMF3 refs",
+                {Array xs2}}
         }
     },    
     || messages
