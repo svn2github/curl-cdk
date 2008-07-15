@@ -53,17 +53,13 @@
   }
   {setter public {headers headers:IMessageHeaders}:void
     {for item key k in headers do
-        {with-compiler-directives allow-implicit-any-casts? = true do
-            {self.set-header k, item}
-        }
+        {self.set-header k, item}
     }
   }
 
   {method public {get-header name:String}:any
       {if {self.headers.key-exists? name} then
-          {with-compiler-directives allow-implicit-any-casts? = true do
-              {return self._headers[name]}
-          }
+          {return self._headers[name]}
        else
           {return null}
       }
@@ -72,7 +68,7 @@
       {if-non-null value then
           set self._headers[name] = value
        else
-          {self.headers.remove name, error-if-missing? = false}
+          {self._headers.remove name, error-if-missing? = false}
       }
   }
 
@@ -80,6 +76,7 @@
     let uid:StringBuf = {new StringBuf}
     def rand = {new Random}
 
+    || This is not a real UID, since it is just random digits.
     {for i:int = 0 below 8 do
         def code-index = {rand.next-in-range 0, 15}
         {uid.append AbstractMessage.ALPHA_CHARS[code-index]}
@@ -101,16 +98,8 @@
     || BlazeDS uses the low 8 hex digits of this number in the UID.
     || Just in case the system clock has been reset to
     || Jan 1-4, 1970 (in which case this number could have only
-    || 1-7 hex digits), we pad on the left with 7 zeros
-    || before taking the low digits.
-    def hex-time = {new StringBuf, {format "%x", time}}
-    {hex-time.to-upper}
-    def base-time-str = ("0000000" & hex-time)
-    def time-str = {base-time-str.substr base-time-str.size - 8, 8}
-
-    {for i:int = 0 below 8 do
-        {uid.append {time-str.get i}}
-    }
+    || 1-7 hex digits), we pad on the left with zeros.
+    {format out = uid, "%08X", time}
 
     {for i:int = 0 below 4 do
         def code-index = {rand.next-in-range 0, 15}
@@ -122,54 +111,43 @@
 
   {define-proc public {uid-from-ByteArray ba:ByteArray}:String
     {if ba.size >= 16 then
-        def chars:{Array-of char} = {new {Array-of char}}
+        def chars = {StringBuf}
         let index:uint = 0
         {for i:int = 0 below 16 do
             {if i == 4 or i == 6 or i == 8 or i == 10 then
-                {chars.append 45} || Hyphen char code
+                {chars.append '-'}
             }
-            let b:int = {ba.get i}
+            def b = ba[i]
             let char-code-index:int = {bit-srl {bit-and b, 0xF0}, 4}
             {chars.append AbstractMessage.ALPHA_CHARS[char-code-index]}
             set char-code-index = {bit-and b, 0x0F}
             {chars.append AbstractMessage.ALPHA_CHARS[char-code-index]}
         }
-        {return {String {splice chars}}}
+        {return {chars.to-String}}
     }
     {return ""}
   }
   {define-proc public {uid-to-ByteArray uid:#String}:#ByteArray
-    {if {AbstractMessage.is-uid? uid} then
+    {if uid != null and uid.size == 36 then
         def result = {ByteArray}
-        {for i:int = 0 below uid.size do
-            {if uid[i] == '-' then
-                {continue}}
-            def h1 = {digit uid[i], 16}
-            {inc i}
-            def h2 = {digit uid[i], 16}
-            {result.append
-                ({bit-and {bit-or {bit-sll h1, 4}, h2}, 0xFF} asa byte)
+        {for u key i in {non-null uid} do
+            {if u == '-' then
+                {if i == 8 or i == 13 or i == 18 or i == 23 then
+                    {continue}
+                 else
+                    {return null}
+                }
             }
+            def h1 = {digit u, 16}
+            def h2 = {digit u, 16}
+            {if h1 < 0 or h2 < 0 then
+                {return null}
+            }
+            {result.append {bit-or {bit-sll h1, 4}, h2} asa byte}
         }
         {return result}
     }
     {return null}
-  }
-
-  {define-proc public {is-uid? uid:#String}:bool
-    {if uid != null and uid.size == 36 then
-        {for c key i in {non-null uid} do
-            {if i == 8 or i == 13 or i == 18 or i == 23 then
-                {if c != '-' then
-                    {return false}
-                }
-             elseif (c < 48 or c > 70 or (c > 57 and c < 65)) then
-                {return false}
-            }
-        }
-        {return true}
-    }
-    {return false}
   }
 
   || A convenience method for deserializing externalizable AbstractMessages.
