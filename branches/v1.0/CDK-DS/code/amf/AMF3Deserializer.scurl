@@ -236,6 +236,7 @@
                 {if name.empty? then {break}}
                 set obj[name] = {self.read-one}
             }
+            {obj.commit}
         }
         {return obj}
     }

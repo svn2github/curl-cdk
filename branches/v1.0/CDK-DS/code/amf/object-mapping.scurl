@@ -90,8 +90,8 @@
                  }:void
     def name = traits.name
     set self.traits-for-class[type] = traits
-      set self.adapters-by-name[name] =
-          {AMFObjectAdapter type, traits = traits}
+    set self.adapters-by-name[name] =
+        {AMFObjectAdapter type, traits = traits}
   }
   {method public {register-package
                      package:Package

@@ -14,20 +14,20 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public open AcknowledgeMessageExt {inherits AcknowledgeMessage, Externalizable}
+{define-class public open AsyncMessageExt {inherits AsyncMessage, Externalizable}
   
   def public traits =
       {DataObjectTraits
-        "DSK",
+        "DSA",
         {StringArray},
         dynamic? = false,
         externalizable? = true}
 
-  field private _message:#AcknowledgeMessage
+  field private _message:#AsyncMessage
 
-  {constructor public {default message:#AcknowledgeMessage = null}
+  {constructor public {default message:#AsyncMessage = null}
     set self._message = message
-    {construct-super.AcknowledgeMessage}
+    {construct-super.AsyncMessage}
     {construct-super.Externalizable}
   }
 

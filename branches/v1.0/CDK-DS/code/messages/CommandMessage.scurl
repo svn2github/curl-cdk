@@ -58,6 +58,8 @@
   let public constant MULTI_SUBSCRIBE_OPERATION:uint = 11
   let public constant DISCONNECT_OPERATION:uint = 12
   let public constant UNKNOWN_OPERATION:uint = 10000
+  
+  let public constant OPERATION_FLAG:int = 1
 
   let constant operation-names:StringArray =
       {new StringArray,
@@ -105,5 +107,46 @@
 
   {method public {to-String}:String
     {return {CommandMessage.get-operation-as-String self.operation asa int}}
+  }
+
+  || A convenience method for deserializing externalizable AsyncMessages.
+  {method public {read-external deserializer:AMFDeserializer}:void
+    {super.read-external deserializer}
+
+    def flags-array = {AbstractMessage.read-flags deserializer.input}
+    {for flags key i in flags-array do
+        let reserved-position:uint8 = 0
+        {switch i
+         case 0 do
+            {if {bit-and flags, CommandMessage.OPERATION_FLAG} != 0 then
+                set self.operation = {deserializer.read-one} asa uint
+            }
+            set reserved-position = 1
+        }
+        {if {bit-srl flags, reserved-position} != 0 then
+            {for j = reserved-position below 6 do
+                {if {bit-and {bit-srl flags, j}, 1} != 0 then
+                    {deserializer.read-one}
+                }
+            }
+        }
+    }
+
+  }
+
+  {method public {write-external serializer:AMFSerializer}:void
+    {super.write-external serializer}
+
+    let flags:uint = 0
+    def operation = self.operation
+
+    {if operation != 0 then
+        set flags = {bit-or flags, CommandMessage.OPERATION_FLAG}
+    }
+    {serializer.output.write-one flags asa uint8}
+
+    {if operation != 0 then
+        {serializer.write-one operation}
+    }
   }
 }
