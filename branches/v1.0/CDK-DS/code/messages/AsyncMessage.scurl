@@ -15,6 +15,22 @@
 ||| limitations under the License.
 
 {define-class public AsyncMessage {inherits AbstractMessage}
+
+    def public traits =
+      {DataObjectTraits
+        "flex.messaging.messages.AsyncMessage",
+        dynamic? = false,
+        {StringArray
+            "timestamp",
+            "headers",
+            "body",
+            "correlationId",
+            "messageId",
+            "timeToLive",
+            "clientId",
+            "destination"}
+      }
+
   field public correlation-id:String
   field private correlation-id-bytes:#ByteArray
 

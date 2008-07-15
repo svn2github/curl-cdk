@@ -253,18 +253,20 @@
         def mem-count = {bit-srl type, 4}
         def class-name = {self.read-string}
 
-        def trait =
+        def members = {{FastArray-of String} max-size = mem-count}
+        def _trait =
             {StandardDataObjectTraits class-name,
-                {StringArray},
+                {StringArray.from-FastArray members},
                 externalizable? = externalizable?,
                 dynamic? = dynamic?}
-        {self.references.add-trait trait}
         
-        {for i:int=0 below mem-count do
-            {trait.members.append {self.read-string}}
+        {for i = 0 below mem-count do
+            {members.append {self.read-string}}
         }
-
-        {trait.generate-index}
+        {_trait.generate-index}
+        def trait = {DataObjectTraits.intern _trait}
+        
+        {self.references.add-trait trait}
         
         {return trait}
     }
@@ -306,8 +308,8 @@
 
      else
         || by reflection
-||--        || NOTE: this is SLOW
-||--        def type = {type-of obj} asa ClassType
+        || NOTE: this is SLOW
+        def type = {type-of obj} asa ClassType
 ||--        {for member in traits.members do
 ||--            def pval = {self.read-one}
 ||--            {if-non-null property =

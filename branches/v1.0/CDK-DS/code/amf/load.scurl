@@ -28,7 +28,7 @@
 {import * from CURL.IO.MARSHAL}
 {import * from CURL.IO.JSON}
 {import * from CURL.LANGUAGE.REFLECTION}
-{import * from CURL.LANGUAGE.REGEXP}
+{import * from CURL.LANGUAGE.SOURCE}
 
 {import * from COM.CURL.CDK.DATA-OBJECT}
 {import public
@@ -41,7 +41,6 @@
 {import COM.CURL.CDK.MESSAGES}
 
 {include
-||--    "adaptor.scurl",
     "AMF0Deserializer.scurl",
     "AMF0Serializer.scurl",
     "AMF3Deserializer.scurl",

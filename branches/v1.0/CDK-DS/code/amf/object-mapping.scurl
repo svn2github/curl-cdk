@@ -14,65 +14,10 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| NOTE: define first to avoid load order problem
+|| NOTE: defined first to avoid load order problem
 {def cc-upper =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ" asa CharClass
 }
-|| ==========
-|| NOTE: TEMPORARY SCAFFOLDING
-{import * from CURL.LANGUAGE.SOURCE}
-{define-class public DataObjectTraits-for {inherits StandardDataObjectTraits}
-  {constructor public {default
-                          type:ClassType,
-                          name:#String = null,
-                          namespace:#String = null}
-    def qualified-name =
-        {format "%s.%s",
-            {if-non-null namespace then namespace
-             else
-                {if-non-null package-name = type.package.name
-                 then package-name
-                 else ""}},
-            {if-non-null name then name
-             else type.name}}
-    def members = {StringArray}
-    def fields = 
-        {type.get-members 
-            filter = ClassMember.set-property-filter}
-    {for f in fields do
-        {members.append f.name}}
-    {construct-super
-        qualified-name,
-        members,
-        dynamic? = false,
-        externalizable? = {type.subtype-of? Externalizable}}
-||--    {output {{self.to-source}.get-text}}
-  }
-  {method public {to-source}:CurlSource
-    def members = {{Array-of CurlSource}}
-    {for m in self.members do
-        {if not members.empty? then
-            {members.append {Operator OperatorKind.Comma}}
-            {members.append {TextFragment "\n", true}}}
-        {members.append {Literal m}}}
-    {return
-        {expand-template
-            || NOTE: keep flush left
-{DataObjectTraits
-    ?{Literal self.name},
-    dynamic? = ?{Literal self.dynamic?},
-    externalizable? = ?{Literal self.externalizable?},
-    {StringArray
-        ?members}
-}   
-        }}
-  }
-}
-|| ====================
-|| TODO:
-|| - intern traits by name
-|| - error-if-exists?
-|| - consolidate slots in adapter struct
 
 {define-class public AMFObjectAdapter
   field public constant type:ClassType
@@ -83,36 +28,27 @@
   field public constant writer:{proc-type {Object, AMF3Serializer}:void}
   {constructor public {default
                           type:ClassType,
-                          traits:DataObjectTraits = {traits-for type}
+                          traits:DataObjectTraits = {traits-for type},
+                          remote-traits?:bool = true
                       }
     set self.type = type
     set self.traits = traits
     set self.name = traits.name
     set self.factory = {factory-for type}
-    set self.reader = {reader-for type, traits}
-    set self.writer = {writer-for type, traits}
+    set self.reader = {reader-for type, traits, remote-traits? = remote-traits?}
+    set self.writer = {writer-for type, traits, remote-traits? = remote-traits?}
   }
 }
 
 {define-class public AMFObjectAdapters
   field constant traits-for-class:{HashTable-of ClassType, DataObjectTraits}
   field constant adapters-by-name:{HashTable-of String, AMFObjectAdapter}
-||--  field private constant traits-for-name:{HashTable-of String, DataObjectTraits}
-||--  field private constant class-for-name:{HashTable-of String, ClassType}
-||--  field private constant factory-for-name:{HashTable-of String, {proc-type {}:Object}}
-||--  field private constant reader-for-name:{HashTable-of String, {proc-type {Object, AMF3Deserializer}:void}}
-||--  field private constant writer-for-name:{HashTable-of String, {proc-type {Object, AMF3Serializer}:void}}
   
   {constructor public {default
                           default-mappings?:bool = true
                       }
     set self.traits-for-class = {{HashTable-of ClassType, DataObjectTraits}}
     set self.adapters-by-name = {{HashTable-of String, AMFObjectAdapter}}
-||--    set self.traits-for-name = {{HashTable-of String, DataObjectTraits}}
-||--    set self.class-for-name = {{HashTable-of String, ClassType}}
-||--    set self.factory-for-name = {{HashTable-of String, {proc-type {}:Object}}}
-||--    set self.reader-for-name = {{HashTable-of String, {proc-type {Object, AMF3Deserializer}:void}}}
-||--    set self.writer-for-name = {{HashTable-of String, {proc-type {Object, AMF3Serializer}:void}}}
     {if default-mappings? then
         {self.register-defaults}}
   }
@@ -156,11 +92,6 @@
     set self.traits-for-class[type] = traits
       set self.adapters-by-name[name] =
           {AMFObjectAdapter type, traits = traits}
-||--    set self.traits-for-name[name] = traits
-||--    set self.class-for-name[name] = type
-||--    set self.factory-for-name[name] = {factory-for type}
-||--    set self.reader-for-name[name] = {reader-for type, traits}
-||--    set self.writer-for-name[name] = {writer-for type, traits}
   }
   {method public {register-package
                      package:Package
@@ -173,38 +104,19 @@
             }}}
   }
   {method public {register-defaults}:void
-    || TODO: declare traits explicitly in COM.CURL.CDK.MESSAGES
-    def MESSAGES = "flex.messaging.messages"
-    def message-types =
-        {{Array-of ClassType}
-            COM.CURL.CDK.MESSAGES.ErrorMessage,
-            COM.CURL.CDK.MESSAGES.AcknowledgeMessage,
-            COM.CURL.CDK.MESSAGES.RemotingMessage,
-            COM.CURL.CDK.MESSAGES.CommandMessage}
-    
-    {for type in message-types do
-        {self.register-class type,
-            traits = {DataObjectTraits-for type, namespace = MESSAGES}}
-    }
-    
-    || special cases
-    {self.register-class COM.CURL.CDK.MESSAGES.AcknowledgeMessageExt,
-        traits =
-            {DataObjectTraits
-                "DSK",
-                {StringArray},
-                dynamic? = false,
-                externalizable? = true}
-    }
 
-    {self.register-class ArrayCollection,
-        traits =
-            {DataObjectTraits
-                "flex.messaging.io.ArrayCollection",
-                {StringArray},
-                dynamic? = false,
-                externalizable? = true}
-    }
+    {self.register-package COM.CURL.CDK.MESSAGES}
+    || -- IMessage
+    || COM.CURL.CDK.MESSAGES.AcknowledgeMessage
+    || COM.CURL.CDK.MESSAGES.CommandMessage
+    || COM.CURL.CDK.MESSAGES.ErrorMessage
+    || COM.CURL.CDK.MESSAGES.RemotingMessage
+    || COM.CURL.CDK.MESSAGES.AsyncMessage
+    || - ISmallMessage
+    || COM.CURL.CDK.MESSAGES.AcknowledgeMessageExt
+    
+    || COM.CURL.CDK.AMF -- this-package
+    {self.register-class ArrayCollection}
   }
   def public standard = {AMFObjectAdapters}
 }
@@ -222,17 +134,49 @@
                         but found {value class-traits}}}}
          else null}}
 }
-{define-proc {traits-for type:ClassType}:DataObjectTraits
+{define-proc public {traits-for type:ClassType}:DataObjectTraits
     {return
         {if-non-null traits = {class-traits-for type} then
             traits
          else
             {DataObjectTraits-for type}}}
 }
+
+|| ClassType traits adapter 
+|| --------------------
+{define-class public DataObjectTraits-for {inherits StandardDataObjectTraits}
+  {constructor public {default
+                          type:ClassType,
+                          name:#String = null,
+                          namespace:#String = null}
+    def qualified-name =
+        {format "%s.%s",
+            {if-non-null namespace then namespace
+             else
+                {if-non-null package-name = type.package.name
+                 then package-name
+                 else ""}},
+            {if-non-null name then name
+             else type.name}}
+    def members = {StringArray}
+    def members-seen = {{Set-of String}}
+    def fields = 
+        {type.get-members 
+            filter = ClassMember.set-property-filter}
+    {for f in fields do
+        {if not {members-seen.member? f.name} then
+            {members-seen.insert f.name}
+            {members.append f.name}}}
+    {construct-super
+        qualified-name,
+        members,
+        dynamic? = false,
+        externalizable? = {type.subtype-of? Externalizable}}
+  }
+}
 || name transformation
 || --------------------
 {define-proc {curlify-name name:String}:String
-||--    def cc-upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" asa CharClass
     || unchanged if no uppercase
     def i = {name.find-char-class cc-upper}
     {if i < 0 then
@@ -288,7 +232,7 @@
 {define-proc {writer-for
                  type:ClassType,
                  traits:DataObjectTraits,
-                 remote-traits?:bool = false
+                 remote-traits?:bool = true
              }:{proc-type {Object, AMF3Serializer}:void}
     def statements = {{Array-of CurlSource}}
     {for member in traits.members do
@@ -335,7 +279,8 @@
                 any}
         {statements.append
             {expand-template
-                set self.?{Identifier m} = {in.read-one} asa ?{Literal t}
+                {if-non-null val = {in.read-one} then
+                    set self.?{Identifier m} = val asa ?{Literal t}}
             }}}
     def src =
         {expand-template
@@ -351,77 +296,4 @@
     {return reader}
 }
 
-
-|| ========== \\
-|| === EXPERIMENTAL ==
-{define-class public DataObjectWrapper {inherits SealedDataObject}
-  field constant _subject:Object
-  {getter public {subject}:Object
-    {return self._subject}
-  }
-  {factory public implicit {default subject:Object}:DataObjectWrapper
-    def type = {type-of subject} asa ClassType
-    def create = {DynamicData-for.construct type}
-    def wrapper =
-        {with-compiler-directives allow-any-calls? = true do
-            {create subject} asa DataObject}
-    {return wrapper}
-  }
-  {constructor public {internal
-                          subject:Object,
-                          type:ClassType,
-                          traits:DataObjectTraits = {traits-for type}
-                      }
-    set self._subject = subject
-    {construct-super traits}
-  }
-  {method public {get key:String}:any
-    def (val, val?) = {self.get-if-exists key}
-    {return
-        {if val? then val
-         else
-            {error {message Key '{value key}' not found in {value self}}}}}
-  }
-  {method public {get-if-exists key:String}:(any, bool)
-    def index = {self.traits.index-for key}
-    {return
-        {if index >= 0 then
-            def val = {get-public-property self.subject, key}
-            (val, true)
-         else
-            (null, false)}}
-  }
-  {method public {set key:String, val:any}:void
-    let changed?:bool = self[key] != val
-    {if changed? then
-        {self.preserve-original-data}
-        {set-public-property self.subject, key, self[key]}
-        {self.trigger-data-changed key}}
-  }
-  {method protected {preserve-original-data}:void
-    def members = self.traits.members
-    {if self.original-data == null then
-        def data = {FastArray.from-size members.size, null}
-        {for k key i in members do
-            set data[i] = self[k]}
-        set self.original-data = data}
-  }
-  {method public {set-internal-key key:String, val:any}:void
-    {set-public-property self.subject, key, val}
-  }
-  {method public {set-internal index:int, val:any}:void
-    def key = self.traits.members[index]
-    {self.set-internal-key key, val}
-  }
-}
-{define-class public {DynamicData-for T:ClassType}
-  {inherits DataObjectWrapper}
-  {constructor public {default subject:T}
-    {construct-super.internal subject, T}
-  }
-  {getter public {subject}:T
-    {return super.subject asa T}
-  }
-}
-|| ========== //
 

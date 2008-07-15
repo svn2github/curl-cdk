@@ -15,6 +15,13 @@
 ||| limitations under the License.
 
 {define-class public open AcknowledgeMessageExt {inherits AcknowledgeMessage, Externalizable}
+  
+  def public traits =
+      {DataObjectTraits
+        "DSK",
+        {StringArray},
+        dynamic? = false,
+        externalizable? = true}
 
   field private _message:#AcknowledgeMessage
 

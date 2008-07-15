@@ -111,17 +111,21 @@
     || structures
     || --------------------
     {value
-        def xt = {DataObjectTraits "Foo", {StringArray "a", "b"}}
-        def yt = {DataObjectTraits "Foo", {StringArray "a", "b"}, dynamic? = false}
+        def t-open = {DataObjectTraits "Foo", {StringArray}}
+        def t-mixed = {DataObjectTraits "Foo2", {StringArray "a", "b"}}
+        def t-sealed = {DataObjectTraits "Foo3", {StringArray "a", "b"}, dynamic? = false}
         || anonymous
         def x1 = {DataObject a = 1, b = "q"}
         || open, mixed
-        def x2 = {DataObject traits = xt, a = 1, b = "q", c = false}
+        def x2 = {DataObject traits = t-mixed, a = 1, b = "q", c = false}
         || sealed
-        def y2 = {DataObject traits = yt, a = 1, b = "q"}
-        def xml = "<foo id='1'><bar/>baz</foo>"
+        def y2 = {DataObject traits = t-sealed, a = 1, b = "q"}
+        || open
+        def y3 = {DataObject traits = t-open, a = 1, b = "q"}
         def h = {{HashTable-of String, any} "foo", true}
-
+        || TODO: XDM adapter
+        def xml = "<foo id='1'><bar/>baz</foo>"
+        
         def xs =
             {Array
                 {Array 1, 2, 3},
@@ -142,19 +146,39 @@
                 || TODO: special test for association types that return as DataObject
 ||--                h,
                 h asa DynamicDataObject,
-                || TODO: XDM adapter
                 {AMFXmlDocument xml},
                 null
             }
         || duplicates every item
         def xs2 = {xs.clone}
         {xs2.concat xs}
+
+        def xs-amf0 =
+            || NOTE: no static members, no ByteArray
+            {Array
+                {Array 1, 2, 3},
+                {Array "ABC", "ABC"},
+                {Array "ABC", "DEF"},
+                {DateTime "2007-01-29"},
+                x1,
+                y3,
+                {Array x1, x1},
+                {Array x1, y3},
+                {Array x1, y3, x1, y3},
+                {ArrayCollection x1, y3, x1, y3},
+                || TODO: not yet implemented
+||--                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
+                || NOTE: this "works" but fails test-compare, because types are incongruent
+                || TODO: special test for association types that return as DataObject
+||--                h,
+                h asa DynamicDataObject,
+                {AMFXmlDocument xml},
+                null
+            }
+
         {TestSuite "structures",
             {round-trip-tests "AMF3", xs},
-            {round-trip-tests "AMF0",
-                {xs.filter-clone
-                    {fn x => not x isa ByteArray}
-                },
+            {round-trip-tests "AMF0", xs-amf0,
                 test-one = test-one-amf0},
             || tests refs by duplicating every structure test
             {round-trip-tests "AMF3 refs",

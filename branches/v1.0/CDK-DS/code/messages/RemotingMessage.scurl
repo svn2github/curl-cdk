@@ -15,6 +15,23 @@
 ||| limitations under the License.
 
 {define-class public RemotingMessage {inherits AbstractMessage}
+
+  def public traits =
+      {DataObjectTraits
+        "flex.messaging.messages.RemotingMessage",
+        dynamic? = false,
+        {StringArray
+            "timestamp",
+            "headers",
+            "body",
+            "messageId",
+            "timeToLive",
+            "clientId",
+            "destination",
+            "operation",
+            "source"}
+      }
+
   field public operation:#String
   || In Flex, source only exists for backward compatibility.
   field public source:#String

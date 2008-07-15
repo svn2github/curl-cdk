@@ -132,7 +132,7 @@
             {make-suite "Sealed",
                 {proc {...}:DataObject
                     def traits =
-                        {DataObjectTraits "Test",
+                        {DataObjectTraits "Test2",
                             dynamic? = false,
                             {StringArray "id", "name"}}
                     {return
@@ -161,22 +161,22 @@
         },
         {test-case "sealed",
             def subject =
-                {DataObjectTraits "Test",
+                {DataObjectTraits "Test2",
                     dynamic? = false,
                     {StringArray "id", "name"}}
             {TestCondition.assert
-                subject.name == "Test" and
+                subject.name == "Test2" and
                 {subject.members.equal? {StringArray "id", "name"}} and
                 not subject.dynamic? and
                 not subject.externalizable?}
         },
         {test-case "sealed compare",
             def subject =
-                {DataObjectTraits "Test",
+                {DataObjectTraits "Test2",
                     dynamic? = false,
                     {StringArray "id", "name"}}
             def other =
-                {DataObjectTraits "Test",
+                {DataObjectTraits "Test2",
                     dynamic? = false,
                     {StringArray "id", "name"}}
             {TestCondition.assert
@@ -207,7 +207,7 @@
         def make-sealed =
             {proc {...}:DataObject
                 def traits =
-                    {DataObjectTraits "Test",
+                    {DataObjectTraits "Test2",
                         dynamic? = false,
                         {StringArray "id", "name"}}
                 {return
@@ -339,7 +339,7 @@
             {make-suite "Sealed",
                 {proc {...}:DataObject
                     def traits =
-                        {DataObjectTraits "Test",
+                        {DataObjectTraits "Test2",
                             dynamic? = false,
                             {StringArray "id", "name"}}
                     {return
@@ -353,7 +353,7 @@
     {TestSuite "recordset",
         {test-case "recordset",
             def traits =
-                {DataObjectTraits "Test",
+                {DataObjectTraits "Test2",
                     dynamic? = false,
                     {StringArray "id", "name"}}
             def subject =
@@ -371,7 +371,7 @@
         },
         {test-case "recordset typed",
             def traits =
-                {DataObjectTraits "Test",
+                {DataObjectTraits "Test2",
                     dynamic? = false,
                     {StringArray "id", "name"}}
             def subject =
@@ -395,7 +395,7 @@
         def make-rs =
             {proc {}:DataObjectRecordSet
                 def traits =
-                    {DataObjectTraits "Test",
+                    {DataObjectTraits "Test2",
                         dynamic? = false,
                         {StringArray "id", "name"}}
                 def subject =

@@ -37,30 +37,14 @@
                   {type-switch cm.body
                    case messages:{Array-of any} do
                       {for message in messages do
-                          || TODO: We expect IMessages here, but the current
-                          ||       deserializer buries them in an DataObject.
                           {type-switch message
-                           case amf-obj:DataObject do
-                              {switch amf-obj.traits.name
-                               case "flex.messaging.messages.AsyncMessage" do
-                                  def async-message =
-                                      {self.async-message-from-amf-object
-                                          amf-obj
-                                      }
-                                  {channel.enqueue-event
-                                      {new MessageEvent,
-                                          MessageEvent.MESSAGE,
-                                          message = async-message
-                                      }
+                           case item:IMessage do
+                              {channel.enqueue-event
+                                  {new MessageEvent,
+                                      MessageEvent.MESSAGE,
+                                      message = item
                                   }
                               }
-||--                           case item:IMessage do
-||--                              {channel.enqueue-event
-||--                                  {new MessageEvent,
-||--                                      MessageEvent.MESSAGE,
-||--                                      message = item
-||--                                  }
-||--                              }
                            else
                               || TODO: The Flex code seems to imply that we'll
                               ||       only ever get IMessages, but that has yet

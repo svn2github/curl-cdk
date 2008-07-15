@@ -15,6 +15,27 @@
 ||| limitations under the License.
 
 {define-class public ErrorMessage {inherits AcknowledgeMessage}
+ 
+  def public traits =
+      {DataObjectTraits
+        "flex.messaging.messages.ErrorMessage",
+        dynamic? = false,
+        {StringArray
+            "headers",
+            "rootCause",
+            "body",
+            "correlationId",
+            "faultDetail",
+            "faultString",
+            "clientId",
+            "timeToLive",
+            "destination",
+            "timestamp",
+            "extendedData",
+            "faultCode",
+            "messageId"}
+      }
+
   field public extended-data:any
   field public fault-code:#String
   field public fault-detail:#String

@@ -335,6 +335,9 @@
   }
 
   {method protected {channel-fault-handler e:ChannelFaultEvent}:void
+    {dump e.fault-code}
+    {dump e.fault-string}
+    {dump e.fault-detail}
     {dump "TODO: ChannelSet.channel-fault-handler"}
     || TODO:
   }
