@@ -28,8 +28,8 @@
 
 || test infrastructure
 || --------------------
-||--{component package COM.CURL.CDK.DATA-TEST-SUPPORT,
-||--    location = "test-extensions/data-test-support.scurl"}
+{component package COM.CURL.CDK.DATA-TEST-SUPPORT,
+    location = "test-extensions/data-test-support.scurl"}
 
 || test cases
 || --------------------

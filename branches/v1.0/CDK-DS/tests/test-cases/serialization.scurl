@@ -214,6 +214,11 @@
             set ack.message-id = "message-id"
             set ack.client-id = "client-id"
             
+            def asc = {AsyncMessage}
+            set asc.correlation-id = "correlation-id"
+            set asc.message-id = "message-id"
+            set asc.client-id = "client-id"
+            
             def err = {ErrorMessage}
             set err.fault-code = "Test"
             set err.fault-string = "error"
@@ -236,13 +241,26 @@
             set ackx.message-id = "message-id"
             set ackx.client-id = "client-id"
             
+            def ascx = {AsyncMessageExt}
+            set ascx.correlation-id = "correlation-id"
+            set ascx.message-id = "message-id"
+            set ascx.client-id = "client-id"
+            
+            def cmdx = {CommandMessageExt}
+            set cmdx.operation = CommandMessage.CLIENT_PING_OPERATION
+            set cmdx.headers[CommandMessage.MESSAGING_VERSION] = 1.0
+            set cmdx.headers[CommandMessage.NEEDS_CONFIG_HEADER] = true
+            
             def xs =
                 {Array
                     ack,
+                    asc,
                     err,
                     cmd,
                     rmt,
-                    ackx}
+                    ackx,
+                    ascx,
+                    cmdx}
             {round-trip-tests "messages", xs}
         }
     }

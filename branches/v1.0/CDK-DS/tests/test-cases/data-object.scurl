@@ -16,8 +16,7 @@
 
 {import * from COM.CURL.CDK.DATA-OBJECT}
 
-||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
-{include "support.scurl"}
+{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
 
 {import * from CURL.GUI.STANDARD}
 {import * from CURL.IO.JSON}
