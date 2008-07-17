@@ -21,7 +21,6 @@
     || --------------------
     def destination = "product"
     def endpoint = {url "http://localhost:8400/samples/messagebroker/amf"}
-    || NOTE: need to bash this, too
     set ServerConfig.config["my-amf"] = endpoint
 
     || product service
@@ -48,7 +47,6 @@
             {on Action at cb:CommandButton do
                 set cb.enabled? = false
                 {service.send "getProducts",  async? = true}
-||--                {get-products.send}
             }
         }
     , result-display =
@@ -96,9 +94,7 @@
     {VBox
         hstretch? = true,
         spacing = 0.1cm,
-        {big
-            {bold color = "#0b333c", BlazeDS Product Service}
-        },
+        {big {bold color = "#0b333c", BlazeDS Product Service}},
         {HBox cb, {Fill}},
         result-display
     }

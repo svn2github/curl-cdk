@@ -1,0 +1,113 @@
+{curl 6.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+
+{document-style PlainDocument}
+
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true
+}
+
+{value
+    || connection parameters
+    def base = "http://localhost:8400/samples/"
+    def destination = "chat"
+    def channel-id = "my-polling-amf"
+    def endpoint = {url base & "messagebroker/amfpolling"}
+
+    || messaging
+    def producer =
+        {Producer 
+            endpoint = endpoint,
+            destination = destination}
+    def consumer =
+        {Consumer 
+            endpoint = endpoint,
+            destination = destination}
+
+    || configure the connection
+    def channel =
+        {AMFChannel
+            id = destination,
+            uri = endpoint}
+    def channel-set = {ChannelSet}
+    {channel-set.add-channel channel}
+    set consumer.channel-set = channel-set
+    set producer.channel-set = channel-set
+
+    || display
+    def transcript = {VBox spacing = 2px}
+    || text control
+    def input = {TextField width = {add-stretch}}
+    || send button
+    def send = {CommandButton label = "Send"}
+
+    || coordination
+    {consumer.add-event-handler
+        {on e:MessageEvent do
+            def body = e.message.body
+            {type-switch e
+             case ack:MessageAckEvent do
+                || Ignore MessageAckEvents.
+             else
+                || Expecting 'chatMessage' property
+                || - for debugging, dump unexpected content
+                {type-switch body
+                 case obj:DataObject do
+                    def (x, x?) = {obj.get-if-exists "chatMessage"}
+                    {if x? then
+                        {transcript.add x}
+                     else {dump obj}}
+                 else {dump body}}
+                || let display refresh
+                {dispatch-events false}
+            }}}
+    def send-message =
+        {proc {text:String}:void
+            {if not text.empty? then
+                def msg = 
+                    {AsyncMessage body =
+                        {DataObject chatMessage = text}}
+                {producer.send msg}
+                {input.unset-value}}}
+    {input.add-event-handler
+        {on Action do
+            {send-message input.value}            
+        }}
+    {send.add-event-handler
+        {on Action do
+            {send-message input.value}            
+        }}
+
+    || connect
+    {consumer.subscribe}
+
+    {Frame
+        margin = 18pt,
+        background =
+            {LinearGradientFillPattern {Fraction2d 0, 1}, {Fraction2d 0, 0},
+                {Spectrum.from-endpoints "#6D838E", "#94AAB5"}},
+        font-size = 8pt,
+        font-family = "Verdana",
+        {VBox
+            hstretch? = true,
+            background = "#B1BFC5",
+            margin = 9pt,
+            spacing = 7pt,            
+            {Frame
+                {bold Chat}},
+            {Frame
+                height = {add-stretch},
+                background = "white",
+                transcript},
+            {HBox
+                spacing = 6px,
+                input,
+                send}}
+    }
+}
