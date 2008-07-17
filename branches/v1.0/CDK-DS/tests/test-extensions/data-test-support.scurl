@@ -37,16 +37,16 @@
              else false}
          else false}}
 }
-{define-proc {object-as-data obj:Object}:DataObject
+{define-proc public {object-as-data obj:Object}:DataObject
     def xs = {{HashTable-of String, any}}
     def t = {type-of obj} asa ClassType
-||--    {for m in {t.get-members filter = ClassMember.field-filter} do
     {for m in {t.get-members filter = ClassMember.get-property-filter} do
         {type-switch m
          case p:Property do
             def k = p.name
             || NOTE: only compare settable properties
-            {if-non-null {t.get-property-for-set k} then
+            || {if-non-null {t.get-property-for-set k} then
+            {do 
                 def v = {p.get-value obj}
                 set xs[k] = v
             }}}
