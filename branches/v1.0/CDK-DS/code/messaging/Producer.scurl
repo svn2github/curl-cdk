@@ -17,8 +17,14 @@
 {define-class public Producer {inherits AbstractProducer}
   field protected _subtopic:String = ""
 
-  {constructor public {default}
-    {construct-super}
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          ...
+                      }
+    {construct-super {splice ...}}
+    set self.endpoint = endpoint
+    set self._destination = destination
   }
 
   {method public {internal-send
@@ -30,4 +36,5 @@
     }
     {super.internal-send message, wait-for-client-id? = wait-for-client-id?}
   }
+  || TODO: subtopic getter/setter ?
 }

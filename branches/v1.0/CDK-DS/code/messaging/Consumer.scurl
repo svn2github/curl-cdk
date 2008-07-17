@@ -19,12 +19,8 @@
   field protected _subtopic:String = ""
 
   {constructor public {default
-                          || TODO: The Flex consumer doesn't take an endpoint,
-                          ||       or a destination (explicitly), so we might
-                          ||       want some form of the server-side
-                          ||       configuration on the client.
-                          endpoint:Url,
-                          destination:String,
+                          endpoint:#Url = null,
+                          destination:String = "",
                           ...
                       }
     {construct-super ...}

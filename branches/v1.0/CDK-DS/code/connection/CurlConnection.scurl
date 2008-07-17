@@ -26,6 +26,9 @@
   || for gzip enablement
   field public http-headers:#HttpRequestHeaders = null
 
+  || debugging support
+  field public log?:bool = false
+
   {constructor public {default}
   }
 
@@ -78,13 +81,14 @@
                 {Array {splice ...}}}
 
         {if-debuggable
-            {for x in ... do
-                {output "sending message: " & x}
-            }}
+            {if self.log? then
+                {for x in ... do
+                    {output "sending message: " & x}
+                }}}
         
         let http-file:HttpFile = {u.instantiate-File} asa HttpFile
         
-        {stop-watch.start}
+        {if amf-timing? then {stop-watch.start}}
         
         {http-file.http-async-read-open-byte
             request-method = "post",
@@ -149,11 +153,12 @@
         def http-file = {u.instantiate-File} asa HttpFile
         
         {if-debuggable
-            {for x in ... do
-                {output "sending message: " & x}
-            }}
+            {if self.log? then
+                {for x in ... do
+                    {output "sending message: " & x}
+                }}}
         
-        {stop-watch.start}
+        {if amf-timing? then {stop-watch.start}}
 
         {try
             def envelope = 
@@ -257,7 +262,7 @@
     def env = {AMFEnvelope.deserialize in}
     
     || Deserialization complete.
-    {stop-watch.stop}
+    {if amf-timing? then {stop-watch.stop}}
     || Update the deserialization time.
     {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
 
@@ -287,7 +292,7 @@
 
     def bytes = {in.read}
     || Server Execution & Transfer complete
-    {stop-watch.stop}
+    {if amf-timing? then {stop-watch.stop}}
     || Update the server exec and transfer time.
     {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
     || Reset the stop watch.
@@ -297,14 +302,14 @@
     def response = {ByteArrayInputStream bytes}
     
     || Start timing the deserialization.
-    {stop-watch.start}
+    {if amf-timing? then {stop-watch.start}}
     
     || Deserialize.
     || Note: this will do blocking reads.
     def env = {AMFEnvelope.deserialize response}
     
     || Deserialization complete.
-    {stop-watch.stop}
+    {if amf-timing? then {stop-watch.stop}}
     || Update the deserialization time.
     {inc deserialization-time, {stop-watch.elapsed}}
 

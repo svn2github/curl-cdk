@@ -40,7 +40,7 @@
   let private constant CORRELATION_ID_BYTES_FLAG:uint = 2
 
   {constructor public {default
-                          body:Array = {Array},
+                          body:any = null,
                           headers:IMessageHeaders = {IMessageHeaders}
                       }
     {construct-super}
