@@ -132,6 +132,8 @@
                 {Array "ABC", "DEF"},
                 {ByteArray 9, 8, 7},
                 {DateTime "2007-01-29"},
+                {DateTime "2007-01-29 12:01:02"},
+                {DateTime "2007-01-29 12:01:02.0015"},
                 x1,
                 x2,
                 y2,

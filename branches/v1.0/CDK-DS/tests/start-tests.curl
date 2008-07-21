@@ -58,39 +58,48 @@
 {value
     def target = {RecordSetTestTarget}
     set TestTarget.current = target
+    def applet-loc = {get-the-applet}.url
+    def qloc =
+        {if applet-loc.query.empty? then null
+         else
+            {applet-loc.merge {applet-loc.query.tail 1}}}
 
     def suite =
-        {TestSuite "main",
-            
-            || prelude
-            || --------------------
-            || test context info
-            || TODO: move to CDU
-            {TestSuite.import {url "test-cases/context.scurl"}},
-            
-            || version info
-            {test-case "CDK.DATA-SERVICES version",
-                {TestCondition.succeed message = 
-                    {if-non-null version = {get-default-manifest}.meta-data.version
-                     then {String version} else "unknown"}}},
+        {if-non-null qloc then
+            {TestSuite.import qloc}
+         else
+            {TestSuite "main",
+                
+                || prelude
+                || --------------------
+                || test context info
+                || TODO: move to CDU
+                {TestSuite.import {url "test-cases/context.scurl"}},
+                
+                || version info
+                {test-case "CDK.DATA-SERVICES version",
+                    {TestCondition.succeed message = 
+                        {if-non-null version = {get-default-manifest}.meta-data.version
+                         then {String version} else "unknown"}}},
 
-            || packages
-            || --------------------
-            {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES"},
-            {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES-SUPPORT"},
-        
-            || DataObject
-            || --------------------
-            {TestSuite.import {url "test-cases/data-object.scurl"}},
-        
-            || Serialization
-            || --------------------
-            {TestSuite.import {url "test-cases/serialization.scurl"}},
-        
-            || postlude
-            || --------------------
-            {test-case "Curl version",
-                {TestCondition.succeed message = curl-version}}
+                || packages
+                || --------------------
+                {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES"},
+                {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES-SUPPORT"},
+                
+                || DataObject
+                || --------------------
+                {TestSuite.import {url "test-cases/data-object.scurl"}},
+                
+                || Serialization
+                || --------------------
+                {TestSuite.import {url "test-cases/serialization.scurl"}},
+                
+                || postlude
+                || --------------------
+                {test-case "Curl version",
+                    {TestCondition.succeed message = curl-version}}
+            }
         }
     {VBox
         {HBox

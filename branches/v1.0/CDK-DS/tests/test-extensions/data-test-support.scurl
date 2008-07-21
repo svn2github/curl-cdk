@@ -63,66 +63,97 @@
         || NOTE: messy, partial attempt at "deep equal?"
         || TODO: better attempt
         {return
-            {if tx.primitive? then
+            {if tx.primitive? and ty.primitive? then
                 x == y
-             elseif {tx.subtype-of? ExtendedArray} then
-                {if {ty.subtype-of? ExtendedArray} then
+             elseif tx == ty then
+                || identical types
+                || TODO: use type-switch
+                {if {tx.subtype-of? ExtendedArray} then
                     {x.equal? y}
-                 else false}
-             elseif
-                {association-type? tx} and {association-type? ty}
-             then
-                || TODO: tx == ty
-                {with-compiler-directives allow-any-calls? = true do
-                    x.size == y.size and
-                    {value
-                        let eq?:bool = true
-                        {for xi key i in x do
-                            {if not {test-compare xi, y[i]} then
-                                set eq? = false
-                                {break}}}
-                        eq?}}                       
-             elseif {tx.subtype-of? DataObject} and {ty.subtype-of? DataObject} then
-                {with-compiler-directives allow-any-calls? = true do
-                    x.size == y.size and
-                    || TODO: traits
-                    {value
-                        let eq?:bool = true
-                        {for xk key k in x do
-                            {if not {test-compare xk, y[k]} then
-                                set eq? = false
-                                {break}}}
-                        eq?}}
-             elseif tx == AMFXmlDocument and ty == AMFXmlDocument then
-                x.xml == y.xml
-             elseif tx == AMFHeader and ty == AMFHeader then
-                x.name == y.name and
-                x.must-understand? == y.must-understand? and
-                x.value == y.value
-             elseif tx == AMFBody and ty == AMFBody then
-                x.target-uri == y.target-uri and
-                x.response-uri == y.response-uri and
-                {test-compare x.data, y.data}
-             elseif tx == AMFEnvelope and ty == AMFEnvelope then
-                {test-compare x.headers, y.headers} and
-                {test-compare x.bodies, y.bodies}
+                 elseif {association-type? tx} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        {value
+                            let eq?:bool = true
+                            {for xi key i in x do
+                                {if not {test-compare xi, y[i]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}                       
+                 elseif {tx.subtype-of? DataObject} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        || TODO: traits
+                        {value
+                            let eq?:bool = true
+                            {for xk key k in x do
+                                {if not {test-compare xk, y[k]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}
+                 elseif tx == AMFXmlDocument then
+                    x.xml == y.xml
+                 elseif tx == AMFHeader then
+                    x.name == y.name and
+                    x.must-understand? == y.must-understand? and
+                    x.value == y.value
+                 elseif tx == AMFBody then
+                    x.target-uri == y.target-uri and
+                    x.response-uri == y.response-uri and
+                    {test-compare x.data, y.data}
+                 elseif tx == AMFEnvelope then
+                    {test-compare x.headers, y.headers} and
+                    {test-compare x.bodies, y.bodies}
+                 else
+                    {type-switch tx
+                     case tx:ClassType do
+                        {with-compiler-directives allow-any-calls? = true,
+                            allow-implicit-any-casts? = true
+                         do
+                            {if-non-null {tx.get-method "equal?"} then
+                                {x.equal? y}
+                             else x == y or
+                                {value
+                                    || TODO: this is convoluted
+                                    || - better just compare public properties
+                                    def dx = {object-as-data x}
+                                    def dy = {object-as-data y}
+                                    {test-compare dx, dy}}
+                            }}
+                     else x == y
+                    }}
              else
-                tx == ty and
-                {type-switch tx
-                 case tx:ClassType do
-                    {with-compiler-directives allow-any-calls? = true,
-                        allow-implicit-any-casts? = true
-                     do
-                        {if-non-null {tx.get-method "equal?"} then
-                            {x.equal? y}
-                         else x == y or
-                            {value
-                                def dx = {object-as-data x}
-                                def dy = {object-as-data y}
-                                {test-compare dx, dy}}
-                        }}
-                 else x == y
-                }}}
+                || different types
+                {if {tx.subtype-of? ExtendedArray} then
+                    {if {ty.subtype-of? ExtendedArray} then
+                        {x.equal? y}
+                     else false}
+                 elseif
+                    {association-type? tx} and {association-type? ty}
+                 then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        {value
+                            let eq?:bool = true
+                            {for xi key i in x do
+                                {if not {test-compare xi, y[i]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}                       
+                 elseif {tx.subtype-of? DataObject} and {ty.subtype-of? DataObject} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        || TODO: traits
+                        {value
+                            let eq?:bool = true
+                            {for xk key k in x do
+                                {if not {test-compare xk, y[k]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}
+                 else
+                    x == y}}
+        }
     }
 }
 {define-proc public {hex-encode bs:ByteArray}:String    
