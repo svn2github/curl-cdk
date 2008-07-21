@@ -129,7 +129,7 @@
                     DateTimeData.epoch-simple.epoch-second +
                     (seconds asa int64),
                     partial-second =
-                        (partial-seconds * {ldexp 1.0, 63}) asa int64
+                        (partial-seconds / 1000 * {ldexp 1.0, 63}) asa int64
                 },
                 zone = DateTimeZone.utc
             }
@@ -310,7 +310,7 @@
      else
         || by reflection
         || NOTE: this is SLOW
-        def type = {type-of obj} asa ClassType
+||--        def type = {type-of obj} asa ClassType
 ||--        {for member in traits.members do
 ||--            def pval = {self.read-one}
 ||--            {if-non-null property =
@@ -324,7 +324,9 @@
 ||--                }
 ||--            }
 ||--        }
-        def reader = {self.mapper.reader-for traits.name}
+        
+        || predefined in adapter
+        def reader = {self.mapper.reader-for traits}
         {reader obj, self}
     }
     {return obj}

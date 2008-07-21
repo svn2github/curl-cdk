@@ -29,6 +29,7 @@
 {import * from COM.CURL.CDK.RECORDSET-FOR}
 
 {include
+    "data-object-traits.scurl",
     "data-object.scurl",
     "data-binding.scurl"
 }

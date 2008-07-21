@@ -76,54 +76,6 @@
         description = {message '{value self.traits.name}' ({value self.size})}}
   }
 }
-{define-class public abstract DataObjectTraits
-  {getter public abstract {name}:String}
-  {getter public abstract {members}:StringArray}
-  {getter public abstract {dynamic?}:bool}
-  {getter public abstract {externalizable?}:bool}
-  {method public abstract {equal? other:DataObjectTraits}:bool}
-  {method public abstract {index-for member:String}:int}
-  
-  def interned = {{HashTable-of String, DataObjectTraits}}
-  {factory public {default ...}:DataObjectTraits
-    def traits = {DataObjectTraits.internal {splice ...}}
-    {return {DataObjectTraits.intern traits}}
-  }
-  {factory public {intern traits:DataObjectTraits}:DataObjectTraits
-||--    {return traits}
-    def name = traits.name
-    || NOTE: never intern anonymous traits
-    {if name.empty? then
-        {return traits}}
-    def (interned, interned?) = {DataObjectTraits.interned.get-if-exists name}
-    {return
-        {if interned? then
-            {if not {traits.equal? interned} then
-                {error {message Inconsistent traits for '{value name}'}}
-||--                {output {message Inconsistent traits for '{value name}'}}
-||--                {output "supplied: ", traits.dynamic?}
-||--                {output "supplied: ", traits.members.underlying-FastArray}
-||--                {output "interned: ", interned.dynamic?}
-||--                {output "interned: ", interned.members.underlying-FastArray}
-||--                {output "---"}
-            }
-            interned
-         else
-            set DataObjectTraits.interned[name] = traits
-            traits}}
-  }
-  {factory public {internal ...}:StandardDataObjectTraits
-    {return
-        {StandardDataObjectTraits {splice ...}}}
-  }
-  def public anonymous =
-      {DataObjectTraits "", {StringArray}}
-  
-  {method public {object-describe out:TextOutputStream, locale:Locale}:void
-    {wrap-object-description out = out, self,
-        description = {message '{value self.name}'}}
-  }
-}
 {define-class public DataObjectChanged {inherits Event}
   field public-get constant selector:String
   field public-get constant subject:DataObject
@@ -557,62 +509,6 @@
      else
         {for key k in self do
             {self.trigger-data-changed k}}
-    }
-  }
-}
-|| ====================
-{define-class public StandardDataObjectTraits {inherits DataObjectTraits}
-  field private constant _name:String
-  field private constant _members:StringArray
-  field private constant _dynamic?:bool
-  field private constant _externalizable?:bool
-  field private constant member-indices:{BucketHashTable-of String, int}
-  || TODO: should probably be interned
-  {constructor public {default
-                          name:String,
-                          members:StringArray,
-                          dynamic?:bool = true,
-                          externalizable?:bool = false}
-    set self._name = name
-    set self._members = members
-    set self._dynamic? = dynamic?
-    set self._externalizable? = externalizable?
-    set self.member-indices = {{BucketHashTable-of String, int}}
-    {self.generate-index}
-  }
-  {getter public {name}:String
-    {return self._name}
-  }
-  {getter public {members}:StringArray
-    {return self._members}
-  }
-  {getter public {dynamic?}:bool
-    {return self._dynamic?}
-  }
-  {getter public {externalizable?}:bool
-    {return self._externalizable?}
-  }
-  {method public {equal? other:DataObjectTraits}:bool
-    {return
-        self == other or
-        (self.name == other.name and
-         {self.members.equal? other.members} and
-         self.dynamic? == other.dynamic? and
-         self.externalizable? == other.externalizable?)}
-    }
-  || performance hacks
-  || --------------------
-  {method public {index-for member:String}:int
-    def (index, index?) =
-        {self.member-indices.get-if-exists member}
-    {return
-        {if index? then index
-         else -1}}
-  }
-  || NOTE: must be called after deserialization
-  {method |#TEMP#| public {generate-index}:void
-    {for member key index in self.members do
-        set self.member-indices[member] = index
     }
   }
 }

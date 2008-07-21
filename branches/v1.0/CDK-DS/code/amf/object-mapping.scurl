@@ -68,11 +68,18 @@
          else ({uninitialized-value-for-type {proc-type {}:Object}}, false)
         }}
   }
-  {method public {reader-for name:String}:({proc-type {Object, AMF3Deserializer}:void}, bool)
+  {method public {reader-for
+                     traits:DataObjectTraits
+                 }:({proc-type {Object, AMF3Deserializer}:void}, bool)
+    || NOTE: member ordering varies by server
+    || -  so look up by 'traits' not 'name' 
+    def name = traits.name
     def (adapter, adapter?) = {self.adapters-by-name.get-if-exists name}
     {return
-        {if adapter?
-         then (adapter.reader, true)
+        {if adapter? then
+            def type = adapter.type
+            def reader = {reader-for type, traits}
+            (reader, true)
          else ({uninitialized-value-for-type {proc-type {Object, AMF3Deserializer}:void}}, false)
         }}
   }
