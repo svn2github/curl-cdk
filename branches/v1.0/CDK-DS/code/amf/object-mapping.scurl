@@ -43,12 +43,16 @@
 {define-class public AMFObjectAdapters
   field constant traits-for-class:{HashTable-of ClassType, DataObjectTraits}
   field constant adapters-by-name:{HashTable-of String, AMFObjectAdapter}
+  field constant readers-by-traits:{HashTable-of DataObjectTraits,
+                                     {proc-type {Object, AMF3Deserializer}:void}}
   
   {constructor public {default
                           default-mappings?:bool = true
                       }
     set self.traits-for-class = {{HashTable-of ClassType, DataObjectTraits}}
     set self.adapters-by-name = {{HashTable-of String, AMFObjectAdapter}}
+    set self.readers-by-traits =
+        {{HashTable-of DataObjectTraits, {proc-type {Object, AMF3Deserializer}:void}}}
     {if default-mappings? then
         {self.register-defaults}}
   }
@@ -77,9 +81,22 @@
     def (adapter, adapter?) = {self.adapters-by-name.get-if-exists name}
     {return
         {if adapter? then
-            def type = adapter.type
-            def reader = {reader-for type, traits}
-            (reader, true)
+            {if traits == adapter.traits then
+                || same as registered adapter
+                (adapter.reader, true)
+             else
+                def (reader, reader?) =
+                    {self.readers-by-traits.get-if-exists traits}
+                {if reader? then
+                    || seen traits: code already generated
+                    (reader, true)
+                 else
+                    || new traits: generate code
+                    def type = adapter.type
+                    def reader = {reader-for type, traits}
+                    set self.readers-by-traits[traits] = reader
+                    (reader, true)
+                }}
          else ({uninitialized-value-for-type {proc-type {Object, AMF3Deserializer}:void}}, false)
         }}
   }
@@ -280,15 +297,28 @@
                 {curlify-name member}
              else member}
         def t =
-            {if-non-null p = {type.get-property-for-get m} then
+            {if-non-null p = {type.get-property-for-set m} then
                 p.type
              else
-                any}
+                null}
         {statements.append
-            {expand-template
-                {if-non-null val = {in.read-one} then
-                    set self.?{Identifier m} = val asa ?{Literal t}}
-            }}}
+            {if-non-null t then
+                {expand-template
+                    {if-non-null val = {in.read-one} then
+                        set self.?{Identifier m} = val asa ?{Literal t}}
+                }
+             else
+                {output
+                    {message Unexpected reader property: '{value type}.{value m}'}}
+                {expand-template
+                    {if-non-null val = {in.read-one} then
+                        def msg =
+                            {message Ignoring property
+                                '{value ?{Literal type}}.{value ?{Literal m}}':
+                                {value val}}
+                        {output msg}}
+                }}
+        }}
     def src =
         {expand-template
             {proc {obj:Object, in:AMF3Deserializer}:void

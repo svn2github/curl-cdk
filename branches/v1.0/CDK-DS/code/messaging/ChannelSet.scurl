@@ -160,6 +160,7 @@
   }
 
   {method public {logout agent:#MessageAgent = null}:void
+    || TODO: send LOGOUT message !
   }
 
   {method public {send agent:MessageAgent, message:IMessage}:void
