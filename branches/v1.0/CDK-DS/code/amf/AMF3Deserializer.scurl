@@ -129,7 +129,7 @@
                     DateTimeData.epoch-simple.epoch-second +
                     (seconds asa int64),
                     partial-second =
-                        (partial-seconds / 1000 * {ldexp 1.0, 63}) asa int64
+                        (partial-seconds / 1000.0 * {ldexp 1.0, 63}) asa int64
                 },
                 zone = DateTimeZone.utc
             }

@@ -122,8 +122,7 @@
                         token = token,
                         message = message
                     }
-                },
-                10ms
+                }
             }
      catch e:Exception do
         def fault = {new Fault, "Invoke failed", e.message}
@@ -144,8 +143,7 @@
                         token = token,
                         message = message
                     }
-                },
-                10ms
+                }
             }
     }
     {return token}

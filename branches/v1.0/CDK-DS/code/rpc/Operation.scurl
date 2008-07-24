@@ -25,10 +25,7 @@
   }
 
   {method public {send ...:any}:#AsyncToken
-    def args = {new {Array-of any}}
-    {for x in ... do
-        {args.append x}
-    }
+    def args = {new {Array-of any}, {splice ...}}
     {if-non-null self-arguments = self.arguments then
         {if args.empty? and self-arguments.size > 0 then
             {for arg in self-arguments do

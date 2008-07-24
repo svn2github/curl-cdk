@@ -17,25 +17,17 @@
 {define-class public AsyncDispatcher
   field private method:{proc-type {args:Arguments}:void}
   field private args:Arguments
-  field private timer:Timer
 
   {constructor public {default
                           method:{proc-type {args:Arguments}:void},
                           args:Arguments,
-                          delay:Time
+                          delay:Time = 0s
                       }
     {construct-super}
     set self.method = method
     set self.args = args
-    set self.timer =
-        {new Timer,
-            delay = delay,
-            interval = 0.1s,
-            repeat = 1,
-            {on TimerEvent at t:Timer do
-                {t.disable}
-                {self.method self.args}
-            }
-        }
+    {after delay do
+        {self.method self.args}
+    }
   }
 }

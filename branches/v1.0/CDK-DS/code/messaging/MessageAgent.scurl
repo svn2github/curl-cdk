@@ -39,8 +39,8 @@
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
 
-  {constructor public {default ...}
-    {construct-super {splice ...}}
+  {constructor public {default ...:EventHandler}
+    {construct-super ...}
   }
 
   {getter public {id}:String
@@ -222,6 +222,7 @@
     {if remote-username == null and remote-password == null then
         set self.remote-credentials = null
         set self.remote-credentials-charset = null
+        set self.send-remote-credentials? = false
      else
         def credentials = remote-username & ":" & remote-password
         def bytes = {new ByteArray}
@@ -231,8 +232,8 @@
         || TODO: Handle encoding for different charsets?
         set self.remote-credentials = {base64-encode bytes}
         set self.remote-credentials-charset = charset
+        set self.send-remote-credentials? = true
     }
-    set self.send-remote-credentials? = true
   }
 
   {method protected {reauthorize message:IMessage}:void
