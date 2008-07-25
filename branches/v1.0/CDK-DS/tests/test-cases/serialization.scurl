@@ -161,6 +161,8 @@
                 {Array "ABC", "ABC"},
                 {Array "ABC", "DEF"},
                 {DateTime "2007-01-29"},
+                {DateTime "2007-01-29 12:01:02"},
+                {DateTime "2007-01-29 12:01:02.0015"},
                 x1,
                 y3,
                 {Array x1, x1},

@@ -25,7 +25,7 @@
   field protected _timestamp:double = -1
 
   {constructor public {default ...}
-    {construct-super ...}
+    {construct-super {splice ...}}
     set self.agent-type = "consumer"
   }
 

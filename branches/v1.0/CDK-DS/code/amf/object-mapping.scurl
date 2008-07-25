@@ -304,14 +304,18 @@
         {statements.append
             {if-non-null t then
                 {expand-template
-                    {if-non-null val = {in.read-one} then
-                        set self.?{Identifier m} = val asa ?{Literal t}}
+                    set self.?{Identifier m} = 
+                        {if-non-null val = {in.read-one} then
+                            val asa ?{Literal t}
+                         else
+                            {uninitialized-value-for-type ?{Literal t}}}
                 }
              else
                 {output
                     {message Unexpected reader property: '{value type}.{value m}'}}
                 {expand-template
-                    {if-non-null val = {in.read-one} then
+                    def val = {in.read-one}
+                    {if-debuggable 
                         def msg =
                             {message Ignoring property
                                 '{value ?{Literal type}}.{value ?{Literal m}}':

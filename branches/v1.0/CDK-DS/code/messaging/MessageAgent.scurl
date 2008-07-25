@@ -189,20 +189,8 @@
         set self.credentials = null
         set self.credentials-charset = null
      else
-        def credentials = username & ":" & password
-        def bytes = {ByteArray}
-        def encoding =
-            {if-non-null charset then
-                || TODO: restrict to what is supported
-                || - utf8, windows-latin-1 (?)
-                {http-charset-to-char-encoding charset}
-             else CharEncoding.windows-latin-1}
-        {with-open-streams out =
-            {TranscodingTextOutputStream
-                {ByteArrayOutputStream bytes}, encoding, false}
-         do
-            {out.write-one-string credentials}}
-        set self.credentials = {base64-encode bytes}
+        set self.credentials =
+            {self.encode-credentials username, password, charset}
         set self.credentials-charset = charset
     }
     {if-non-null channel-set = self.channel-set then
@@ -212,6 +200,28 @@
             charset = self.credentials-charset
         }
     }
+  }
+
+  {method {encode-credentials
+              username:String,
+              password:String,
+              charset:#String
+          }:String
+    def credentials = username & ":" & password
+    def bytes = {ByteArray}
+    def encoding =
+        {if-non-null charset then
+            || TODO: restrict to what is supported
+            || - utf8, windows-latin-1 (?)
+            {http-charset-to-char-encoding charset}
+         else CharEncoding.windows-latin-1}
+    {with-open-streams out =
+        {TranscodingTextOutputStream
+            {ByteArrayOutputStream bytes}, encoding, false}
+     do
+        {out.write-one-string credentials}}
+    {return
+        {base64-encode bytes}}
   }
 
   {method public {set-remote-credentials
@@ -224,13 +234,8 @@
         set self.remote-credentials-charset = null
         set self.send-remote-credentials? = false
      else
-        def credentials = remote-username & ":" & remote-password
-        def bytes = {new ByteArray}
-        {for c in credentials do
-            {bytes.append c asa byte}
-        }
-        || TODO: Handle encoding for different charsets?
-        set self.remote-credentials = {base64-encode bytes}
+        set self.remote-credentials =
+            {self.encode-credentials username, password, charset}
         set self.remote-credentials-charset = charset
         set self.send-remote-credentials? = true
     }
