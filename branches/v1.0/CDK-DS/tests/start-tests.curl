@@ -94,6 +94,10 @@
                 || Serialization
                 || --------------------
                 {TestSuite.import {url "test-cases/serialization.scurl"}},
+
+                || Answers from Servers
+                || --------------------
+                {TestSuite.import {url "test-cases/answers-from-servers.scurl"}},
                 
                 || postlude
                 || --------------------
