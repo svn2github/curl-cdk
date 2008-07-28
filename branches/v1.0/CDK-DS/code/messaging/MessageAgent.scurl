@@ -203,10 +203,12 @@
   }
 
   {method {encode-credentials
-              username:String,
-              password:String,
+              _username:#String,
+              _password:#String,
               charset:#String
           }:String
+    def username = {if-non-null val = _username then val else ""}
+    def password = {if-non-null val = _password then val else ""}
     def credentials = username & ":" & password
     def bytes = {ByteArray}
     def encoding =
@@ -235,7 +237,7 @@
         set self.send-remote-credentials? = false
      else
         set self.remote-credentials =
-            {self.encode-credentials username, password, charset}
+            {self.encode-credentials remote-username, remote-password, charset}
         set self.remote-credentials-charset = charset
         set self.send-remote-credentials? = true
     }
