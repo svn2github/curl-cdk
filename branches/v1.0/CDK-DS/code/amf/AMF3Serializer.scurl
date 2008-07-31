@@ -220,6 +220,15 @@
         {self.write-reference-marker ref-index}
      else
         {self.write-length array.size}
+        {type-switch array
+         case ea:ExtendedArray do
+            {if-non-null data = ea.data then
+                {for val key name in data do
+                    {self.write-string name}
+                    {self.write-one val}
+                }
+            }
+        }         
         {self.write-string ""}
         {for val in array do
             {self.write-one val}
@@ -334,7 +343,7 @@
     def writer = {self.mapper.writer-for traits.name}
     {writer obj, self}
   }
-
+  
   {method public open {write-byte-array array:ByteArray}:void
     def ref-index = {self.references.get-object-index array}
     {if ref-index != -1 then

@@ -141,8 +141,9 @@
                 {Array x1, x2},
                 {Array x1, x2, x1, x2},
                 {ArrayCollection x1, x2, x1, x2},
-                || TODO: not yet implemented
-||--                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
+                {ExtendedArray data = x1, 0xABCD, 0xBAAF},
+                {ExtendedArray data = x1},
+                {ExtendedArray 0xABCD, 0xBAAF},
                 || NOTE: this "works" but fails test-compare, because types are incongruent
                 || TODO: special test for association types that return as DataObject
 ||--                h,

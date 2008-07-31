@@ -145,47 +145,32 @@
     {return {self.read-xml-document}}
   }
 
-  {method public open {read-array}:Object
+  {method private {read-array}:ExtendedArray
     def type = {self.read-integer}
     def (inline?, n) = {self.check-reference type}
     {if not inline? then
-        {return {self.references.get-object n}}
+        {return {self.references.get-object n} asa ExtendedArray}
     }
-    || FIXME: Could have both dense and associative data
-    {return
-        {if n > 0 then
-            {self.read-dense-array-data n}
-         else
-            {self.read-associative-array-data}
-        }
-    }
-  }
 
-  {method private {read-dense-array-data count:int}:{Array-of any}
-    def array = {{Array-of any} efficient-size = count}
+    def array = {ExtendedArray efficient-size = n}
     {self.references.add-object array}
-    || FIXME: Could have both dense and associative data
-    {while not {self.read-string}.empty? do
-        {output "WARNING: Ignoring associative array data."}
-        {self.read-one}
+
+    || read the associative portion
+    def ap = {DataObject}
+    {while true do
+        def name = {self.read-string}
+        {if name.empty? then {break}}
+        set ap[name] = {self.read-one}
     }
-    {for i:int=0 below count do
+    {if not ap.empty? then
+        set array.data = ap}
+
+    || read the dense portion
+    {for i:int=0 below n do
         {array.append {self.read-one}}
     }
+    
     {return array}
-  }
-
-  {method private {read-associative-array-data}:{HashTable-of String, any}
-    def hash = {{HashTable-of String, any}}
-    {self.references.add-object hash}
-    {while true do
-        def keyword = {self.read-string}
-        {if keyword.empty? then
-            {break}
-        }
-        set hash[keyword] = {self.read-one}
-    }
-    {return hash}
   }
 
   {method public open {read-byte-array}:ByteArray
