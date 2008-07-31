@@ -51,10 +51,9 @@
   }
   {setter public {subtopic s:String}:void
     {if self._subtopic != s then
-        let reset-subscription?:bool = false
-        {if self.subscribed? then
+        let reset-subscription?:bool = self.subscribed?
+        {if reset-subscription? then
             {self.unsubscribe}
-            set reset-subscription? = true
         }
         set self._subtopic = s
         {if reset-subscription? then

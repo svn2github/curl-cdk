@@ -213,10 +213,14 @@
     def bytes = {ByteArray}
     def encoding =
         {if-non-null charset then
-            || TODO: restrict to what is supported
-            || - utf8, windows-latin-1 (?)
-            {http-charset-to-char-encoding charset}
-         else CharEncoding.windows-latin-1}
+            def charset-encoding = {http-charset-to-char-encoding charset}
+            {if charset-encoding == CharEncoding.none-specified then
+                CharEncoding.utf8
+             else
+                charset-encoding
+            }
+         else CharEncoding.utf8
+        }
     {with-open-streams out =
         {TranscodingTextOutputStream
             {ByteArrayOutputStream bytes}, encoding, false}

@@ -37,17 +37,14 @@
 ||--                          , clustered-with-load-balancing?:bool = false
                       }
     {construct-super}
+    set self.channels = {new {Array-of #Channel}}
     {if-non-null channel-ids then
         set self._channel-ids = channel-ids
-        set self.channels = {new {Array-of #Channel}}
         {if-non-null ids = self._channel-ids then
-            {for id in ids do
-                {self.channels.append null}
-            }
+            {self.channels.set-size ids.size, null}
         }
         set self._configured? = true
      else
-        set self.channels = {new {Array-of #Channel}}
         set self._configured? = false
     }
     set self._message-agents = {new {Array-of MessageAgent}}
@@ -227,7 +224,7 @@
                     }
                 }
                 {if-non-null c = self.current-channel then
-                    {self.current-channel.set-credentials self.credentials}
+                    {c.set-credentials self.credentials}
                     set self.channels[self.current-channel-index] = c
                  else
                     {throw {new Exception, "NoChannelAvailableError"}}

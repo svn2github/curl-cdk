@@ -95,7 +95,7 @@
                     set err.fault-code = "Server.Acknowledge.Failed"
                     set err.fault-string = "Acknowledge Failed"
                     set err.fault-detail =
-                        am.correlation-id " != " self.message.message-id
+                        am.correlation-id & " != " & self.message.message-id
                     set err.correlation-id = self.message.message-id
                     {self.agent.fault err, self.message}
                 }

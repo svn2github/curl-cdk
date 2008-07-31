@@ -24,8 +24,8 @@
   field protected subscribe-message:#CommandMessage
   field protected _timestamp:double = -1
 
-  {constructor public {default ...}
-    {construct-super {splice ...}}
+  {constructor public {default ...:EventHandler}
+    {construct-super ...}
     set self.agent-type = "consumer"
   }
 
