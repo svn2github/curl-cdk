@@ -1,0 +1,373 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}}
+
+{import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.RPC}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+
+{include "trader-support.scurl"}
+
+{do
+    {set-rendering-mode RenderingMode.high-quality}
+}
+
+{document-style PlainDocument}
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true
+}
+
+{value
+    || connection parameters
+    def base = "http://localhost:8400/samples/"
+    def destination = "market-data-feed"
+    def endpoint = {url base & "messagebroker/amfpolling"}
+    def channel-id = "per-client-qos-polling-amf"
+||--    def channel-id = "my-streaming-amf"
+||--    def channel-id = "my-polling-amf"
+
+    || configure the connection
+    def channel =
+        {AMFChannel
+            id = destination,
+            uri = endpoint}
+    def channel-set = {ChannelSet}
+    {channel-set.add-channel channel}
+
+    || ==================== \\
+    || QOS service 
+    || --------------------
+    def qos-destination = "flex-client-qos-config"
+    def qos-endpoint = {url base & "messagebroker/qosamfpolling"}
+    def qos-service =
+        {RemoteObject 
+            qos-endpoint,
+            qos-destination,
+            {on e:FaultEvent do
+                def f = e.fault
+                def msg = {message Fault Code: {value f.fault-code} '{value f.fault-string}'}
+                {popup-message msg}
+            }
+        }
+    def qos-channel =
+        {AMFChannel
+            id = qos-destination,
+            uri = qos-endpoint}
+    def qos-channel-set = {ChannelSet}
+    {qos-channel-set.add-channel qos-channel}
+    set qos-service.channel-set = qos-channel-set
+
+    def set-attribute = {qos-service.get-operation "setAttribute"}
+    {set-attribute.add-event-handler
+        {on e:ResultEvent do
+            def result = e.result
+            {dump e}
+        }}
+    {qos-service.send "setAttribute",
+        async? = true,
+        "market-data-delay", 100 || milliseconds
+    }
+    || ==================== //
+
+    def stock-traits = 
+        {DataObjectTraits "flex.samples.marketdata.Stock",
+            dynamic? = false,
+            {StringArray
+                "symbol",
+                "name",
+                "low",
+                "high",
+                "open",
+                "last",
+                "change",
+                "date"}}
+    def typical-item =
+        {StandardDataObject traits = stock-traits,
+            "symbol", "IBM",
+            "open", 100.0,
+            "last", 100.0,
+            "change", 0.0,
+            "high", 120.0,
+            "low", 80.0,
+            "date", {DateTime zone = DateTimeZone.utc}}
+
+    || ==================== \\
+    || for client side simulated data
+    def producer =
+        {Producer
+            endpoint = endpoint,
+            destination = destination}
+    set producer.channel-set = channel-set
+    def send-data =
+        {proc {body:any, subtopic:String = ""}:void
+            def msg = {AsyncMessage body = body}
+            set producer.subtopic = subtopic
+            {producer.send msg}}
+    def _stock = {typical-item.clone}
+    def _symbol = _stock["symbol"] asa String
+    def _high = _stock["high"] asa double
+    def _low = _stock["low"] asa double
+    let _last:double = _stock["last"] asa double
+    let _change:double = 1.0
+    def do-step =
+        {proc {}:void
+            {if _last >= _high then
+                set _change = -1.0
+             elseif _last <= _low then
+                set _change = 1.0}
+            {inc _last, _change}
+            set _stock["last"] = _last
+            set _stock["change"] = _change
+            def now = {DateTime zone = DateTimeZone.utc}
+            set _stock["date"] = now
+||--            {if-debuggable
+||--                {output
+||--                    {message SEND {value _stock["symbol"]} : {value _last}
+||--                        at {now.info.iso-full.substr 11, 12}}}}
+            {send-data {_stock.clone}, subtopic = _symbol}
+        }
+    def n-ticks = 20 || 100
+    def ticker =
+        {Timer interval = 100ms,
+            enabled? = false,
+            repeat = 0,
+            {on TimerEvent do
+                {do-step}
+            }}
+    def start-ticker =
+        {proc {}:void
+            set ticker.repeat = n-ticks
+            set ticker.enabled? = true
+        }
+    def stop-ticker =
+        {proc {}:void
+            set ticker.repeat = 0
+            set ticker.enabled? = false
+        }
+    || ==================== //
+
+    def consumers =
+        {{HashTable-of String, Consumer}}
+    def stock-map =
+        {{HashTable-of String, DataObject}}
+    def items =
+        {DataObjectRecordSet typical-item.traits,
+            type-info = typical-item}
+
+||--    {if-debuggable
+||--        {items.add-event-handler
+||--            {on e:RecordModified do
+||--                def r = e.record
+||--                def now = {DateTime zone = DateTimeZone.utc}
+||--                {output
+||--                    {message MOD {value r["symbol"]} : {value r["last"]}
+||--                        at {now.info.iso-full.substr 11, 12}}}}}
+||--    }
+    def root = {get-the-applet}.document.top-level-graphic
+    def refresh-display =
+        {proc {}:void
+            {if-non-null v = {root.get-view} then
+                {v.update}}}
+
+    def add-symbol =
+        {proc {symbol:String}:void
+            def stock =
+                {OpenDataObject traits = stock-traits,
+                    "symbol", symbol}
+            set stock-map[symbol] = stock
+            {with items.batch-events? = true do
+                {items.append stock}
+                {items.commit}}
+            {subscribe symbol}
+        }
+    , delete-symbol =
+        {proc {r:Record}:void
+            def symbol = r["symbol"] asa String
+            {unsubscribe symbol}
+            {with items.batch-events? = true do
+                {r.delete}
+                {items.commit}}
+        }
+    , message-handler =
+        {on e:MessageEvent do
+            {type-switch e.message
+             case m:AcknowledgeMessage do
+                || ignore
+             case m:AsyncMessage do
+                def (subtopic, subtopic?) =
+                    {m.headers.get-if-exists "DSSubtopic"}
+                {if subtopic? then
+                    def changed-stock = m.body asa DataObject
+                    def symbol = changed-stock["symbol"] asa String
+                    {if subtopic == symbol then
+||--                        {if-debuggable
+||--                            def last = changed-stock["last"] asa double
+||--                            def date = changed-stock["date"] asa DateTime
+||--                            def when-date = {date.info.iso-full.substr 11, 12}
+||--                            def stamp = {from-timestamp m.timestamp}
+||--                            def when-stemp = {stamp.info.iso-full.substr 11, 12}
+||--                            {output
+||--                                {message GOT {value symbol} : {value last}
+||--                                    at {value when-date} .. {value when-stemp}}}}
+                        {if-non-null
+                            stock = {items.select-one filter = {RecordData symbol = symbol}}
+                         then
+                            || NOTE: global indicating current symbol
+                            set active-symbol = symbol
+                            {with items.batch-events? = true do
+                                set stock["open"] = changed-stock["open"]
+                                set stock["change"] = changed-stock["change"]
+                                set stock["last"] = changed-stock["last"]
+                                set stock["high"] = changed-stock["high"]
+                                set stock["low"] = changed-stock["low"]
+                                set stock["date"] = changed-stock["date"]
+                                {items.commit}}
+||--                            {if-debuggable
+||--                                def now = {DateTime zone = DateTimeZone.utc}
+||--                                {output
+||--                                    {message SET {value symbol} : {value last}
+||--                                        at {now.info.iso-full.substr 11, 12}}}}
+                            {refresh-display}
+                            || HACK: short delay makes change visible
+                            {sleep 100ms}
+                         else
+                            {error
+                                {message Not watching stock '{value symbol}'}}}
+                     else
+                        {error
+                            {message Subtopic '{value subtopic}'
+                                got unexpected symbol '{value symbol}'}}
+                    }}
+            }}
+    , subscribe =
+        {proc {symbol:String}:void
+            def consumer =
+                {Consumer 
+                    endpoint = endpoint,
+                    destination = destination}
+            set consumer.subtopic = symbol
+            set consumer.channel-set = channel-set
+            {consumer.add-event-handler message-handler}
+            {consumer.subscribe}
+            set consumers[symbol] = consumer
+        }
+    , unsubscribe =
+        {proc {symbol:String}:void
+            def (consumer, consumer?) =
+                {consumers.get-if-exists symbol}
+            {if consumer? then
+                {consumer.remove-event-handler message-handler}
+                {if consumer.subscribed? then
+                    {consumer.unsubscribe}}
+                {consumer.channel-set.disconnect-all}
+                {consumers.remove symbol}
+            }}
+    , initialize-watch-list =
+        {proc {symbols:StringArray}:void
+            {for symbol in symbols do
+                {add-symbol symbol}}
+        }
+
+    def fmt =
+        {proc {x:any}:String
+            {return
+                {type-switch x
+                 case x:double do {format "%.02f", x}
+                 case x:int do {format "%.02f", x asa double}
+                 case x:Null do ""
+                 else {String x}}}
+        }
+    def dg =
+        {RecordGrid
+            record-source = items,
+            display-navigation-panel? = false,
+            display-filler-column? = true,
+            automatic-columns? = false,
+            {RecordGridColumn "symbol",
+                header-spec = "Symbol",
+                width = 80px},
+            {RecordGridColumn "open",
+                header-spec = "Open",
+                halign = "right", width = 50px, format-spec = fmt},
+            {RecordGridColumn "last",
+                header-spec = "Last",
+                cell-spec = {BackgroundStringCell "symbol", "change", "#00990080", "#FF000080"},
+                halign = "right", width = 50px, format-spec = fmt},
+            {RecordGridColumn "change",
+                header-spec = "Change",
+                cell-spec = {ColorStringCell "#009900", "#FF0000"},
+                halign = "right", width = 50px, format-spec = fmt},
+            {RecordGridColumn "high",
+                header-spec = "High",
+                halign = "right", width = 50px, format-spec = fmt},
+            {RecordGridColumn "low",
+                header-spec = "Low",
+                halign = "right", width = 50px, format-spec = fmt}}
+    let symbol:String = ""
+
+    def symbol-control =
+        {TextField width = 50px,
+                {on ValueFinished at c:TextField do
+                    set symbol = c.value
+                },
+                {on Action do
+                    {do-add-symbol}
+                }}
+    , do-add-symbol =
+        {proc {}:void
+            {add-symbol symbol}
+            {symbol-control.unset-value}
+        }
+
+    {Frame halign = "left", valign = "top",
+        {VBox width = 400px, halign = "center",
+            margin = 8px, spacing = 8px,
+            dg,
+            {on AttachEvent do
+                {after 0s do
+                    {initialize-watch-list
+                        {StringArray "IBM", "JBLU", "ADBE", "GE", "C"}
+                    }
+                }},
+            {HBox spacing = 8px,
+                symbol-control,
+                {CommandButton label = "Add Symbol",
+                    {on Action do
+                        {do-add-symbol}
+                    }},
+                {Fill},
+                {CommandButton label = "Delete Symbol",
+                    {on Action do
+                        {if-non-null r = dg.current-record then
+                            {delete-symbol r}}
+                    }}},
+            {HBox spacing = 8px,
+                {Fill},
+                {CommandButton label = "Start Feed",
+                    {on Action do
+                        {start-ticker}
+                    }},
+                {CommandButton label = "Stop Feed",
+                    {on Action do
+                        {stop-ticker}
+                    }}}
+        }}
+}
