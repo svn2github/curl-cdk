@@ -23,7 +23,7 @@
                           destination:String = "",
                           ...
                       }
-    {construct-super ...}
+    {construct-super {splice ...}}
     set self.endpoint = endpoint
     set self._destination = destination
   }

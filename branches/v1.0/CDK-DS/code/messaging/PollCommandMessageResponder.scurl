@@ -129,29 +129,29 @@
           }
     }
 
-  {method protected {async-message-from-amf-object
-                        amf-obj:DataObject
-                    }:AsyncMessage
-    def async-message = {new AsyncMessage}
-    set async-message.headers =
-        amf-obj["headers"] asa IMessageHeaders
-    set async-message.body = amf-obj["body"]
-    set async-message.message-id = amf-obj["messageId"] asa String
-    set async-message.client-id = amf-obj["clientId"] asa #String
-    set async-message.correlation-id =
-        {if-non-null d = amf-obj["correlationId"] then
-            d asa String
-         else
-            ""
-        }
-    set async-message.destination =
-        {if-non-null d = amf-obj["destination"] then
-            d asa String
-         else
-            ""
-        }
-    set async-message.time-to-live = amf-obj["timeToLive"] asa double
-    set async-message.timestamp = amf-obj["timestamp"] asa double
-    {return async-message}
-  }
+||--  {method protected {async-message-from-amf-object
+||--                        amf-obj:DataObject
+||--                    }:AsyncMessage
+||--    def async-message = {new AsyncMessage}
+||--    set async-message.headers =
+||--        amf-obj["headers"] asa IMessageHeaders
+||--    set async-message.body = amf-obj["body"]
+||--    set async-message.message-id = amf-obj["messageId"] asa String
+||--    set async-message.client-id = amf-obj["clientId"] asa #String
+||--    set async-message.correlation-id =
+||--        {if-non-null d = amf-obj["correlationId"] then
+||--            d asa String
+||--         else
+||--            ""
+||--        }
+||--    set async-message.destination =
+||--        {if-non-null d = amf-obj["destination"] then
+||--            d asa String
+||--         else
+||--            ""
+||--        }
+||--    set async-message.time-to-live = amf-obj["timeToLive"] asa double
+||--    set async-message.timestamp = amf-obj["timestamp"] asa double
+||--    {return async-message}
+||--  }
 }

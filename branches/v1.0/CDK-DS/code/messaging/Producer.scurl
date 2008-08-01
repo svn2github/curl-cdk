@@ -37,4 +37,10 @@
     {super.internal-send message, wait-for-client-id? = wait-for-client-id?}
   }
   || TODO: subtopic getter/setter ?
+  {getter public {subtopic}:String
+    {return self._subtopic}
+  }
+  {setter public {subtopic val:String}
+    set self._subtopic = val
+  }
 }
