@@ -36,7 +36,6 @@
     "AbstractOperation.scurl",
     "AbstractService.scurl",
     "ActiveCalls.scurl",
-    "AsyncDispatcher.scurl",
     "AsyncRequest.scurl",
     "AsyncToken.scurl",
     "Fault.scurl",

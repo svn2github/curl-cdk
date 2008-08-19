@@ -14,20 +14,4 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AsyncDispatcher
-  field private method:{proc-type {args:Arguments}:void}
-  field private args:Arguments
-
-  {constructor public {default
-                          method:{proc-type {args:Arguments}:void},
-                          args:Arguments,
-                          delay:Time = 0s
-                      }
-    {construct-super}
-    set self.method = method
-    set self.args = args
-    {after delay do
-        {self.method self.args}
-    }
-  }
-}
+|| AsyncDispatcher has been removed.

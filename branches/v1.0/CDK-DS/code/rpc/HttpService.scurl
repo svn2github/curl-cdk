@@ -60,7 +60,7 @@
     {if-non-null u = self.root-url then
         {with-open-streams in = {read-open u} do
             let (buf:StringBuf, n:int) = {in.read-one-string}
-            set self._result = {buf.to-String}
+            set self.result = {buf.to-String}
         }
     }
     || TODO: Need to handle parameters, the various formats & error conditions,

@@ -25,9 +25,9 @@
   {constructor public {default
                           endpoint:#Url = null,
                           destination:#String = null,
-                          ...
+                          ...:EventHandler
                       }
-    {construct-super {splice ...}}
+    {construct-super ...}
 
     set self.endpoint = endpoint
 

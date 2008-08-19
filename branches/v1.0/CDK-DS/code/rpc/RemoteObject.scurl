@@ -17,7 +17,11 @@
 {define-class public RemoteObject {inherits AbstractService}
   field public source:#String
 
-  {constructor public {default endpoint:Url, destination:String, ...}
+  {constructor public {default
+                          endpoint:Url,
+                          destination:String,
+                          ...:EventHandler
+                      }
     {construct-super
         endpoint = endpoint,
         destination = destination,

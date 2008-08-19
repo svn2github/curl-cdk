@@ -16,7 +16,6 @@
 
 {define-class public abstract AbstractInvoker {inherits EventTarget}
   field public async?:bool = false
-  field protected _result:any
   field protected _async-request:AsyncRequest
   field protected result-handler:{proc-type {x:any}:void} =
       {uninitialized-value-for-type {proc-type {x:any}:void}}
@@ -33,10 +32,6 @@
     set self.active-calls = {new ActiveCalls}
   }
 
-  {getter public {last-result}:any
-    {return self._result}
-  }
-
   {getter protected {async-request}:AsyncRequest
     {return self._async-request}
   }
@@ -51,11 +46,6 @@
      else
         {return {self.active-calls.cancel-last}}
     }
-  }
-
-  || Sets the result property of the invoker to null.
-  {method public {clear-result}:void
-    set self._result = null
   }
 
   {method protected {invoke
@@ -85,66 +75,46 @@
     {try
         {self.async-request.invoke
             message,
-            {new Responder,
+            {Responder
                 self.result-handler,
                 self.fault-handler
             }
         }
         {self.dispatch-rpc-event
-            {new InvokeEvent,
+            {InvokeEvent
                 InvokeEvent.INVOKE,
                 token = token,
                 message = message
             }
         }
      catch me:MessagingException do
-        def fault =
-            {new Fault,
-                "Invoke failed",
-                me.message,
-                fault-detail = "Cannot connect to destination: "
-                & self.async-request.destination
-            }
-        def async-dispatcher =
-            {new AsyncDispatcher,
-                {proc {args:Arguments}:void
-                    {for it in args do
-                        {type-switch it
-                         case event:AbstractEvent do
-                            {self.dispatch-rpc-event event}
-                        }
-                    }
-                },
-                {Arguments
-                    {new FaultEvent,
-                        FaultEvent.FAULT,
-                        fault = fault,
-                        token = token,
-                        message = message
-                    }
+        {after 0s do
+            {self.dispatch-rpc-event
+                {FaultEvent
+                    FaultEvent.FAULT,
+                    fault = 
+                        {Fault
+                            "Invoke failed",
+                            me.message,
+                            fault-detail = "Cannot connect to destination: "
+                            & self.async-request.destination
+                        },
+                    token = token,
+                    message = message
                 }
             }
+        }
      catch e:Exception do
-        def fault = {new Fault, "Invoke failed", e.message}
-        def async-dispatcher =
-            {new AsyncDispatcher,
-                {proc {args:Arguments}:void
-                    {for it in args do
-                        {type-switch it
-                         case event:AbstractEvent do
-                            {self.dispatch-rpc-event event}
-                        }
-                    }
-                },
-                {Arguments
-                    {new FaultEvent,
-                        FaultEvent.FAULT,
-                        fault = fault,
-                        token = token,
-                        message = message
-                    }
+        {after 0s do
+            {self.dispatch-rpc-event
+                {FaultEvent
+                    FaultEvent.FAULT,
+                    fault = {Fault "Invoke failed", e.message},
+                    token = token,
+                    message = message
                 }
             }
+        }
     }
     {return token}
   }

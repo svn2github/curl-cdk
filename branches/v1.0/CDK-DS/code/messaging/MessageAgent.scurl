@@ -202,11 +202,11 @@
     }
   }
 
-  {method {encode-credentials
-              _username:#String,
-              _password:#String,
-              charset:#String
-          }:String
+  {method private {encode-credentials
+                      _username:#String,
+                      _password:#String,
+                      charset:#String
+                  }:String
     def username = {if-non-null val = _username then val else ""}
     def password = {if-non-null val = _password then val else ""}
     def credentials = username & ":" & password
