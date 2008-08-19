@@ -23,7 +23,9 @@
     def array = {{Array-of Test}}
     {for f key name in dir do
         {if f isa Directory then
-            {suite.add {test-answer-from-server f.url}}
+            {if f.url.filename != ".svn" then
+                {suite.add {test-answer-from-server f.url}}
+            }
          else
             {array.append
                 {test-case name,
