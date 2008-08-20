@@ -48,9 +48,8 @@
   }
 
   {method public {remove-call id:String}:#AsyncToken
-    let token:#AsyncToken
-    {if {self.calls.key-exists? id} then
-        set token = self.calls[id]
+    def (token:#AsyncToken, token-exists?) = {self.calls.get-if-exists id}
+    {if token-exists? then
         {self.calls.remove id}
         def index = {self.call-order.find id, search-direction = "backward"}
         {if index != -1 then

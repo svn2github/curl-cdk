@@ -58,12 +58,17 @@
   }
 
   {method public {get-header name:String}:any
-      {if {self.headers.key-exists? name} then
-          {return self._headers[name]}
-       else
-          {return null}
-      }
+    def (header, exists?) =
+        {self.headers.get-if-exists name}
+    {return 
+        {if exists? then
+            header
+         else
+            null
+        }
+    }
   }
+
   {method public {set-header name:String, value:any}:void
       {if-non-null value then
           set self._headers[name] = value

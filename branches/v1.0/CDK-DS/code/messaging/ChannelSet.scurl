@@ -29,7 +29,7 @@
   field private _message-agents:{Array-of MessageAgent}
   field private credentials:#String
   field private credentials-charset:#String
-  field private pending-messages:{HashTable-of IMessage, any}
+  field private pending-messages:{Set-of IMessage}
   field private pending-sends:{Array-of PendingSend}
 
   {constructor public {default
@@ -48,7 +48,7 @@
         set self._configured? = false
     }
     set self._message-agents = {new {Array-of MessageAgent}}
-    set self.pending-messages = {new {HashTable-of IMessage, any}}
+    set self.pending-messages = {new {Set-of IMessage}}
     set self.pending-sends = {new {Array-of PendingSend}}
   }
 
@@ -167,8 +167,8 @@
             {self.current-channel.send agent, message}
         }
      else
-        {if not {self.pending-messages.key-exists? message} then
-            set self.pending-messages[message] = true
+        {if not {self.pending-messages.member? message} then
+            {self.pending-messages.insert message}
             {self.pending-sends.append {new PendingSend, agent, message}}
         }
         {if not self.connecting? then

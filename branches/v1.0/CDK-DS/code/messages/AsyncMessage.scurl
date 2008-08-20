@@ -16,6 +16,8 @@
 
 {define-class public AsyncMessage {inherits AbstractMessage}
 
+    || The storage and getters and setters for these are inherited
+    || from IMessage.
     def public traits =
       {DataObjectTraits
         "flex.messaging.messages.AsyncMessage",

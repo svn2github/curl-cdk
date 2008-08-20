@@ -27,14 +27,17 @@
                         message:IMessage
                     }:void
     let error?:bool = false
-    {if {ack.headers.key-exists? AcknowledgeMessage.ERROR_HINT_HEADER} then
-        set error? = ack.headers[AcknowledgeMessage.ERROR_HINT_HEADER] asa bool
+    def (error-any, error-exists?) =
+        {ack.headers.get-if-exists AcknowledgeMessage.ERROR_HINT_HEADER}
+    {if error-exists? then
+        set error? = error-any asa bool
     }
     {super.acknowledge ack, message}
     {if not error? then
         def id = ack.correlation-id
-        {if {self.pending-requests.key-exists? id} then
-            def responder = self.pending-requests[id]
+        def (responder, responder-exists?) =
+            {self.pending-requests.get-if-exists id}
+        {if responder-exists? then
             {self.pending-requests.remove id, error-if-missing? = false}
             {responder.result
                 {new MessageEvent,
@@ -55,8 +58,9 @@
         {return}
     }
     def id = message.message-id
-    {if {self.pending-requests.key-exists? id} then
-        def responder = self.pending-requests[id]
+    def (responder, responder-exists?) =
+        {self.pending-requests.get-if-exists id}
+    {if responder-exists? then
         {self.pending-requests.remove id, error-if-missing? = false}
         {responder.fault
             {new MessageFaultEvent,

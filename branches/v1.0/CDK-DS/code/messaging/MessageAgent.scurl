@@ -382,9 +382,8 @@
   }
 
   {method public {acknowledge ack-message:AcknowledgeMessage, msg:IMessage}:void
-    {if {ack-message.headers.key-exists? AcknowledgeMessage.ERROR_HINT_HEADER}
-     then
-        {ack-message.headers.remove AcknowledgeMessage.ERROR_HINT_HEADER}
+    {ack-message.headers.remove
+        AcknowledgeMessage.ERROR_HINT_HEADER, error-if-missing? = false
     }
     {if self.config-requested? then
         set self.config-requested? = false
@@ -414,9 +413,8 @@
   {method public {fault error-message:ErrorMessage, msg:IMessage}:void
     set self.ignore-fault? = false
     set self.config-requested? = false
-    {if {error-message.headers.key-exists? ErrorMessage.RETRYABLE_HINT_HEADER}
-     then
-        {error-message.headers.remove ErrorMessage.RETRYABLE_HINT_HEADER}
+    {error-message.headers.remove
+        ErrorMessage.RETRYABLE_HINT_HEADER, error-if-missing? = false
     }
     {if self.client-id == null then
         {if-non-null id = error-message.client-id then

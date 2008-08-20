@@ -31,10 +31,9 @@
 
   {setter protected {client-id id:#String}:void
     {if super.client-id != id then
-        let reset-subscription?:bool = false
-        {if self.subscribed? then
+        def reset-subscription? = self.subscribed?
+        {if reset-subscription? then
             {self.unsubscribe}
-            set reset-subscription? = true
         }
         set super.client-id = id
         {if reset-subscription? then
@@ -45,10 +44,9 @@
 
   {setter public {destination d:String}:void
     {if self.destination != d then
-        let reset-subscription?:bool = false
-        {if self.subscribed? then
+        def reset-subscription? = self.subscribed?
+        {if reset-subscription? then
             {self.unsubscribe}
-            set reset-subscription? = true
         }
         set super.destination = d
         {if reset-subscription? then

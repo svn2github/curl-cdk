@@ -16,11 +16,12 @@
 
 {define-class public ConsumerMessageDispatcher
   let private instance:#ConsumerMessageDispatcher
-  field private consumers:{HashTable-of #String, AbstractConsumer} =
+
+  field private constant consumers:{HashTable-of #String, AbstractConsumer} =
       {new {HashTable-of #String, AbstractConsumer}}
-  field private channel-set-ref-counts:{HashTable-of #ChannelSet, int} =
+  field private constant channel-set-ref-counts:{HashTable-of #ChannelSet, int} =
       {new {HashTable-of #ChannelSet, int}}
-  field private consumer-duplicate-message-barrier:{HashTable-of String, any} =
+  field private constant consumer-duplicate-message-barrier:{HashTable-of String, any} =
       {new {HashTable-of String, any}}
 
   {constructor protected {default}}
@@ -34,6 +35,8 @@
 
   {method public {is-channel-used-for-subscriptions? channel:Channel}:bool
     {for channel-set in channel.channel-sets do
+        || FIXME: is this right?  Shouldn't it insist that the ref-count
+        || be > 0?
         {if {self.channel-set-ref-counts.key-exists? channel-set} and
             channel-set.current-channel == channel
          then
@@ -45,8 +48,9 @@
 
   {method public {register-subscription consumer:AbstractConsumer}:void
     set self.consumers[consumer.client-id] = consumer
-    {if not {self.channel-set-ref-counts.key-exists? consumer.channel-set}
-     then
+    def (ref-count, exists?) =
+        {self.channel-set-ref-counts.get-if-exists consumer.channel-set}
+    {if not exists? then
         {consumer.channel-set.add-event-handler
             {on e:MessageEvent do
                 {switch e.type
@@ -55,31 +59,27 @@
                 }
             }
         }
-        set self.channel-set-ref-counts[consumer.channel-set] = 1
-     else
-        {inc self.channel-set-ref-counts[consumer.channel-set]}
     }
+    set self.channel-set-ref-counts[consumer.channel-set] = ref-count + 1
   }
 
   {method public {unregister-subscription consumer:AbstractConsumer}:void
     {if-non-null consumer.client-id then
         {self.consumers.remove consumer.client-id, error-if-missing? = true}
     }
-    {if {self.channel-set-ref-counts.key-exists? consumer.channel-set} then
-        let ref-count:int = self.channel-set-ref-counts[consumer.channel-set]
-        {dec ref-count}
+    def (ref-count, exists?) =
+        {self.channel-set-ref-counts.get-if-exists consumer.channel-set}
+    {if exists? then
+        set self.channel-set-ref-counts[consumer.channel-set] = ref-count - 1
         {if ref-count == 0 then
 ||--            {consumer.channel-set.remove-event-handler
 ||--                MessageEvent.MESSAGE, message-handler
 ||--            }
-            set self.channel-set-ref-counts[consumer.channel-set] = 0
             {if {self.consumer-duplicate-message-barrier.key-exists?
                     consumer.id}
              then
                 {self.consumer-duplicate-message-barrier.remove consumer.id}
             }
-         else
-            set self.channel-set-ref-counts[consumer.channel-set] = ref-count
         }
     }
   }
