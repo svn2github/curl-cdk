@@ -15,29 +15,23 @@
 ||| limitations under the License.
 
 {define-class public ChannelEvent {inherits Event}
-  field public type:String
-  field public bubbles?:bool
-  field public cancelable?:bool
-  field public connected?:bool
+  field public constant type:String
+  field public constant channel:#Channel
   field public reconnecting?:bool
-  field public rejected?:bool
-  field public channel:#Channel
+  field public constant rejected?:bool
+  field public constant connected?:bool
 
   let public constant CONNECT:String = "channelConnect"
   let public constant DISCONNECT:String = "channelDisconnect"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
                           channel:#Channel = null,
                           reconnecting?:bool = false,
                           rejected?:bool = false,
                           connected?:bool = false
                       }
     set self.type = type
-    set self.bubbles? = bubbles?
-    set self.cancelable? = cancelable?
     set self.channel = channel
     set self.reconnecting? = reconnecting?
     set self.rejected? = rejected?
@@ -48,8 +42,6 @@
     {return
         {new ChannelEvent,
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
             channel = self.channel,
             reconnecting? = self.reconnecting?,
             rejected? = self.rejected?,

@@ -131,13 +131,13 @@
                             || TODO: Dispatch
                             ||       {new flash.events.EventBINDING_RESULT}
                             def result-event =
-                                {new ResultEvent,
+                                {ResultEvent
                                     ResultEvent.RESULT,
                                     result = self.result,
                                     token = token,
-                                    message = event.message
+                                    message = event.message,
+                                    headers = self.response-headers
                                 }
-                            set result-event.headers = self.response-headers
                             {self.dispatch-rpc-event result-event}
                         }
                     }
@@ -176,13 +176,13 @@
                                 },
                                 fault-detail = event.fault-detail
                             }
-                def fault-event = {new FaultEvent,
+                def fault-event = {FaultEvent
                                       FaultEvent.FAULT,
                                       fault = fault,
                                       token = token,
+                                      headers = self.response-headers,
                                       message = event.message
                                   }
-                set fault-event.headers = self.response-headers
                 {self.dispatch-rpc-event fault-event}
             }
         }

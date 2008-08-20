@@ -15,25 +15,21 @@
 ||| limitations under the License.
 
 {define-class public MessageFaultEvent {inherits Event}
-  field public type:String
-  field public bubbles?:bool
-  field public cancelable?:bool
-  field public message:#ErrorMessage
-  field public root-cause:any
+  field public constant type:String
+  field public constant message:#ErrorMessage
+  field public constant root-cause:any
 
   let public constant FAULT:String = "fault"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
-                          message:#ErrorMessage = null
+                          message:#ErrorMessage = null,
+                          root-cause:any = null
                       }
     {construct-super}
     set self.type = type
-    set self.bubbles? = bubbles?
-    set self.cancelable? = cancelable?
     set self.message = message
+    set self.root-cause = root-cause
   }
 
   {getter public {fault-code}:#String
@@ -50,11 +46,10 @@
 
   {method public {clone}:Event
     {return
-        {new MessageFaultEvent,
+        {MessageFaultEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
-            message = self.message
+            message = self.message,
+            root-cause = self.root-cause
         }
     }
   }

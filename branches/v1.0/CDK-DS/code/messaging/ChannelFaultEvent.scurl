@@ -15,30 +15,26 @@
 ||| limitations under the License.
 
 {define-class public ChannelFaultEvent {inherits ChannelEvent}
-  field public fault-code:#String
-  field public fault-detail:#String
-  field public fault-string:#String
-  field public root-cause:any
+  field public constant fault-code:#String
+  field public constant fault-detail:#String
+  field public constant fault-string:#String
+  field public constant root-cause:any
 
   let public constant FAULT:String = "channelFault"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
                           channel:#Channel = null,
                           reconnecting?:bool = false,
+                          rejected?:bool = false,
+                          connected?:bool = false,
                           code:#String = null,
                           level:#String = null,
                           description:#String = null,
-                          rejected?:bool = false,
-                          connected?:bool = false,
                           root-cause:any = null
                       }
     {construct-super
         type,
-        bubbles? = bubbles?,
-        cancelable? = cancelable?,
         channel = channel,
         reconnecting? = reconnecting?,
         rejected? = rejected?,
@@ -52,17 +48,15 @@
 
   {method public {clone}:Event
     {return
-        {new ChannelFaultEvent,
+        {ChannelFaultEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
             channel = self.channel,
             reconnecting? = self.reconnecting?,
+            rejected? = self.rejected?,
+            connected? = self.connected?,
             code = self.fault-code,
             level = self.fault-string,
             description = self.fault-detail,
-            rejected? = self.rejected?,
-            connected? = self.connected?,
             root-cause = self.root-cause
         }
     }

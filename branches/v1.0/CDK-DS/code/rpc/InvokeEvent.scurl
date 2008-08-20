@@ -20,28 +20,22 @@
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
-                          token:#AsyncToken = null,
-                          message:#IMessage = null
+                          message:#IMessage = null,
+                          token:#AsyncToken = null
                       }
     {construct-super
         type,
-        bubbles? = bubbles?,
-        cancelable? = cancelable?,
-        token = token,
-        message = message
+        message = message,
+        token = token
     }
   }
 
   {method public {clone}:Event
     {return
-        {new InvokeEvent,
+        {InvokeEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
-            token = self.token,
-            message = self.message
+            message = self.message,
+            token = self.token
         }
     }
   }

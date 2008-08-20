@@ -15,33 +15,25 @@
 ||| limitations under the License.
 
 {define-class public MessageEvent {inherits Event}
-  field public type:String
-  field public bubbles?:bool
-  field public cancelable?:bool
-  field public message:#IMessage
+  field public constant type:String
+  field public constant message:#IMessage
 
   let public constant MESSAGE:String = "message"
   let public constant RESULT:String = "result"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
                           message:#IMessage = null
                       }
     {construct-super}
     set self.type = type
-    set self.bubbles? = bubbles?
-    set self.cancelable? = cancelable?
     set self.message = message
   }
 
   {method public {clone}:Event
     {return
-        {new MessageEvent,
+        {MessageEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
             message = self.message
         }
     }

@@ -15,38 +15,35 @@
 ||| limitations under the License.
 
 {define-class public ResultEvent {inherits AbstractEvent}
-  field public result:any
-  field public headers:any
+  field public constant result:any
+  field public constant headers:any
 
   let public constant RESULT:String = "result"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = true,
-                          result:any = null,
+                          message:#IMessage = null,
                           token:#AsyncToken = null,
-                          message:#IMessage = null
+                          result:any = null,
+                          headers:any = null
                       }
     {construct-super
         type,
-        bubbles? = bubbles?,
-        cancelable? = cancelable?,
-        token = token,
-        message = message
+        message = message,
+        token = token
     }
     set self.result = result
+    set self.headers = headers
   }
 
   {method public {clone}:Event
     {return
-        {new ResultEvent,
+        {ResultEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
-            result = self.result,
+            message = self.message,
             token = self.token,
-            message = self.message
+            result = self.result,
+            headers = self.headers
         }
     }
   }

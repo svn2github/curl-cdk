@@ -15,8 +15,8 @@
 ||| limitations under the License.
 
 {define-class public PendingSend
-  field public agent:#MessageAgent
-  field public message:#IMessage
+  field public constant agent:#MessageAgent
+  field public constant message:#IMessage
 
   {constructor public {default
                           agent:#MessageAgent,

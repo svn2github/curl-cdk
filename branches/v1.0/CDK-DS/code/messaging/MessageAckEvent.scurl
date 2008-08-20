@@ -15,22 +15,17 @@
 ||| limitations under the License.
 
 {define-class public MessageAckEvent {inherits MessageEvent}
-  field public acknowledge-message:#AcknowledgeMessage
-  field public correlation:#IMessage
+  field public constant correlation:#IMessage
 
   let public constant ACKNOWLEDGE:String = "acknowledge"
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
                           ack:#AcknowledgeMessage = null,
                           correlation:#IMessage = null
                       }
     {construct-super
         type,
-        bubbles? = bubbles?,
-        cancelable? = cancelable?,
         message = ack
     }
     set self.correlation = correlation
@@ -38,11 +33,9 @@
 
   {method public {clone}:Event
     {return
-        {new MessageAckEvent,
+        {MessageAckEvent
             self.type,
-            bubbles? = self.bubbles?,
-            cancelable? = self.cancelable?,
-            ack = self.acknowledge-message,
+            ack = self.message asa #AcknowledgeMessage,
             correlation = self.correlation
         }
     }

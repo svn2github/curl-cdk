@@ -15,19 +15,15 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractEvent {inherits MessageEvent}
-  field public token:#AsyncToken
+  field public constant token:#AsyncToken
 
   {constructor public {default
                           type:String,
-                          bubbles?:bool = false,
-                          cancelable?:bool = false,
-                          token:#AsyncToken = null,
-                          message:#IMessage = null
+                          message:#IMessage = null,
+                          token:#AsyncToken = null
                       }
     {construct-super
         type,
-        bubbles? = bubbles?,
-        cancelable? = cancelable?,
         message = message
     }
     set self.token = token
