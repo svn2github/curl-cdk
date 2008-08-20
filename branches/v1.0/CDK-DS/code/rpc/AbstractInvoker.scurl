@@ -23,7 +23,7 @@
       {uninitialized-value-for-type {proc-type {x:any}:void}}
   field protected result:any
   field protected response-headers:#{Array-of any}
-  field protected make-objects-bindable?:bool = true
+||--  field protected make-objects-bindable?:bool = true
   field protected active-calls:ActiveCalls
 
   {constructor public {default}

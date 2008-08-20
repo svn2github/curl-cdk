@@ -75,10 +75,8 @@
 ||--            {consumer.channel-set.remove-event-handler
 ||--                MessageEvent.MESSAGE, message-handler
 ||--            }
-            {if {self.consumer-duplicate-message-barrier.key-exists?
-                    consumer.id}
-             then
-                {self.consumer-duplicate-message-barrier.remove consumer.id}
+            {self.consumer-duplicate-message-barrier.remove
+                consumer.id, error-if-missing? = false
             }
         }
     }

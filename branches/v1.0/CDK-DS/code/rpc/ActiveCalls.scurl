@@ -14,9 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public ActiveCalls
-  field protected calls:{HashTable-of String, AsyncToken}
-  field protected call-order:{Array-of String}
+{define-class public sealed ActiveCalls
+  field protected constant calls:{HashTable-of String, AsyncToken}
+  field protected constant call-order:{Array-of String}
 
   {constructor public {default}
     set self.calls = {new {HashTable-of String, AsyncToken}}

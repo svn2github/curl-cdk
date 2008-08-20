@@ -42,41 +42,6 @@
     {construct-super}
   }
 
-  {getter public {body}:any
-    {return self._body}
-  }
-  {setter public {body body:any}:void
-    set self._body = body
-  }
-  {getter public {headers}:IMessageHeaders
-    {return self._headers}
-  }
-  {setter public {headers headers:IMessageHeaders}:void
-    {for item key k in headers do
-        {self.set-header k, item}
-    }
-  }
-
-  {method public {get-header name:String}:any
-    def (header, exists?) =
-        {self.headers.get-if-exists name}
-    {return 
-        {if exists? then
-            header
-         else
-            null
-        }
-    }
-  }
-
-  {method public {set-header name:String, value:any}:void
-      {if-non-null value then
-          set self._headers[name] = value
-       else
-          {self._headers.remove name, error-if-missing? = false}
-      }
-  }
-
   {define-proc public {create-uid}:String
     let uid:StringBuf = {new StringBuf}
     def rand = {new Random}

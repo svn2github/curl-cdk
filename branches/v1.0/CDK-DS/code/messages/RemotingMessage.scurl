@@ -48,9 +48,9 @@
   || 3. Arguments
   ||    o The arguments to call the method with.
   ||
-  {constructor public {default}
+  {constructor public {default operation:#String = ""}
     {construct-super}
-    set self.operation = ""
+    set self.operation = operation
   }
 
   {getter public {body}:any
@@ -62,11 +62,7 @@
      case array:{Array-of any} do
         set self._parameters = array
      case fast-array:{FastArray-of any} do
-        def params = {new {Array-of any}}
-        {for item in fast-array do
-            {params.append item}
-        }
-        set self._parameters = params
+        set self._parameters = {new {Array-of any}.from-FastArray, fast-array}
      case read-only-array:{ReadOnlyArray-of any} do
         def params = {new {Array-of any}}
         {for item in read-only-array do

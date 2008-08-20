@@ -24,13 +24,6 @@
       "application/x-www-form-urlencoded"
   let public constant CONTENT_TYPE_SOAP_XML:String = "text/xml; charset=utf-8"
   let public constant CONTENT_TYPE_XML:String = "application/xml"
-  let public constant DELETE_METHOD:String = "DELETE"
-  let public constant GET_METHOD:String = "GET"
-  let public constant HEAD_METHOD:String = "HEAD"
-  let public constant OPTIONS_METHOD:String = "OPTIONS"
-  let public constant POST_METHOD:String = "POST"
-  let public constant PUT_METHOD:String = "PUT"
-  let public constant TRACE_METHOD:String = "TRACE" 
 
   {constructor public {default}
     {construct-super}

@@ -15,8 +15,8 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractOperation {inherits AbstractInvoker}
-  field public arguments:#Arguments
-  field public name:#String
+||--  field public constant arguments:#Arguments
+  field public constant name:#String
   field public service:#AbstractService
 
   {constructor public {default
