@@ -15,14 +15,14 @@
 ||| limitations under the License.
 
 {define-class public PollingChannel {inherits Channel}
-  field protected _polling-enabled?:bool = true
-  field protected should-poll?:bool = true
-  field protected _polling-interval:Time =
+  field private _polling-enabled?:bool
+  field protected should-poll?:bool
+  field private _polling-interval:Time =
       PollingChannel.DEFAULT_POLLING_INTERVAL
-  field protected _piggy-backing-enabled?:bool = false
+  field private _piggy-backing-enabled?:bool = false
   field protected poll-outstanding?:bool = false
   field protected polling-ref:int = -1
-  field protected _timer:#Timer
+  field private _alarm:#Alarm
 
   let protected constant DEFAULT_POLLING_INTERVAL:Time = 3000ms
 
@@ -30,13 +30,9 @@
     {construct-super id = id, uri = uri}
     set self._polling-enabled? = true
     set self.should-poll? = false
-    {if {self.timer-required?} then
-        set self._polling-interval = PollingChannel.DEFAULT_POLLING_INTERVAL
-        set self._timer = {new Timer,
-                              enabled? = false,
-                              interval = self._polling-interval,
-                              repeat = 1,
-                              {on TimerEvent do
+    {if {self.alarm-required?} then
+        set self._alarm = {Alarm
+                              {proc {}:void
                                   {self.internal-poll}
                               }
                           }
@@ -50,17 +46,17 @@
   {setter public {polling-enabled? b?:bool}:void
     set self._polling-enabled? = b?
     {if not b? and
-        ({self.timer-running?} or
-         (not {self.timer-running?} and self._polling-interval == 0s))
+        ({self.alarm-running?} or
+         (not {self.alarm-running?} and self._polling-interval == 0s))
      then
         {self.stop-polling}
-     elseif b? and self.should-poll? and not {self.timer-running?} then
+     elseif b? and self.should-poll? and not {self.alarm-running?} then
         {self.start-polling}
     }
   }
 
   {getter public {polling-interval}:Time
-    {if-non-null self._timer then
+    {if self._alarm != null then
         {return self._polling-interval}
      else
         {return 0s}
@@ -70,17 +66,16 @@
   {setter public {polling-interval t:Time}:void
     {if t == 0s then
         set self._polling-interval = t
-        {if-non-null self._timer then
-            {self._timer.disable}
+        {if-non-null alarm = self._alarm then
+            {alarm.cancel}
         }
         {if self.should-poll? then
             {self.start-polling}
         }
      elseif t > 0s then
-        {if-non-null self._timer then
+        {if-non-null alarm = self._alarm then
             set self._polling-interval = t
-            set self._timer.interval = self.polling-interval
-            {if not self._timer.enabled? and self.should-poll? then
+            {if not alarm.scheduled? and self.should-poll? then
                 {self.start-polling}
             }
         }
@@ -97,12 +92,12 @@
     set self._piggy-backing-enabled? = b?
   }
 
-  {method public {timer-required?}:bool
+  {method public {alarm-required?}:bool
     {return true}
   }
 
-  {method public {timer-running?}:bool
-    {return self._timer != null and self._timer.enabled?}
+  {method public {alarm-running?}:bool
+    {return self._alarm != null and self._alarm.scheduled?}
   }
 
   {method public {enable-polling}:void
@@ -135,8 +130,8 @@
   }
 
   {method protected {stop-polling}:void
-    {if-non-null self._timer then
-        {self._timer.disable}
+    {if-non-null alarm = self._alarm then
+        {alarm.cancel}
     }
     set self.polling-ref = -1
     set self.should-poll? = false
@@ -154,8 +149,8 @@
 
   {method protected {internal-poll event:#Event = null}:void
     {if not self.poll-outstanding? then
-        {if {self.timer-running?} then
-            {self._timer.disable}
+        {if {self.alarm-running?} then
+            {self._alarm.cancel}
         }
         def command-message = {new CommandMessage}
         set command-message.operation = CommandMessage.POLL_OPERATION
@@ -206,6 +201,12 @@
             {self.stop-polling}
             {throw e}
         }
+    }
+  }
+  {method protected {enable-alarm}:void
+    {if-non-null alarm = self._alarm then
+        {alarm.cancel}
+        {alarm.schedule delay = self._polling-interval}
     }
   }
 

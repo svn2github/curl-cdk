@@ -35,7 +35,7 @@
                       {return}
                   }
                   {type-switch cm.body
-                   case messages:{Array-of any} do
+                   case messages:Array do
                       {for message in messages do
                           {type-switch message
                            case item:IMessage do
@@ -74,24 +74,13 @@
                   {if adaptive-poll-wait == 0 then
                       {if polling-channel.polling-interval == 0s then
                           {polling-channel.poll}
-                       elseif not {polling-channel.timer-running?} then
-                          set polling-channel._timer.interval =
-                              polling-channel.polling-interval
-                          || NOTE: There might be a bug in Flex's timer. The
-                          ||       timer is set up with a repeat count of one,
-                          ||       but will run at least once every time
-                          ||       timer.start() is called regardless of the
-                          ||       timer.currentCount value. To simulate this
-                          ||       behavior, I reset the timer's repeat value
-                          ||       as well.
-                          set polling-channel._timer.repeat = 1
-                          {polling-channel._timer.enable}
+                       elseif not {polling-channel.alarm-running?} then
+                          {polling-channel.enable-alarm}
                       }
                    else
-                      set polling-channel._timer.interval =
+                      set polling-channel.polling-interval = 
                           adaptive-poll-wait * 1s
-                      set polling-channel._timer.repeat = 1
-                      {polling-channel._timer.enable}
+                      {polling-channel.enable-alarm}
                   }
               }
           }
