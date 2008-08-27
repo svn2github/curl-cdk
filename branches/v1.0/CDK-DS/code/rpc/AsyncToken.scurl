@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AsyncToken {inherits EventTarget}
+{define-class public AsyncToken
   field protected _message:IMessage
   field public responders:#{Array-of IResponder}
   field public result:any

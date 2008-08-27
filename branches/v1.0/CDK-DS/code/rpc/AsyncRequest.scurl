@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 {define-class public AsyncRequest {inherits Producer}
-  field private pending-requests:{HashTable-of String, IResponder}
+  field private constant pending-requests:{HashTable-of String, IResponder}
 
   {constructor public {default}
     set self.pending-requests = {new {HashTable-of String, IResponder}}
