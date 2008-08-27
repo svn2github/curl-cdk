@@ -17,17 +17,18 @@
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
 
-{define-proc {test-answer-from-server url-d:Url}:TestSuite
-    def dir = {url-d.instantiate-Directory}
-    def suite = {TestSuite dir.url.basename}
-    def array = {{Array-of Test}}
-    {for f key name in dir do
-        {if f isa Directory then
-            {if f.url.filename != ".svn" then
-                {suite.add {test-answer-from-server f.url}}
+{define-proc {test-answer-from-server dir:Directory}:TestSuite
+    def files = {{Array-of Test}}
+    def dirs = {{Array-of Test}}
+    {for e key name in dir do
+        {type-switch e
+         case d:Directory do
+            {if d.url.filename != ".svn" then
+                {dirs.append {test-answer-from-server d}}
             }
-         else
-            {array.append
+
+         case f:File do
+            {files.append
                 {test-case name,
                     def deserializer = {AMF0Deserializer {read-open-byte f.url}}
                     let ok?:bool = true
@@ -51,13 +52,20 @@
         }
     }
 
-    {array.sort
-        comparison-proc = {proc {x:Test, y:Test}:bool
-                             {return {String-leq? x.name, y.name}}
-                         }
-    }
-    {for t in array do {suite.add t}}
+    def suite = {TestSuite dir.url.basename}
+    def add2suite = {proc {array:{Array-of Test}}:void
+                        {array.sort
+                            comparison-proc = {proc {x:Test, y:Test}:bool
+                                                  {return {String-leq? x.name, y.name}}
+                                              }}
+                        {for t in array do {suite.add t}}
+                    }
+    {add2suite dirs}
+    {add2suite files}
 
     {return suite}
 }
-{test-answer-from-server {url "Answers_from_Servers"}}
+
+{test-answer-from-server
+    {{url "Answers_from_Servers"}.instantiate-Directory}
+}
