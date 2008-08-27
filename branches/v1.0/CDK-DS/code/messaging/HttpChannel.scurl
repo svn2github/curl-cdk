@@ -56,18 +56,8 @@
 ||--    _connectLoader.load(urlRequest);
   }
 
-  {method public {send agent:MessageAgent, message:IMessage}:void
-    {super.send agent, message}
-  }
-
   {method protected {internal-send message-responder:MessageResponder}:void
     || TODO:
   }
 
-  {method protected {get-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return {super.get-message-responder agent, message}}
-  }
 }

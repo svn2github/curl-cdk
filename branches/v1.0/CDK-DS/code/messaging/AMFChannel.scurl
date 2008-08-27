@@ -80,21 +80,6 @@
     {super.internal-disconnect rejected? = rejected?}
   }
 
-  {method public {send agent:MessageAgent, message:IMessage}:void
-    {super.send agent, message}
-  }
-
-  {method protected {internal-send message-responder:MessageResponder}:void
-    {super.internal-send message-responder}
-  }
-
-  {method protected {get-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return {super.get-message-responder agent, message}}
-  }
-
   {method protected {shutdown-net-connection}:void
     || TODO:
 ||--    {self._connection.remove-event-handler

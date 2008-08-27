@@ -38,28 +38,6 @@
     }
   }
 
-  {method public {set-remote-credentials
-                     remote-username:#String,
-                     remote-password:#String,
-                     charset:#String = null
-                 }:void
-    {super.set-remote-credentials
-        remote-username, remote-password, charset = charset
-    }
-  }
-
-  {method public {on-fault-event e:FaultEvent}:void
-    {super.on-fault-event e}
-  }
-
-  {method public {on-invoke-event e:InvokeEvent}:void
-    {super.on-invoke-event e}
-  }
-
-  {method public {on-result-event e:ResultEvent}:void
-    {super.on-result-event e}
-  }
-
   {method public {dispatch-event event:Event}:void
 ||--    {super.enqueue-event event}
 ||--    {if {self.has-event-listener? event.type} then

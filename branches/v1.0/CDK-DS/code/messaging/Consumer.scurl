@@ -21,9 +21,9 @@
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
-                          ...
+                          ...:EventHandler
                       }
-    {construct-super {splice ...}}
+    {construct-super ...}
     set self.endpoint = endpoint
     set self._destination = destination
   }
