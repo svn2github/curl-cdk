@@ -22,7 +22,8 @@
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
   field protected status-handler:{proc-type {msg:IMessage}:void} =
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
-  field protected request-timer:#Timer
+  || Note: Not used yet.
+  field private request-alarm:#Alarm
 
   {constructor public {default
                           agent:#MessageAgent,
@@ -38,8 +39,8 @@
 
   {method public {result message:IMessage}:void
     {if not self.request-timed-out? then
-        {if-non-null self.request-timer then
-            {self.release-timer}
+        {if-non-null self.request-alarm then
+            {self.release-alarm}
         }
         {self.result-handler message}
     }
@@ -47,8 +48,8 @@
 
   {method public {status message:IMessage}:void
     {if not self.request-timed-out? then
-        {if-non-null self.request-timer then
-            {self.release-timer}
+        {if-non-null self.request-alarm then
+            {self.release-alarm}
         }
         {self.status-handler message}
     }
@@ -57,12 +58,12 @@
   {method public {start-request-timeout timeout:any}:void
     || The argument passed in here might come from a message header, so it might
     || not be the Time value we want it to be.
-    || TODO: Set up the timeout timer.
+    || TODO: Set up the timeout alarm.
   }
 
-  {method protected {release-timer}:void
-    {self.request-timer.disable}
-    set self.request-timer = null
+  {method protected {release-alarm}:void
+    {self.request-alarm.cancel}
+    set self.request-alarm = null
   }
 
   {method protected {create-request-timeout-error-message}:ErrorMessage
