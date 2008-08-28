@@ -280,6 +280,7 @@
             {item {ctext NULL}: The value is a NULL value.}
         }
     }
+    {since 7.0}
 }
 {define-enum public SQLiteDatatype
     ERROR =      0,
@@ -336,6 +337,7 @@
                 executing.}
         }
     }
+    {since 7.0}
 }
 {define-enum public SQLiteStatus
     OK =           0, ||  Successful result
@@ -452,6 +454,7 @@
     {purpose
         Indicate if a {docref SQLiteStatus} value is a success of some sort.
     }
+    {since 7.0}
 }
 {define-proc public inline {SQLiteStatus-ok? status:SQLiteStatus}:bool
     {return
@@ -475,6 +478,7 @@
         Used by {ctext SQLiteUpdateEvent} and
         {docref SQLiteDatabaseHandle.authorizer}.
     }
+    {since 7.0}
 }
 {define-enum public SQLiteOperation
     COPY =                  0,
@@ -518,6 +522,7 @@
     {notes
         Used by {docref SQLiteDatabaseHandle.authorizer}.
     }
+    {since 7.0}
 }
 {define-enum public SQLiteAuthorizerReturnCode
     OK = 0,

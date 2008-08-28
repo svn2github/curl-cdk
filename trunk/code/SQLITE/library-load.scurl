@@ -42,6 +42,7 @@
         These features are not yet in final form, 
         and are subject to revision.}
     }
+    {since 7.0}
 }
 ||{import * from CURL.IO.SQLITE-LIBRARY-SYNTAX}
 {import * from COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX}

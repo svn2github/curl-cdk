@@ -19,6 +19,7 @@
     {purpose
         Signals a {docref SQLiteInterface} exception.
     }
+    {since 7.0}
 }
 {define-class public SQLiteException {inherits Exception}
   {doc-next

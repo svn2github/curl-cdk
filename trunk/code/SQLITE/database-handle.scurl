@@ -64,6 +64,15 @@
   }
 }
 
+
+{doc-next
+    {purpose
+        Opaque class to hold a handle to a SQLite statement, used
+        when making statement related calls to {docref SQLiteDatabaseHandle}
+        and {docref SQLiteInterface}.
+    }
+    {since 7.0}
+}
 {define-class public final SQLiteStatementHandle
   field package _handle:LowSQLiteStatementHandle
   {constructor public {default}
@@ -83,6 +92,7 @@
         but all state will be re-installed when the applet is
         resumed.
     }
+    {since 7.0}
 }
 {define-class public final SQLiteDatabaseHandle
 

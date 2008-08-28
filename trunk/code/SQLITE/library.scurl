@@ -26,6 +26,7 @@
 
         At present you need privilege to use this interface.
     }
+    {since 7.0}
 }
 {define-dll-class public final SQLiteInterface
   {defaults 
