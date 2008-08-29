@@ -33,7 +33,7 @@
             "destination"}
       }
 
-  field public correlation-id:String
+  field public correlation-id:#String
   field private correlation-id-bytes:#ByteArray
 
   let public constant SUBTOPIC_HEADER:String = "DSSubtopic"

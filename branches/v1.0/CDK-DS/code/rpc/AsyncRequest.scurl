@@ -34,7 +34,7 @@
     }
     {super.acknowledge ack, message}
     {if not error? then
-        def id = ack.correlation-id
+        def id = ack.correlation-id asa String
         def (responder, responder-exists?) =
             {self.pending-requests.get-if-exists id}
         {if responder-exists? then

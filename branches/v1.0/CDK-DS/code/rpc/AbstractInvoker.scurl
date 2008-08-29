@@ -157,7 +157,8 @@
                     }
                 def token = {self.pre-handle message-event}
                 {if token == null and
-                    not (event.message asa AsyncMessage).correlation-id.empty?
+                    not ((event.message asa AsyncMessage).correlation-id == null or
+                         (event.message asa AsyncMessage).correlation-id.empty?)
                     and
                     event.fault-code != "Client.Authentication"
                  then
@@ -196,11 +197,20 @@
   }
 
   {method private {pre-handle event:MessageEvent}:#AsyncToken
-    {return
-        {self.active-calls.remove-call
-            (event.message asa AsyncMessage).correlation-id
+    def id =
+        {if-non-null
+            cid = (event.message asa AsyncMessage).correlation-id
+         then
+            cid
+         else
+            def call-order = self.active-calls.call-order
+            {if call-order.empty? then
+                {return null}
+             else
+                call-order[call-order.size - 1]
+            }
         }
-    }
+    {return {self.active-calls.remove-call id}}
   }
 
   {method private {process-result message:IMessage, token:AsyncToken}:bool
