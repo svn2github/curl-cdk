@@ -242,15 +242,41 @@
 || code generation
 || --------------------
 {define-proc {factory-for type:ClassType}:{proc-type {}:Object}
-    || NOTE: assumes no-arg default constructor
+    || NOTE: requires no-arg constructor or factory
+    || find one, preferring 'default' 
+    def cs =
+        {type.get-members
+            search-superclasses? = false,
+            filter =
+                {proc {c:ClassMember}:bool
+                    {return
+                        {type-switch c
+                         case c:InstanceMaker do
+                            def p = c.type asa ProcType
+                            p.num-args == 0
+                         else false}}}}
+    {if cs.size == 0 then
+        {error {message Type {value type} does not have a no-arg constructor or factory.}}}
+    
+    let factory-name:String = ""
+    {for c in cs do
+        def name = c.name
+        {if name == "default" then
+            set factory-name = name
+            {break}
+         elseif factory-name == "" then
+            set factory-name = name
+        }}
+   
     def src =
         {expand-template
             {proc {}:Object
                 {return
-                    {?{Literal type}}
+                    {?{Literal type}.?{Identifier factory-name}}
                 }}
         }
-    def factory = {evaluate src} asa {proc-type {}:Object}
+    def factory =
+        {evaluate src} asa {proc-type {}:Object}
     {return factory}
 }
 {define-proc {writer-for
@@ -314,13 +340,14 @@
                 {output
                     {message Unexpected reader property: '{value type}.{value m}'}}
                 {expand-template
-                    def val = {in.read-one}
-                    {if-debuggable 
-                        def msg =
-                            {message Ignoring property
-                                '{value ?{Literal type}}.{value ?{Literal m}}':
-                                {value val}}
-                        {output msg}}
+                    {do
+                        def val = {in.read-one}
+                        {if-debuggable 
+                            def msg =
+                                {message Ignoring property
+                                    '{value ?{Literal type}}.{value ?{Literal m}}':
+                                    {value val}}
+                            {output msg}}}
                 }}
         }}
     def src =
