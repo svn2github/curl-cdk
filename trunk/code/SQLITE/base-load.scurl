@@ -49,6 +49,7 @@
 
 || For CsvDataReader used by SQLiteStatement.import-csv
 {import * from CURL.DATA-ACCESS.BASE}
+{import request-local-data-permission from CURL.ENGINE.APPLET}
 
 {include 
     "events.scurl",

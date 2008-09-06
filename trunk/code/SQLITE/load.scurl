@@ -62,7 +62,8 @@
     SQLiteUpdateHookProcType,
     SQLiteAuthorizerProcType,
     SQLiteProgressHandlerProcType,
-    SQLiteException
+    SQLiteException,
+    SQLiteEncryptionType
  from CURL.IO.SQLITE-LIBRARY}
  else
 {import public
@@ -76,7 +77,8 @@
     SQLiteUpdateHookProcType,
     SQLiteAuthorizerProcType,
     SQLiteProgressHandlerProcType,
-    SQLiteException
+    SQLiteException,
+    SQLiteEncryptionType
  from COM.CURL.CDK.SQLITE-LIBRARY}
 }
 

@@ -75,11 +75,11 @@
                     "curl://install/lib/" &
                     {platform-switch
                      case "win32" do
-                        "sqlite_3-5-6.dll"
+                        "sqlite_3-6-2.dll"
                      case "linux" do
-                        "sqlite_3-5-6.so"
+                        "sqlite_3-6-2.so"
                      case "mac" do
-                        "sqlite_3-5-6.dylib"
+                        "sqlite_3-6-2.dylib"
                      else
                         {unreachable}
                     }
@@ -91,6 +91,9 @@
             }
         }
     {construct-super {SharedLibrary.from-url u}}
+    {if-built-in
+        {self.activate-see ""} ||""
+    }
   }
 
   {method protected {reclaim-resources}:void
@@ -2659,6 +2662,126 @@
                           callback:SQLiteAuthorizerPointerType,
                           userdata:CPointer
                       }:int
+  }
+
+  {define-proc package {make-key-bytearray
+                           encryption-type:SQLiteEncryptionType,
+                           key:#ByteArray
+                       }:#ByteArray
+    {if encryption-type == SQLiteEncryptionType.none or
+        key == null or key.size == 0
+     then
+        {return null}
+    }
+    let prefix:String = 
+        {switch encryption-type
+         case SQLiteEncryptionType.rc4 do
+            "rc4:" ||""
+         case SQLiteEncryptionType.aes128 do
+            "aes128:" ||""
+         case SQLiteEncryptionType.aes256 do
+            "aes256:" ||""
+         else
+            {unreachable}
+        }
+    let nn-key:ByteArray = {non-null key}
+    let bytes:ByteArray = {ByteArray efficient-size = nn-key.size + prefix.size}
+    || safe because prefix is always ascii
+    {for c in prefix do
+        {bytes.append c asa byte}
+    }
+    {bytes.concat nn-key}
+    {return bytes}
+  }
+
+  {doc-next
+    {purpose
+        Set the encryption key for the main database.
+    }
+  }
+  {method public {set-key
+                      handle:SQLiteDatabaseHandle,
+                      encryption-type:SQLiteEncryptionType,
+                      key:#ByteArray
+                  }:SQLiteStatus
+    let key-bytes:#ByteArray =
+        {SQLiteInterface.make-key-bytearray encryption-type, key}
+    {return
+        {SQLiteStatus
+            index =
+                {self.set-key-internal
+                    handle.non-null-sqlite3,
+                    {if-non-null key-bytes then
+                        key-bytes.underlying-FastArray
+                     else
+                        null
+                    },
+                    {if-non-null key-bytes then key-bytes.size else 0}
+                }
+        }
+    }
+  }
+
+  {dll-method private {set-key-internal ("sqlite3_key") ||""
+                          sqlite3:LowSQLiteDatabaseHandle,
+                          key:CPointer,
+                          nkey:int
+                       }:int
+    {if-missing
+        {return
+            {if key == 0 or nkey < 1 then
+                SQLiteStatus.OK.index
+             else
+                SQLiteStatus.AUTH.index
+            }
+        }
+    }
+  }
+
+  {method public {rekey
+                      handle:SQLiteDatabaseHandle,
+                      encryption-type:SQLiteEncryptionType,
+                      key:#ByteArray
+                  }:SQLiteStatus
+    let key-bytes:#ByteArray =
+        {SQLiteInterface.make-key-bytearray encryption-type, key}
+    {return
+        {SQLiteStatus
+            index =
+                {self.rekey-internal
+                    handle.non-null-sqlite3,
+                    {if-non-null key-bytes then
+                        key-bytes.underlying-FastArray
+                     else
+                        null
+                    },
+                    {if-non-null key-bytes then key-bytes.size else 0}
+                }
+        }
+    }
+  }
+  {dll-method private {rekey-internal ("sqlite3_rekey") ||""
+                          sqlite3:LowSQLiteDatabaseHandle,
+                          key:CPointer,
+                          nkey:int
+                       }:int
+    {if-missing
+        {return
+            {if key == 0 or nkey < 1 then
+                SQLiteStatus.OK.index
+             else
+                SQLiteStatus.AUTH.index
+            }
+        }
+    }
+  }
+
+  {dll-method private {activate-see ("sqlite3_activate_see") ||""
+                         key:String
+                      }:void
+    {if-missing
+        {return}
+    }
   }
 
   || FIXME: no support for sqlite3_create_module(), but it requires lots

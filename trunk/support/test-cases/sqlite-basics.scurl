@@ -121,6 +121,152 @@ CREATE TABLE work.test (
         }
         {delete dbloc, error-if-missing? = false}
     },
+    {test-case "encryption (attach and db)",
+        let dbloc:Url = {get-temp-database-file}
+        let dbloc2:Url = {get-temp-database-file}
+        {with-database db = {SQLiteDatabase null} do
+            {db.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            let xs:Array = {Array "abc", 1, 12.34, null}
+            {with-statement in db
+                q = "INSERT INTO test (val) VALUES (?)"
+             do
+                {for x in xs do
+                    {q.reset}
+                    {q.bind x}
+                    {q.step}
+                }}
+            {db.attach dbloc, "work",
+                encryption-type = "aes128", key = {ByteArray 1, 2, 3}
+            }
+            {db.execute "
+DROP TABLE IF EXISTS work.test;
+CREATE TABLE work.test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+            {db.execute "INSERT INTO work.test SELECT * FROM test"}
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.detach "work"}
+            {db.attach dbloc, "work",
+                encryption-type = "aes128", key = {ByteArray 1, 2, 3}
+            }
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.detach "work"}
+            {try
+                {db.attach dbloc, "work",
+                    encryption-type = "aes128", key = {ByteArray 1, 2, 3, 4}
+                }
+                {db.detach "work"}
+                {TestCondition.fail message = "Read of database with wrong key should fail."}
+             catch e:SQLiteException do
+            }
+            {try
+                {db.attach dbloc, "work",
+                    encryption-type = SQLiteEncryptionType.aes256, key = {ByteArray 1, 2, 3}
+                }
+                {db.detach "work"}
+                {TestCondition.fail message = "Read of database with wrong encryption should fail."}
+             catch e:SQLiteException do
+            }
+            {try
+                {db.attach dbloc, "work",
+                    encryption-type = "rc4", key = {ByteArray}
+                }
+                {db.detach "work"}
+                {TestCondition.fail message = "Read of database with no key should fail."}
+             catch e:SQLiteException do
+            }
+            set dbloc2 = {get-temp-database-file}
+            {with-database db2 = {SQLiteDatabase dbloc2} do
+                {db2.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+                {with-statement in db2
+                    q = "INSERT INTO test (val) VALUES (?)"
+                 do
+                    {for x in xs do
+                        {q.reset}
+                        {q.bind x}
+                        {q.step}
+                    }
+                }
+                {db2.rekey "aes256", {ByteArray 4, 5, 6}}
+            }
+            {db.attach dbloc2, "work2",
+                encryption-type = "aes256", key = {ByteArray 4, 5, 6}
+            }
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work2.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.detach "work2"}
+            {db.attach dbloc, "work",
+                encryption-type = "aes128", key = {ByteArray 1, 2, 3}
+            }
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.detach "work"}
+        }
+
+        {with-database db = {SQLiteDatabase dbloc, encryption-type="aes128", key = {ByteArray 1, 2, 3}} do
+            {with-statement in db
+                q = "SELECT * FROM test"
+            do
+                {q.step}
+            }
+            {db.attach dbloc2, "work2",
+                encryption-type = "aes256", key = {ByteArray 4, 5, 6}
+            }
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work2.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.rekey "none", null}
+            {with-statement in db
+                q = "SELECT * FROM test EXCEPT SELECT * FROM work2.test"
+             do
+                let result:SQLiteStatus = {q.step}
+                {TestCondition.assert message = {lmessage expected identical},
+                    result == SQLiteStatus.DONE}
+            }
+            {db.detach "work2"}
+        }
+        {with-database db = {SQLiteDatabase dbloc} do
+            {with-statement in db
+                q = "SELECT * FROM test"
+            do
+                {q.step}
+      }
+        }
+        {delete dbloc, error-if-missing? = false}
+        {delete dbloc2, error-if-missing? = false}
+    },
     || --------------------
     {test-case "callbacks",
         || TODO: use Database instead

@@ -529,3 +529,22 @@
     DENY = 1,
     IGNORE = 2
 }
+
+
+{doc-next
+    {purpose
+        Indicates type of encryption to use on a database
+    }
+    {notes
+        Used by {ctext SQLiteDatabase.default},
+        {ctext SQLiteDatabase.attach}
+        {ctext SQLiteLibrary.rekey}.
+    }
+    {since 7.0}
+}
+{define-enum public SQLiteEncryptionType
+    none,
+    rc4,
+    aes128,
+    aes256
+}

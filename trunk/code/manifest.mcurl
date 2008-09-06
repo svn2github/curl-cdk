@@ -52,22 +52,22 @@
 || --------------------
 {component file libsqlite,
     platform = "win32",
-    location = "SQLITE/sqlite_3-5-6.dll"
+    location = "SQLITE/sqlite_3-6-2.dll"
 }
 
 {component file libsqlite,
     platform = "linux",
-    location = "SQLITE/sqlite_3-5-6.so"
+    location = "SQLITE/sqlite_3-6-2.so"
 }
 {component file libsqlite,
     platform = "mac",
     arch = "x86",
-    location = "SQLITE/sqlite_3-5-6.x86.dylib"
+    location = "SQLITE/sqlite_3-6-2.x86.dylib"
 }
 {component file libsqlite,
     platform = "mac",
     arch = "ppc",
-    location = "SQLITE/sqlite_3-5-6.ppc.dylib"
+    location = "SQLITE/sqlite_3-6-2.ppc.dylib"
 }
 
 || documentation

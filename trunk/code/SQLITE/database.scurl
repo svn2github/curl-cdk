@@ -74,6 +74,13 @@
         engine.  This only effects newly created database files.  If
         this is -1, then the default built into SQLite will be used.
     }
+    {parameter encryption-type,
+        Type of encryption to use for an encrypted database.
+    }
+    {parameter key,
+        Key to use for an encrypted database.  {ctext null} or an empty
+        array are equivilent to no encryption.
+    }
     {parameter commit-events?,
         Should {docref SQLiteCommitEvent}s get sent to any
         event handlers that are supplied in {param ...} that
@@ -120,6 +127,9 @@
                           read-only?:bool = false,
                           auto-vacuum?:bool = false,
                           page-size:int = -1,
+                          encryption-type:SQLiteEncryptionType =
+                              SQLiteEncryptionType.none,
+                          key:#ByteArray = null,
                           commit-events?:bool = false,
                           rollback-events?:bool = false,
                           update-events?:bool = false,
@@ -137,7 +147,9 @@
             error-if-missing? = error-if-missing?,
             read-only? = read-only?,
             auto-vacuum? = auto-vacuum?,
-            page-size = page-size
+            page-size = page-size,
+            encryption-type = encryption-type,
+            key = key
         }
 
     || Notification
@@ -1006,13 +1018,30 @@
         Name to use in subsequent SQL queries to access tables in the
         database in {param u}.
     }
+    {parameter encryption-type,
+        Type of encryption to use for an encrypted database.
+    }
+    {parameter key,
+        Key to use for an encrypted database.  {ctext null} or an empty
+        array are equivilent to no encryption.
+    }
   }
-  {method public {attach u:Url, name:String}:void
+  {method public {attach u:Url, name:String,
+                     encryption-type:SQLiteEncryptionType =
+                         SQLiteEncryptionType.none,
+                     key:#ByteArray = null
+                 }:void
     {if u.local-filename == null then
         || must be http(s)
         set u = {local-data-copy-of u, "DB"}
     }
-    {self._handle.attach u, name}
+    let (status:SQLiteStatus, errmsg:#String) =
+        {self._handle.attach
+            u, name, encryption-type = encryption-type, key = key
+        }
+    {if status != SQLiteStatus.OK then
+        {throw {SQLiteException status, {non-null errmsg}}}
+    }
   }
 
   {doc-next
@@ -1038,6 +1067,52 @@
     let (status:SQLiteStatus, errmsg:#String) = {self._handle.close}
     {if status != SQLiteStatus.OK then
         {throw {SQLiteException status, {non-null errmsg}}}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Re-encrypt the database with a new key.
+    }
+    {parameter encryption-type,
+        Type of encryption to use for an encrypted database.
+    }
+    {parameter key,
+        Key to use for an encrypted database.  {ctext null} or an empty
+        array are equivilent to no encryption.
+    }
+  }
+  {method public {rekey
+                     encryption-type:SQLiteEncryptionType, key:#ByteArray
+                 }:void
+    def status = {{SQLiteInterface}.rekey self._handle, encryption-type, key}
+    {if status != SQLiteStatus.OK then
+        {throw
+            {SQLiteException status, {{SQLiteInterface}.errmsg self._handle}}
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Set the encryption key for the main database.
+    }
+    {parameter encryption-type,
+        Type of encryption to use for an encrypted database.
+    }
+    {parameter key,
+        Key to use for an encrypted database.  {ctext null} or an empty
+        array are equivilent to no encryption.
+    }
+  }
+  {method public {set-key 
+                     encryption-type:SQLiteEncryptionType, key:#ByteArray
+                 }:void
+    def status = {self._handle.set-key encryption-type, key}
+    {if status != SQLiteStatus.OK then
+        {throw
+            {SQLiteException status, {{SQLiteInterface}.errmsg self._handle}}
+        }
     }
   }
 }

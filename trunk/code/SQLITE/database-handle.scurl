@@ -193,13 +193,18 @@
   field constant private read-only?:bool
   field constant private auto-vacuum?:bool
   field constant private page-size:int
+  field private _encryption-type:SQLiteEncryptionType
+  field private _key:#ByteArray
 
   {constructor public {default
                           u:#Url,
                           error-if-missing?:bool = false,
                           read-only?:bool = false,
                           auto-vacuum?:bool = false,
-                          page-size:int = -1
+                          page-size:int = -1,
+                          encryption-type:SQLiteEncryptionType =
+                              SQLiteEncryptionType.none,
+                          key:#ByteArray = null
                       }
     set self.url = u
     set self.statements = {{Array-of SQLiteStatementHandle}}
@@ -208,6 +213,8 @@
     set self.read-only? = read-only?
     set self.auto-vacuum? = auto-vacuum?
     set self.page-size = page-size
+    set self._encryption-type = encryption-type
+    set self._key = key
     {if-built-in
         {if not {process-privileged?} then
             {self.low-set-authorizer
@@ -291,8 +298,8 @@
   {define-proc private {match-pragma-with-name? data1:String, name:String}:bool
     {return
         {data1.suffix? name} and
-        data1.size > name.size and
-        {data1.find '.'} == ((data1.size - name.size) - 1)
+        (data1.size == name.size or
+         {data1.find '.'} == ((data1.size - name.size) - 1))
     }
   }
 }
@@ -316,7 +323,8 @@
         {if-non-null u = self.url then
             {if-non-null f = u.local-filename then
                 {if-built-in
-                    def psm = {get-process-security-manager}
+                    let psm:SecurityManagerInterface =
+                        {get-process-security-manager}
                     {if self.read-only? then
                         {psm.check-read-local-file u}
                     else
@@ -356,6 +364,38 @@
         set self._sqlite3 = 0
         {return status, errmsg}
     }
+    set status =
+        {{SQLiteInterface}.set-key self, self._encryption-type, self._key}
+    {if status != SQLiteStatus.OK then
+        let errmsg:String = {{SQLiteInterface}.errmsg self}
+        {{SQLiteInterface}.close self._sqlite3}
+        set self._sqlite3 = 0
+        {return status, errmsg}
+    }
+
+    || Register procs to release resources (by closing database).
+    || Database is opened lazily, so no need for resume proc.
+    || - File databases can be closed on suspend    
+    || - memory databases (or temp databases) would be lost
+
+    let suspend-proc:{proc-type {}:void} =
+        {proc {}:void
+            || |#DEBUG#| {errput {message on SUSPEND in {value self} ({value {get-working-directory-url}.filename})}}
+            {if self.close-on-suspend? then
+                || |#DEBUG#| {errput {message ... can close}}
+                {self.close}}
+        }
+    set self.suspend-proc = suspend-proc
+    {register-suspend-proc suspend-proc}
+
+    let exit-proc:{proc-type {}:void} =
+        {proc {}:void
+            || |#DEBUG#| {errput {message on EXIT in {value self} ({value {get-working-directory-url}.filename}) }}
+            {self.close}
+        }
+    set self.exit-proc = exit-proc
+    {register-exit-proc exit-proc}
+
     || Note: Authorizer won't see these, because we havn't installed it yet.
     {if not self.read-only? then
         {self.exec "PRAGMA encoding='UTF-8';PRAGMA synchronous=NORMAL"} ||""
@@ -371,29 +411,6 @@
             {self.exec "PRAGMA auto_vacuum=1"} ||""
         }
     }
-
-    || Register procs to release resources (by closing database).
-    || Database is opened lazily, so no need for resume proc.
-    || - File databases can be closed on suspend    
-    || - memory databases (or temp databases) would be lost
-
-    def suspend-proc =
-        {proc {}:void
-            || |#DEBUG#| {errput {message on SUSPEND in {value self} ({value {get-working-directory-url}.filename})}}
-            {if self.close-on-suspend? then
-                || |#DEBUG#| {errput {message ... can close}}
-                {self.close}}
-        }
-    set self.suspend-proc = suspend-proc
-    {register-suspend-proc suspend-proc}
-
-    def exit-proc =
-        {proc {}:void
-            || |#DEBUG#| {errput {message on EXIT in {value self} ({value {get-working-directory-url}.filename}) }}
-            {self.close}
-        }
-    set self.exit-proc = exit-proc
-    {register-exit-proc exit-proc}
 
     {if self._authorizer != null then
         let constant (status:SQLiteStatus, errmsg:#String) =
@@ -1282,8 +1299,18 @@
         Name to use in subsequent SQL queries to access tables in the
         database in {param u}.
     }
+    {parameter encryption-type,
+        Type of encryption to use for an encrypted database.
+    }
+    {parameter key,
+        Key to use for an encrypted database.
+    }
   }
-  {method public {attach u:Url, name:String}:void
+  {method public {attach u:Url, name:String,
+                     encryption-type:SQLiteEncryptionType =
+                         SQLiteEncryptionType.none,
+                     key:#ByteArray = null
+                 }:(status:SQLiteStatus, errmsg:#String)
     {if-built-in
         {{get-process-security-manager}.check-write-local-file u}
     }
@@ -1293,10 +1320,29 @@
          else
             {error {lmessage Invalid database url '{value u}'.}}
         }
-    {self.exec
-        "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} & ||""
-        "' AS '" & {SQLiteDatabaseHandle.sql-quote name} & "'" ||""
+    {return
+        {self.exec
+            "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} &
+            "' AS '" & {SQLiteDatabaseHandle.sql-quote name} &
+            "' KEY " &
+            {SQLiteDatabaseHandle.ByteArray-as-blob-string-interface
+                {SQLiteInterface.make-key-bytearray encryption-type, key}
+            } ||""
+        }
     }
+  }
+  {define-proc private {ByteArray-as-blob-string-interface
+                           b:#ByteArray
+                       }:StringBuf
+    let s:StringBuf = {StringBuf "X'"}
+    {if-non-null b then
+        {for v in b do
+            {s.append "0123456789ABCDEF"[{bit-srl v, 4}]} ||""
+            {s.append "0123456789ABCDEF"[{bit-and v, 0xF}]} ||""
+        }
+    }
+    {s.append '\''}
+    {return s}
   }
 
   {method private {exec sql:String}:(status:SQLiteStatus, errmsg:#String)
@@ -1320,4 +1366,23 @@
   {define-proc private {sql-quote s:String}:String
     {return {s.replace-clone "'", "''"}}
   }
+
+  {doc-next
+    {purpose
+        Set the encryption key for the main database.
+    }
+  }
+  {method public {set-key
+                     encryption-type:SQLiteEncryptionType,
+                     key:#ByteArray
+                 }:SQLiteStatus
+    set self._encryption-type = encryption-type
+    set self._key = key
+    {if self._sqlite3 == 0 then
+        {return SQLiteStatus.OK}
+     else
+        {return {{SQLiteInterface}.set-key self, encryption-type, key}}
+    }
+  }
+
 }

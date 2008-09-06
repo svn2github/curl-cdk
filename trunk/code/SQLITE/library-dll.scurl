@@ -27,13 +27,14 @@
 }
 {define-proc public {user-data-copy-of
                         loc:Url,
-                        path:String
+                        path:String,
+                        force-copy?:bool = false
                     }:Url
     {if not {http-url? loc} then
         {return loc}}
     def uloc = "curl://user-data/" & path
     def cloc = {{url uloc}.canonicalize}
-    {return {local-copy-of loc, cloc}}
+    {return {local-copy-of loc, cloc, force-copy? = force-copy?}}
 }
 {doc-next
     {purpose
@@ -44,21 +45,23 @@
 }
 {define-proc public {local-data-copy-of
                         loc:Url,
-                        path:String
+                        path:String,
+                        force-copy?:bool = false
                     }:Url
     {if not {http-url? loc} then
         {return loc}}
-    || TODO: needed only when libqlite can run without privilege
-    || -- request-local-data-permission
-    || -- fallback to get-temp-filename, choose-file
+    || Note that this will cause a popup, which may be undesirable.
+    {request-local-data-permission}
     def uloc = "curl://local-data/" & path
     def cloc = {{url uloc}.canonicalize}
-    {return {local-copy-of loc, cloc}}
+    || TODO: Should this try to fallback to get-temp-filename or choose-file?
+    {return {local-copy-of loc, cloc, force-copy? = force-copy?}}
 }
 
 {define-proc package {local-copy-of
                         loc:Url,
-                        dir:Url
+                        dir:Url,
+                        force-copy?:bool = false
                     }:Url
     {if not {http-url? loc} then
         {return loc}}
@@ -66,8 +69,9 @@
     def file = {dir.concat loc.filename}
     || FIXME: check validators: timestamp, content-size, maybe content-hash
     || Should there be a file next to this file on the HTTP server to help 
-    || with this, similar to what OCC stuff does?
-    {if not {local-file-exists? file} then
+    || with this, similar to what OCC stuff does?  Or should there be a local
+    || file with previous HTTP header info in it?
+    {if force-copy? or not {local-file-exists? file} then
         {create-Directory dir,
             create-missing-parents? = true,
             error-if-exists? = false}
@@ -83,14 +87,16 @@
     def mloc =
         {platform-switch
          case "win32" do
+            || built as below, under mingw
             {manifest-url "file", name,
                 platform = "win32"}
          case "linux" do
-            || Built with configure --disable-tcl --enable-threadsafe 
+            || Built with
+            || CFLAGS="-Os -DSQLITE_OMIT_UTF16=1 -DSQLITE_DLL=1 -DSQLITE_HAS_CODEC=1"
+            || ./configure --disable-tcl --enable-threadsafe 
+            ||
             || and stripped with:
-            || strip S -x --strip-unneeded .libs/libsqlite3.so.0.8.6 
-            || Also added -DSQLITE_OMIT_UTF16=1 to one of the TCC lines
-            || in Makefile.
+            || strip -S -x --strip-unneeded .libs/libsqlite3.so.0.8.6 
             {manifest-url "file", name,
                 platform = "linux"}
          case "mac" do
@@ -98,11 +104,9 @@
             || do configure --disable-tcl --enable-threadsafe and then edit
             || the Makefile to add -no-undefined to libtool command line used
             || to make shared libraries called LTLINK.  Then copy the dylib
-            || from the .libs directory.
+            || from the .libs directory.  Or it might just work without
+            || that, since with 3.6.2 it seemed to be fine.
             || The libraries were stripped with "strip -x -u -r".
-            || Note: "strip -S" might work just as well (or better/same).
-            || Also added -DSQLITE_OMIT_UTF16=1 to one of the TCC lines
-            || in Makefile.
             {platform-switch
              case "x86" do
                 {manifest-url "file", name,
@@ -120,7 +124,7 @@
     def loc = 
         {if {http-url? mloc} then
             || TODO: dguide recommends "curl://common/"
-            {user-data-copy-of mloc, name}
+            {user-data-copy-of mloc, name, force-copy? = false}
         else
             mloc
         }
