@@ -2672,8 +2672,14 @@
     {if encryption-type == SQLiteEncryptionType.none or
         key == null or key.size == 0
      then
-        {return null}
+        set key = null
     }
+    {if-built-in
+        {if key != null then
+            {license-feature-require LicenseFeature.encryption}
+        }
+    }
+    {if key == null then {return null}}
     let prefix:String = 
         {switch encryption-type
          case SQLiteEncryptionType.rc4 do
@@ -2707,11 +2713,6 @@
                   }:SQLiteStatus
     let key-bytes:#ByteArray =
         {SQLiteInterface.make-key-bytearray encryption-type, key}
-    {if-built-in
-        {if key-bytes != null then
-            {license-feature-require LicenseFeature.encryption}
-        }
-    }
     {return
         {SQLiteStatus
             index =
@@ -2751,11 +2752,6 @@
                   }:SQLiteStatus
     let key-bytes:#ByteArray =
         {SQLiteInterface.make-key-bytearray encryption-type, key}
-    {if-built-in
-        {if key-bytes != null then
-            {license-feature-require LicenseFeature.encryption}
-        }
-    }
     {return
         {SQLiteStatus
             index =

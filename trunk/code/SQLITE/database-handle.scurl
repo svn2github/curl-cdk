@@ -1320,20 +1320,13 @@
          else
             {error {lmessage Invalid database url '{value u}'.}}
         }
-    let key-bytes:#ByteArray =
-        {SQLiteInterface.make-key-bytearray encryption-type, key}
-    {if-built-in
-        {if key-bytes != null then
-            {license-feature-require LicenseFeature.encryption}
-        }
-    }
     {return
         {self.exec
             "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} &
             "' AS '" & {SQLiteDatabaseHandle.sql-quote name} &
             "' KEY " &
             {SQLiteDatabaseHandle.ByteArray-as-blob-string-interface
-                key-bytes
+                {SQLiteInterface.make-key-bytearray encryption-type, key}
             } ||""
         }
     }
