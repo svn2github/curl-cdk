@@ -444,7 +444,7 @@
     UNUSED96,
     UNUSED97,
     UNUSED98,
-    UNUSED99,
+    CURL-INTERNAL-MISSING-API,
 
     ROW =        100, || sqlite3_step() has another row ready
     DONE =       101  || sqlite3_step() has finished executing

@@ -1085,11 +1085,17 @@
   {method public {rekey
                      encryption-type:SQLiteEncryptionType, key:#ByteArray
                  }:void
-    def status = {{SQLiteInterface}.rekey self._handle, encryption-type, key}
+    let status:SQLiteStatus =
+        {{SQLiteInterface}.rekey self._handle, encryption-type, key}
     {if status != SQLiteStatus.OK then
-        {throw
-            {SQLiteException status, {{SQLiteInterface}.errmsg self._handle}}
-        }
+        let errmsg:String =
+            {if status == SQLiteStatus.CURL-INTERNAL-MISSING-API then
+                set status = SQLiteStatus.AUTH
+                {lmessage Authentication APIs are not available.}
+             else
+                {{SQLiteInterface}.errmsg self._handle}
+            }
+        {throw {SQLiteException status, errmsg}}
     }
   }
 
@@ -1108,10 +1114,11 @@
   {method public {set-key 
                      encryption-type:SQLiteEncryptionType, key:#ByteArray
                  }:void
-    def status = {self._handle.set-key encryption-type, key}
+    let (status:SQLiteStatus, errmsg:#String) =
+        {self._handle.set-key encryption-type, key}
     {if status != SQLiteStatus.OK then
         {throw
-            {SQLiteException status, {{SQLiteInterface}.errmsg self._handle}}
+            {SQLiteException status, errmsg}
         }
     }
   }

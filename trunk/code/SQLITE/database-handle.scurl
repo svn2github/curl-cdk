@@ -364,10 +364,10 @@
         set self._sqlite3 = 0
         {return status, errmsg}
     }
-    set status =
-        {{SQLiteInterface}.set-key self, self._encryption-type, self._key}
+    let errmsg:#String
+    set (status, errmsg) =
+        {self.set-key self._encryption-type, self._key}
     {if status != SQLiteStatus.OK then
-        let errmsg:String = {{SQLiteInterface}.errmsg self}
         {{SQLiteInterface}.close self._sqlite3}
         set self._sqlite3 = 0
         {return status, errmsg}
@@ -1375,13 +1375,25 @@
   {method public {set-key
                      encryption-type:SQLiteEncryptionType,
                      key:#ByteArray
-                 }:SQLiteStatus
+                 }:(SQLiteStatus, errmsg:#String)
     set self._encryption-type = encryption-type
     set self._key = key
     {if self._sqlite3 == 0 then
-        {return SQLiteStatus.OK}
+        {return SQLiteStatus.OK, null}
      else
-        {return {{SQLiteInterface}.set-key self, encryption-type, key}}
+        let status:SQLiteStatus =
+            {{SQLiteInterface}.set-key self, encryption-type, key}
+        {switch status
+         case SQLiteStatus.OK do
+            {return status, null}
+         case SQLiteStatus.CURL-INTERNAL-MISSING-API do
+            {return 
+                SQLiteStatus.AUTH,
+                {lmessage Authentication APIs are not available.}
+            }
+        else
+            {return status, {{SQLiteInterface}.errmsg self}}
+        }
     }
   }
 
