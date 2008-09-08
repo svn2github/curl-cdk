@@ -65,7 +65,7 @@
   {import-hidden unsafe-get, unsafe-set
    from CURL.LANGUAGE.COMPILER
   }
-  {import-hidden ThreadExit
+  {import-hidden ThreadExit, license-feature-require, LicenseFeature
    from CURL.RUNTIME.PROCESS
   }
   {import-hidden critical-try

@@ -91,9 +91,7 @@
             }
         }
     {construct-super {SharedLibrary.from-url u}}
-    {if-built-in
-        {self.activate-see ""} ||""
-    }
+    {self.activate-see ""} ||""
     {self.initialize}
   }
 
@@ -2709,6 +2707,11 @@
                   }:SQLiteStatus
     let key-bytes:#ByteArray =
         {SQLiteInterface.make-key-bytearray encryption-type, key}
+    {if-built-in
+        {if key-bytes != null then
+            {license-feature-require LicenseFeature.encryption}
+        }
+    }
     {return
         {SQLiteStatus
             index =
@@ -2748,6 +2751,11 @@
                   }:SQLiteStatus
     let key-bytes:#ByteArray =
         {SQLiteInterface.make-key-bytearray encryption-type, key}
+    {if-built-in
+        {if key-bytes != null then
+            {license-feature-require LicenseFeature.encryption}
+        }
+    }
     {return
         {SQLiteStatus
             index =
