@@ -122,8 +122,8 @@ CREATE TABLE work.test (
         {delete dbloc, error-if-missing? = false}
     },
     {test-case "encryption (attach and db)",
-        let dbloc:Url = {get-temp-database-file}
-        let dbloc2:Url = {get-temp-database-file}
+        let dbloc:Url = {uninitialized-value-for-type Url}
+        let dbloc2:Url = {uninitialized-value-for-type Url}
         {with-database db = {SQLiteDatabase null} do
             {db.execute "
 CREATE TABLE test (
@@ -138,6 +138,24 @@ CREATE TABLE test (
                     {q.bind x}
                     {q.step}
                 }}
+            set dbloc2 = {get-temp-database-file}
+            {with-database db2 = {SQLiteDatabase dbloc2} do
+                {db2.execute "
+CREATE TABLE test (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    val);"}
+                {with-statement in db2
+                    q = "INSERT INTO test (val) VALUES (?)"
+                 do
+                    {for x in xs do
+                        {q.reset}
+                        {q.bind x}
+                        {q.step}
+                    }
+                }
+                {db2.rekey "aes256", {ByteArray 4, 5, 6}}
+            }
+            set dbloc = {get-temp-database-file}
             {db.attach dbloc, "work",
                 encryption-type = "aes128", key = {ByteArray 1, 2, 3}
             }
@@ -171,7 +189,7 @@ CREATE TABLE work.test (
                     encryption-type = "aes128", key = {ByteArray 1, 2, 3, 4}
                 }
                 {db.detach "work"}
-                {TestCondition.fail message = "Read of database with wrong key should fail."}
+                {TestCondition.fail message = "Read of database with wrong key should fail(1)."}
              catch e:SQLiteException do
             }
             {try
@@ -179,7 +197,7 @@ CREATE TABLE work.test (
                     encryption-type = SQLiteEncryptionType.aes256, key = {ByteArray 1, 2, 3}
                 }
                 {db.detach "work"}
-                {TestCondition.fail message = "Read of database with wrong encryption should fail."}
+                {TestCondition.fail message = "Read of database with wrong encryption should fail(2)."}
              catch e:SQLiteException do
             }
             {try
@@ -187,25 +205,8 @@ CREATE TABLE work.test (
                     encryption-type = "rc4", key = {ByteArray}
                 }
                 {db.detach "work"}
-                {TestCondition.fail message = "Read of database with no key should fail."}
+                {TestCondition.fail message = "Read of database with no key should fail(3)."}
              catch e:SQLiteException do
-            }
-            set dbloc2 = {get-temp-database-file}
-            {with-database db2 = {SQLiteDatabase dbloc2} do
-                {db2.execute "
-CREATE TABLE test (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    val);"}
-                {with-statement in db2
-                    q = "INSERT INTO test (val) VALUES (?)"
-                 do
-                    {for x in xs do
-                        {q.reset}
-                        {q.bind x}
-                        {q.step}
-                    }
-                }
-                {db2.rekey "aes256", {ByteArray 4, 5, 6}}
             }
             {db.attach dbloc2, "work2",
                 encryption-type = "aes256", key = {ByteArray 4, 5, 6}

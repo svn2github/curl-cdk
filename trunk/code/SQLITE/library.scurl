@@ -94,6 +94,7 @@
     {if-built-in
         {self.activate-see ""} ||""
     }
+    {self.initialize}
   }
 
   {method protected {reclaim-resources}:void
@@ -101,6 +102,8 @@
     set SQLiteInterface.interface = null
     || This could recurse, but deactivate won't do anything if not {active?}.
     {self.deactivate}
+    || TODO: when can we safely do this?
+    || {self.shutdown}
   }
 
   {doc-next
@@ -2732,7 +2735,7 @@
             {if key == 0 or nkey < 1 then
                 SQLiteStatus.OK.index
              else
-                SQLiteStatus.AUTH.index
+                SQLiteStatus.CURL-INTERNAL-MISSING-API.index
             }
         }
     }
@@ -2770,7 +2773,7 @@
             {if key == 0 or nkey < 1 then
                 SQLiteStatus.OK.index
              else
-                SQLiteStatus.AUTH.index
+                SQLiteStatus.CURL-INTERNAL-MISSING-API.index
             }
         }
     }
@@ -2783,6 +2786,16 @@
         {return}
     }
   }
+
+  {dll-method private {initialize ("sqlite3_initialize") ||""
+                      }:void
+  }
+|#
+  {dll-method private {shutdown ("sqlite3_shutdown") ||""
+                      }:void
+  }
+#|
+
 
   || FIXME: no support for sqlite3_create_module(), but it requires lots
   || of structs and such.
