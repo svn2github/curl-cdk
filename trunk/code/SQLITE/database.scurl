@@ -1110,6 +1110,10 @@
         Key to use for an encrypted database.  {ctext null} or an empty
         array are equivilent to no encryption.
     }
+    {notes
+        This may not do anything if reading or writing to the
+        {docref SQLiteDatabase} has already been attempted.
+    }
   }
   {method public {set-key 
                      encryption-type:SQLiteEncryptionType, key:#ByteArray

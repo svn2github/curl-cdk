@@ -2672,14 +2672,11 @@
     {if encryption-type == SQLiteEncryptionType.none or
         key == null or key.size == 0
      then
-        set key = null
+        {return null}
     }
     {if-built-in
-        {if key != null then
-            {license-feature-require LicenseFeature.encryption}
-        }
+        {license-feature-require LicenseFeature.encryption}
     }
-    {if key == null then {return null}}
     let prefix:String = 
         {switch encryption-type
          case SQLiteEncryptionType.rc4 do
