@@ -101,7 +101,7 @@ CREATE TABLE products (
             {curl-code {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}
     }
 
-||--    {privilege-note}
+    {privilege-note}
 
     {x-example-ref title = {message Create database},
         {url "examples/create-database.curl"}}
@@ -539,6 +539,24 @@ CREATE TABLE products (
 
 || ====================
 {heading level=3,
+   Encrypted Databases
+}
+{paragraph
+    Curl Release 7 incorporates the SQLite engine (as {docref CURL.IO.SQLITE-LIBRARY}).
+    
+    Encrypted databases are supported,
+    via the {link href = {url "http://www.hwaci.com/sw/sqlite/prosupport.html#crypto"},
+    SQLite Encryption Extension (SEE)}.
+
+    An encryption key can be provided when accessing a database
+    (with {docref SQLiteDatabase.default} or {docref SQLiteDatabase.attach}).
+    
+    This feature can only be used by an applet that has a Curl Pro server license.
+
+}
+
+|| ====================
+{heading level=3,
    Operational considerations
 }
 
@@ -561,7 +579,7 @@ CREATE TABLE products (
 
         Note that modifications to the database occur only in the local copy.
         The application must make provisions for any submission
-        of data to an external destination.
+        of data to an external destination.  Changes made to local copy may be overwritten.
     }
     {item {bold lifecycle and resource usage}
 
