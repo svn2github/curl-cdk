@@ -43,37 +43,41 @@
 }
 || NOTE: privilege no longer needed when using built-in library
 || -- CURL IO.SQLITE-LIBRARY
+{import _use-built-in? from COM.CURL.CDK.SQLITE}
 {define-proc {privilege-note}:Visual
     {return
-        {Frame background = "#DDD",
-            {paragraph
-                {bold Note about privilege:}
-                In accord with the Curl security provisions,
-                normal Curl applets may not call foreign code.                
-                
-                Thus, in order to call the SQLite engine,
-                it is necessary for an applet to be privileged.
-                
-                See 
-                {link href = {dguide.merge "security.curl"}, Security} 
-                for more on Curl security provisions.
-                
-                These Developer Guide pages, of course, are not normally privileged.
-                {Frame border-width = 1px,
-                    {paragraph
-                        At the moment, they are
-                        {if {process-privileged?} 
-                         then {text color = "green", privileged}
-                         else {text color = "red", not privileged}}.
-                    }}
-                
-                To grant privilege to the examples, you need to use the Curl Control Panel
-                to grant privilege to the directory containing this page, 
+        {if _use-built-in? then
+            {Fill}
+         else
+            {Frame background = "#DDD",
+                {paragraph
+                    {bold Note about privilege:}
+                    In accord with the Curl security provisions,
+                    normal Curl applets may not call foreign code.                
+                    
+                    Thus, in order to call the SQLite engine,
+                    it is necessary for an applet to be privileged.
+                    
+                    See 
+                    {link href = {dguide.merge "security.curl"}, Security} 
+                    for more on Curl security provisions.
+                    
+                    These Developer Guide pages, of course, are not normally privileged.
+                    {Frame border-width = 1px,
+                        {paragraph
+                            At the moment, they are
+                            {if {process-privileged?} 
+                             then {text color = "green", privileged}
+                             else {text color = "red", not privileged}}.
+                        }}
+                    
+                    To grant privilege to the examples, you need to use the Curl Control Panel
+                    to grant privilege to the directory containing this page, 
 
-                {monospace {value {{get-the-applet}.url.parent-dir.url.canonicalize}.local-filename}}
-                
-                and then issue the {monospace Reload Page} command.    
-            }}
+                    {monospace {value {{get-the-applet}.url.parent-dir.url.canonicalize}.local-filename}}
+                    
+                    and then issue the {monospace Reload Page} command.    
+                }}}
     }}
 
 || Curl Lab Documentation links 

@@ -21,6 +21,10 @@
 </string>
 
 <string>
+<original>Authentication APIs are not available.</original>
+</string>
+
+<string>
 <original>Can not generate valid WHERE clause with no known primary keys.</original>
 </string>
 
@@ -33,7 +37,19 @@
 </string>
 
 <string>
+<original>Invalid database url '%s'.</original>
+</string>
+
+<string>
+<original>Invalid non-local database url '%s'.</original>
+</string>
+
+<string>
 <original>Named parameter not found.</original>
+</string>
+
+<string>
+<original>Only privileged processes can set the library url.</original>
 </string>
 
 <string>
@@ -42,6 +58,10 @@
 
 <string>
 <original>SharedLibrary %s not available for this platform.</original>
+</string>
+
+<string>
+<original>Tried to prepare already prepared statement.</original>
 </string>
 
 <string>

@@ -16,7 +16,7 @@
 
 {curl 7.0 package}
 {package COM.CURL.CDK.SQLITE-BASE,
-    version = "0.9.1",
+    version = "0.9.2",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
     use-built-in? = true,

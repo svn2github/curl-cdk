@@ -16,7 +16,7 @@
 
 {curl 7.0 package}
 {package COM.CURL.CDK.SQLITE,
-    version = "0.9.1",
+    version = "0.9.2",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
     use-built-in? = true,
@@ -84,3 +84,7 @@
 
 {import public * from COM.CURL.CDK.SQLITE-BASE}
 {import public * from COM.CURL.CDK.SQLITE-RECORDSET}
+
+{def public _use-built-in? =
+    {if-use-built-in true else false}
+}
