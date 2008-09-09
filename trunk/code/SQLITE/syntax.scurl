@@ -16,7 +16,7 @@
 
 {curl 7.0 package}
 {package COM.CURL.CDK.SQLITE-SYNTAX,
-    version = "0.9.1",
+    version = "0.9.2",
     resource-directory = "../resources/",
     translations-file = "messages.xml",
     {compiler-directives careful? = true}
@@ -60,7 +60,7 @@
         The "with-transaction" macro uses the following syntax:
         
         {ctext
-            {with-statement in {metavar database}
+            {with-transaction in {metavar database}
                 [{metavar lock-type}]
              do {metavar body}}
         }
