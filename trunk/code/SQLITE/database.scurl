@@ -138,7 +138,7 @@
     {if-non-null nn-u = u then
         {if nn-u.local-filename == null then
             || must be http(s)
-            set u = {local-data-copy-of nn-u, "DB"}
+            set u = {local-data-copy-of nn-u, "SQLITEDB", force-copy? = true}
         }
     }
     set self._handle =
@@ -1033,7 +1033,7 @@
                  }:void
     {if u.local-filename == null then
         || must be http(s)
-        set u = {local-data-copy-of u, "DB"}
+        set u = {local-data-copy-of u, "SQLITEDB", force-copy? = true}
     }
     let (status:SQLiteStatus, errmsg:#String) =
         {self._handle.attach
