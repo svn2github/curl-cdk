@@ -142,7 +142,7 @@
                 set self.headers =
                     {type-switch headers
                      case mh:IMessageHeaders do
-                        headers asa IMessageHeaders
+                        mh
                      case ea:ExtendedArray do
                         ea.data asa IMessageHeaders
                      else

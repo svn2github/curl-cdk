@@ -15,9 +15,9 @@
 ||| limitations under the License.
 
 {define-class public AsyncToken
-  field protected _message:IMessage
-  field public responders:#{Array-of IResponder}
-  field public result:any
+  field private _message:IMessage
+  field protected responders:#{Array-of IResponder}
+  field public-get private-set result:any
 
   {constructor public {default message:IMessage}
     set self._message = message
@@ -35,7 +35,7 @@
   }
 
   {method public {has-responder?}:bool
-    {return not self.responders.empty?}
+    {return self.responders != null and not self.responders.empty?}
   }
 
   {method protected {apply-result event:ResultEvent}:void

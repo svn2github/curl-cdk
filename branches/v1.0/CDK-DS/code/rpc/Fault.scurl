@@ -15,9 +15,9 @@
 ||| limitations under the License.
 
 {define-class public Fault {inherits Exception}
-  field public fault-code:String
-  field public fault-string:String
-  field public fault-detail:#String = null
+  field public constant fault-code:String
+  field public constant fault-string:String
+  field public constant fault-detail:#String = null
 
   {constructor public {default
                           fault-code:String,

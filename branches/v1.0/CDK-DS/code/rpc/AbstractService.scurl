@@ -16,8 +16,8 @@
 
 {define-class public abstract AbstractService {inherits EventTarget}
   field protected _channel-set:#ChannelSet
-  field public endpoint:#Url
-  field public _operations:{Array-of AbstractOperation} =
+  field private constant endpoint:#Url
+  field private _operations:{Array-of AbstractOperation} =
       {new {Array-of AbstractOperation}}
   field protected _request-timeout:Time
   field protected async-request:AsyncRequest
@@ -35,7 +35,6 @@
     {if-non-null destination then
         set self.async-request.destination = destination
     }
-    set self.operations = {new {Array-of AbstractOperation}}
   }
 
   {getter public {channel-set}:#ChannelSet

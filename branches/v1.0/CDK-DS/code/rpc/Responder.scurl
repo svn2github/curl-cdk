@@ -15,8 +15,8 @@
 ||| limitations under the License.
 
 {define-class public Responder {inherits IResponder}
-  field protected result-handler:{proc-type {data:any}:void}
-  field protected fault-handler:{proc-type {info:any}:void}
+  field private constant result-handler:{proc-type {data:any}:void}
+  field private constant fault-handler:{proc-type {info:any}:void}
 
   {constructor public {default
                           result:{proc-type {data:any}:void},
