@@ -1,0 +1,22 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "7.0",
+    compiler-directives = "careful? = true",
+    {target
+        name = "deploy",
+        target-url-name = "c:\\curl\\COM.CURL.CDK.DB-EXPLORER",
+        {package-transform "COM.CURL.CDK.DB-EXPLORER\u0000package\u0000load.scurl", pcurl? = true},
+        {assembly-transform "COM.CURL.CDK", use-path? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj"},
+        {resource-transform "start.curl\u0000file\u0000start.curl", copy? = true},
+        {resource-transform "start.curl\u0000resource\u0000start.curl", copy? = true},
+        {package-transform "COM.CURL.CDK.DB-DISPLAY\u0000package\u0000load.scurl", copy? = true},
+        {resource-transform "DBX-STYLE-SHEET\u0000file\u0000stylesheet.scurl", copy? = true}
+    },
+    {file-setting "start.curl", start-file? = true}
+}

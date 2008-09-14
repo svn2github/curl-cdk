@@ -1,0 +1,68 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDU.CURL-UNIT}
+{import * from COM.CURL.CDU.CURL-UNIT-UI}
+{import * from COM.CURL.CDK.SQLITE-TEST-SUPPORT}
+
+{document-style PlainDocument}
+{set-document-properties hstretch? = true, vstretch? = true}
+
+{value
+    let target:RecordSetTestTarget = {RecordSetTestTarget}
+    set TestTarget.current = target
+
+    let suite:TestSuite =
+        {TestSuite "main",
+            || packages
+            {ManifestTestSuite.from-name "COM.CURL.CDK"},
+            {ManifestTestSuite.from-name "COM.CURL.CDK.SUPPORT"},
+            || SQLite
+            {TestSuite.import {url "test-cases/sqlite-basics.scurl"}},
+            {TestSuite.import {url "test-cases/sqlite-databases.scurl"}},
+            {TestSuite.import {url "test-cases/sqlite-functions.scurl"}},
+            {TestSuite.import {url "test-cases/sqlite-recordsets.scurl"}},
+            || dguide
+            {TestSuite "dguide",
+                {AppletTestCase {url "../code/docs/en/dguide/cdk-overview.curl"}},
+                {AppletTestCase {url "../code/docs/en/dguide/sqlite-overview.curl"}},
+                {TestSuite.import
+                    {url "test-cases/dguide-test-cases.scurl"}}},
+            || samples
+            {TestSuite "samples",
+                || TODO: can not test yet: choose-file and CSPD dependence
+||--                || PIM
+||--                {AppletTestCase {url "../samples/PIM/start.dcurl"}},
+                || explorer
+                {AppletTestCase {url "../samples/DBExplorer/start.curl"},
+                    timeout = 60s}
+            },
+            || applets
+            {TestSuite "applets",
+                || lifecycle
+                {AppletLifeCycleTestCase {url "test-applets/t-census.curl"},
+                    timeout = 60s},
+                {AppletTestCase {url "test-applets/t-recordset.curl"},
+                    timeout = 120s}
+            }
+        }
+    
+    {test-ui suite}
+}
