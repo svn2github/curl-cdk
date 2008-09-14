@@ -1,0 +1,128 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{define-proc {save-database
+                 db:SQLiteDatabase,
+                 loc:Url
+             }:void
+    def file = {non-null loc.local-filename}
+    
+    || attach another database 
+    {db.execute {format "ATTACH '%s' AS bak", file}}
+    
+    || lock during copy
+    {with-transaction in db exclusive do
+        
+       || collect tables
+        def tables =
+            {db.sql-column
+                "SELECT name FROM sqlite_master " &
+                "WHERE name NOT LIKE 'sqlite_%' AND type='table'"}
+        
+        || copy each table
+        {for t in tables do
+            def sql = 
+                {format "CREATE TABLE bak.%s AS SELECT * FROM %s", t, t}            
+            {db.execute sql}                    
+        }}
+    
+    || detach the backup database
+    {db.execute "DETACH bak"}
+}
+
+{value
+    def con = {SQLiteConnection {SQLiteDatabase null}}
+    def db = con.database
+    {db.execute "
+CREATE TABLE log (
+ id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+ `when` TEXT NOT NULL DEFAULT CURRENT_TIME,
+ what TEXT NOT NULL,
+ `where` TEXT NOT NULL
+);
+CREATE VIEW log_summary AS
+SELECT what, count(what) AS hits
+FROM log 
+GROUP BY what
+ORDER BY hits DESC
+;"}
+    def s-log =
+        {db.create-statement
+            "INSERT INTO log (what, `where`) VALUES (?, ?)"}
+    def log =
+        {proc {what:String, where:String}:void
+            {s-log.reset}
+            {s-log.bind what, where}
+            {s-log.step}
+            {db.check-status}}
+
+    def item =
+        {proc {what:String}:Graphic
+            {return 
+                {Frame
+                    {on PointerLeave at g:Graphic do
+                        {unset g.color}},
+                    {on e:PointerEnter at g:Graphic do
+                        set g.color = "red"
+                        def where = {format "%f, %f", e.x/1pt, e.y/1pt}
+                        {log what, where}},
+                    what}}}
+
+    {VBox
+        {bold Hover over the topics},
+        {item "this"},
+        {item "that"},
+        {item "another"},
+        {item "whatever"},
+        {hrule},
+        {bold See the log},
+        {CommandButton label = "Summary",
+            {on Action do
+                def rs = {con.create-record-set "main", "SELECT * FROM log_summary"}
+                {popup-message title = "Summary",
+                    {RecordGrid record-source = rs}}}},
+        {CommandButton label = "Detail",
+            {on Action do
+                def rs = {con.create-record-set "main", "SELECT * FROM log"}
+                {popup-message title = "Detail",
+                    {RecordGrid record-source = rs,
+                        width = 6in}}}},
+        || create file copy of memory database
+        {CommandButton label = "Save",
+            {on Action do
+                {if-non-null loc =
+                    {choose-file style = FileDialogStyle.save-as,
+                        title = {lmessage Choose SQLite Database},
+                        filters =
+                            {FileDialogFilterArray
+                                {FileDialogFilter "SQLite databases",
+                                    {FileDialogTypeFilterArray
+                                        {FileDialogTypeFilter "db"}}}}}
+                 then
+                    || NOTE: choose-file confirms OK to delete
+                    {if {local-file-exists? loc} then
+                        {delete loc}}
+                    {save-database db, loc}
+                    || report success
+                    {popup-message loc}}
+            }}
+    }
+}

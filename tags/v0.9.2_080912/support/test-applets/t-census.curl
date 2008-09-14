@@ -1,0 +1,183 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDK.SQLITE}
+{document-style PlainDocument}
+{set-document-properties hstretch? = true, vstretch? = true}
+
+{import * from CURL.IDE.PERFORMANCE}
+
+{value
+    def con = {SQLiteConnection {SQLiteDatabase null}}
+    def db = con.database
+    
+    def display = 
+        {RecordGrid 
+            width = {add-stretch}, 
+            height = {add-stretch}}
+
+    def create-db =
+        {proc {}:void
+            || schema
+            {db.execute "
+CREATE TABLE CENSUS (
+ ID INTEGER NOT NULL PRIMARY KEY,
+ AGE VARCHAR(3),
+ CLASSOFWORKER VARCHAR(255),
+ EDUCATION VARCHAR(255),
+ MARITALSTATUS VARCHAR(255),
+ RACE VARCHAR(255),
+ SEX VARCHAR(255)
+);
+CREATE VIEW by_education AS
+SELECT
+ education, 
+ COUNT(*) AS count,
+ ROUND(AVG(age)) AS age
+FROM census 
+GROUP BY education 
+ORDER BY education
+;
+"}
+            || population
+            {SQLiteStatement.import-csv db, "census", {url "census5000.csv"}}
+        }
+
+
+    || act as test subject
+    def this-applet = {get-the-applet}
+    def this-name = this-applet.url.filename
+    def outlog =
+        {proc {msg:String}:void
+            {this-applet.parent-invoke-async "log", msg}
+        }
+    || operations
+    def create-rs =
+        {proc {name:String}:RecordSet
+            def w = {StopWatch}
+            {w.start}
+            def rs = 
+                {con.create-sql-record-set-from-table-name "main", name, 
+                    request-modifiable? = true}
+            {w.stop}
+            def msg =
+                {message Query returned {value rs.size} records in {w.elapsed}}
+            {outlog msg}
+            {{get-the-applet}.set-status msg}
+            {return rs}
+        }
+    , demand =
+        {proc {}:void
+            def tables =
+                {db.sql-column
+                    "SELECT name FROM sqlite_master WHERE type IN ('table','view')"}
+            {for t in tables do
+                {create-rs t asa String}}
+        }
+    , do-table =
+        {proc {t:String}:void
+            def rs = {create-rs t}
+            set display.record-source = rs
+        }
+    || test operations
+    def always = 
+        {proc {}:bool
+            {return true}}
+    {this-applet.register-applet-invoke-handler
+        verifier = always, 
+        {proc {name:String, ...:any}:any
+            {return
+                {switch name
+                 case "demand" do
+                    {demand}
+                    true
+                 else
+                    {unreachable}
+                }}}}
+    
+    || note applet lifecycle
+    {on-applet-suspend do
+        {output {message >> SUSPEND {value this-name}}}}
+    {on-applet-resume do
+        {output {message >> RESUME {value this-name}}}}
+    {register-exit-proc
+        {proc {}:void
+            {output {message >> EXIT {value this-name}}}}}
+
+    || initialize
+    {create-db}    
+    def tables = {con.get-tables "main"}
+    def s-select =
+        {db.create-statement "SELECT * FROM CENSUS WHERE EDUCATION LIKE ?"}
+    {s-select.prepare}
+
+    || display
+    {VBox
+        hstretch? = true,
+        {HBox
+            {ComboBox
+                width = 6in,
+                {splice tables},
+                {on ValueFinished at c:ComboBox do
+                    {with-busy-cursor
+                        {do-table c.value asa String}}
+                }},
+            {CommandButton label = "insert",
+                {on Action do
+                    {with-busy-cursor
+                        let w:StopWatch = {StopWatch}
+                        {w.start}
+                        || population
+                        {SQLiteStatement.import-csv db, "census", {url "census5000.csv"}}
+                        {w.stop}
+                        set display.record-source = null
+                        {{get-the-applet}.set-status 
+                            {message Inserted records in {w.elapsed}}}
+                    }}},
+            {CommandButton label = "clear",
+                {on Action do
+                    {with-busy-cursor
+                        let w:StopWatch = {StopWatch}
+                        {w.start}
+                        {db.execute
+                            "DELETE FROM census;"}
+                        {w.stop}
+                        set display.record-source = null
+                        {{get-the-applet}.set-status 
+                            {message Deleted records in {w.elapsed}}}
+                    }}},
+            {CommandButton label = "perf",
+                {on Action do
+                    {with-busy-cursor
+                        set display.record-source = null
+                        {initialize-performance-profiling
+                            {get-temp-filename extension = ".cprof"}} 
+                        {for i = 0 below 20 do
+                            {start-performance-profiling}
+                            {SQLiteStatement.import-csv db, "census", {url "census5000.csv"}}
+                            {stop-performance-profiling}
+                            {db.execute "DELETE FROM census;"}}
+                        {finish-performance-profiling display-in-ide? = true}
+                    }}},
+            {Fill}},
+        {hrule},
+        display}
+}
+

@@ -1,0 +1,67 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "7.0",
+    compiler-directives = "careful? = true",
+    use-style-sheets? = false,
+    style-package-name = "",
+    style-sheet-name = "",
+    {target
+        name = "deploy-source",
+        target-url-name = "c:\\curl\\CDK-source",
+        {package-transform "COM.CURL.CDK.SQLITE-SYNTAX\u0000package\u0000SQLITE/syntax.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-RECORDSET\u0000package\u0000SQLITE/recordset-load.scurl", copy? = true},
+        {resource-transform "docs\u0000directory\u0000docs", copy? = true},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", copy? = true},
+        {package-transform "COM.CURL.CDK.SQLITE\u0000package\u0000SQLITE/load.scurl", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.x86.dylib", copy? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl"},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.so", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.ppc.dylib", copy? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX\u0000package\u0000SQLITE/library-syntax.scurl", copy? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-BASE\u0000package\u0000SQLITE/base-load.scurl", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.dll", copy? = true}
+    },
+    {target
+        name = "deploy",
+        target-url-name = "c:\\curl\\CDK",
+        {package-transform "COM.CURL.CDK.SQLITE-SYNTAX\u0000package\u0000SQLITE/syntax.scurl", pcurl? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-RECORDSET\u0000package\u0000SQLITE/recordset-load.scurl", pcurl? = true},
+        {resource-transform "docs\u0000directory\u0000docs"},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", pcurl? = true},
+        {package-transform "COM.CURL.CDK.SQLITE\u0000package\u0000SQLITE/load.scurl", pcurl? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.x86.dylib"},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl"},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.so"},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.ppc.dylib"},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX\u0000package\u0000SQLITE/library-syntax.scurl", pcurl? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj"},
+        {package-transform "COM.CURL.CDK.SQLITE-BASE\u0000package\u0000SQLITE/base-load.scurl", pcurl? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.dll"}
+    },
+    {target
+        name = "deploy-docs",
+        target-url-name = "c:\\curl\\CDK-docs",
+        {package-transform "COM.CURL.CDK.SQLITE-SYNTAX\u0000package\u0000SQLITE/syntax.scurl", pcurl? = true, generate-doc? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-RECORDSET\u0000package\u0000SQLITE/recordset-load.scurl", pcurl? = true, generate-doc? = true},
+        {resource-transform "docs\u0000directory\u0000docs", copy? = true},
+        {package-transform "COM.CURL.CDK.SQL-BASE\u0000package\u0000SQL/load.scurl", pcurl? = true, generate-doc? = true},
+        {package-transform "COM.CURL.CDK.SQLITE\u0000package\u0000SQLITE/load.scurl", pcurl? = true, generate-doc? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.x86.dylib"},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY\u0000package\u0000SQLITE/library-load.scurl"},
+        {resource-transform "resources\u0000directory\u0000resources", copy? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.so"},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.ppc.dylib"},
+        {package-transform "COM.CURL.CDK.SQLITE-LIBRARY-SYNTAX\u0000package\u0000SQLITE/library-syntax.scurl", pcurl? = true, generate-doc? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj"},
+        {package-transform "COM.CURL.CDK.SQLITE-BASE\u0000package\u0000SQLITE/base-load.scurl", pcurl? = true, generate-doc? = true},
+        {resource-transform "libsqlite\u0000file\u0000SQLITE/sqlite_3-6-2.dll"}
+    }
+}

@@ -1,0 +1,646 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+
+{applet manifest = "manifest.mcurl", locale = "en"}
+
+{include "../utils/guide-header.scurl"}
+{include "../utils/support.scurl"}
+
+{chapter
+    index= {HeadingIndex primary-key="SQLite Databases"},
+    SQLite Overview
+}
+
+|| ====================
+{heading level=2,
+    SQLITE Overview
+}
+{summary
+    {itemize
+        {item Use {ctext SQLiteDatabase} to manage relational data.}
+        {item Use {ctext SQLiteStatement} for queries.}
+        {item Use {ctext SQLiteRecordSet} to present and manipulate query results in Curl.}
+    }
+}
+{paragraph
+    The Curl Data Kit package {docref COM.CURL.CDK.SQLITE}
+    allows you to build applications that make use of local SQL databases,
+    using the popular {link href = {url "http://www.sqlite.org"}, SQLite}
+    SQL engine.
+
+    This allows data centric Curl applications to take advantage of the
+    full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
+
+    SQLite databases are fully integrated with the Curl {docref COM.CURL.DATA-ACCESS} package.
+    Query results are represented using {docref SQLiteRecordSet} objects,
+    so standard Curl techniques for presentation and manipulation of data can be used
+    (like {docref RecordView}, {docref RecordGrid}, {docref RecordForm} and {docref DataBinding}).
+}
+
+|| ====================
+{heading level=3,
+   Databases
+}
+{paragraph
+    SQLite databases are self-contained files.
+    
+    Use {docref SQLiteDatabase} to create or read a database.
+    
+    {itemize
+        {item Create a {ctext SQLiteDatabase} object
+            with the {docref Url} of the database file.}
+        {item The specified database file will be opened.}
+        {item If the specified file does not exist, it will be created.}
+        {item To create an "in-memory" database, supply {ctext null}.}
+        {item SQLite database files use the local filesystem.}
+        {item If an {monospace http} location is specified,
+            its contents will be copied to {monospace curl://local-data/}.}
+    }
+
+    Use {docref SQLiteDatabase.execute} to perform SQL operations.
+
+    {code-box 
+        || NOTE: curl-code display is problematic with left "outdent"
+        || - code must be flush left for applet to display properly.
+        || - don't let the IDE indent the "db.execute" line
+        {curl-code
+{db.execute "
+CREATE TABLE products (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  price DOUBLE NOT NULL);"}}}
+
+    Use {ctext sql-} methods to obtain data. They take a SQL expression,
+    and optional parameters, and return the result.
+
+    {itemize
+        {item {docref-abbr SQLiteDatabase.sql-value} returns a single value.
+            {curl-code {db.sql-value "SELECT AVG(price) FROM products"}}}
+        {item {docref-abbr SQLiteDatabase.sql-row} returns the values from a row.
+            {curl-code {db.sql-row "SELECT * FROM products WHERE id = ?", "0001"}}}
+        {item {docref-abbr SQLiteDatabase.sql-rows} returns the values from all the rows.
+            {curl-code {db.sql-rows "SELECT * FROM products"}}}
+        {item {docref-abbr SQLiteDatabase.sql-column} returns the values from a column.
+            {curl-code {db.sql-column  "SELECT name FROM products WHERE price > ?", 10}}}
+        {item {docref-abbr SQLiteDatabase.sql-exists?} returns whether any rows were selected.
+            {curl-code {db.sql-exists? "SELECT * FROM products WHERE name LIKE 'p%'"}}}
+    }
+
+    {privilege-note}
+
+    {x-example-ref title = {message Create database},
+        {url "examples/create-database.curl"}}
+
+    The {docref SQLiteDatabase} object manages all resources associated with database access.
+    Databases will be closed, and resources released, whenever a Curl applet is suspended,
+    and reactivated when it is resumed, so no bookkeeping is needed in the application itself.
+
+    Any database errors are signaled using {docref SQLiteException}.
+    This includes the SQLite error code, and explanatory message.
+    When you need several database operations to be treated atomically,
+    you can use a transaction (starting with SQL {monospace BEGIN},
+    and ending with SQL {monospace COMMIT} or SQL {monospace ROLLBACK}).
+    The {docref with-transaction} syntax is a convenient way to specify a transaction.
+
+    {code-box 
+        {curl-code
+            {with-transaction in db do
+                {db.execute
+                    "INSERT INTO products VALUES ('0008', 'notebook', 9.00)"}
+                {db.execute
+                    "INSERT INTO products VALUES ('0009', 'paperclips', 2.75);"}
+            }}}
+
+}
+
+|| ====================
+{heading level=3,
+   Statements
+}
+{paragraph    
+    Use {docref SQLiteStatement}s to encapsulate SQL operations.
+    There are several advantages to using prepared statements.
+
+    {itemize
+        {item modularity - SQL can be isolated from other code}
+        {item efficiency - SQL compiles statements into byte code before execution.
+            When statements are reused, the overhead of parsing and compiling is avoided.}
+        {item security - using parameters protects statements from "SQL injection" attacks}
+    }
+
+    Use {docref SQLiteDatabase.create-statement} or {docref SQLiteStatement}
+    to create an SQL statement object.
+
+    Statements can be defined with variable parameters,
+    which can be supplied by the caller.
+
+    A statement, once prepared (or {docref-abbr SQLiteStatement.reset}),
+    is essentially a cursor on the query results.
+    You can get results from a statement a row at a time, or consolidated.
+
+    Use {docref-abbr SQLiteStatement.step} to obtain each data row.
+    The {ctext step} return value indicates the kind of result.
+    {itemize
+        {item {docref SQLiteStatus}.ROW indicates that a data row is available.}
+        {item {docref SQLiteStatus}.DONE indicates that  no further data is available.}
+        {item Other {docref SQLiteStatus} codes indicate error conditions
+            (when {ctext throw-on-error?} is false.)}
+    }
+
+    Use high level {ctext data-} methods for consolidated results.
+    Use {docref-abbr SQLiteStatement.rows-to-Iterator} to iterate on rows.
+    Lower level {ctext get-} methods can be used to obtain individual data items.
+
+    This is the "life cycle" of a statement.
+    {itemize
+        {item create with {docref SQLiteDatabase.create-statement}.}
+        {item specify parameters with {docref-abbr SQLiteStatement.bind} and other {ctext bind-} methods.
+            Parameters defined by name in SQL are supplied as keyword arguments.
+            Parameters defined by position or number in SQL are supplied as positional parameters.}
+        {item get consolidated results.
+            {itemize
+                {item by iterating with {docref-abbr SQLiteStatement.rows-to-Iterator}.}
+                {item using {docref-abbr SQliteStatement.data-column} and other {ctext data-} methods.}
+            }}
+        {item get incremental results.
+            {itemize
+                {item execute with {docref-abbr SQLiteStatement.step}.}
+                {item obtain data with {docref-abbr SQLiteStatement.get-column-value}
+                    and other {ctext get-column-} methods.}
+            }}
+        {item reset for further reuse with {docref-abbr SQLiteStatement.reset}.
+            Note that parameter bindings are retained when a statement is reset.
+            Use {docref-abbr SQLiteStatement.clear-bindings} to unset bound parameters.}
+        {item dispose with {docref-abbr SQLiteStatement.finalize}.
+            Every statement will eventually be finalized, and its resources released,
+            when the database is closed, or when the applet is suspended.
+            You can use the {docref with-statement} syntax to ensure that
+            a statement is immediately finalized.}
+    }
+
+    {x-example-ref title = {message Statement with iterator},
+        {url "examples/statement-iterator.curl"}
+    }
+    
+    {x-example-ref title = {message Statement with step},
+        {url "examples/statement-step.curl"}
+    }
+    
+    {x-example-ref title = {message Statements with step}, 
+        {url "examples/statements.curl"}
+    }
+
+    Parameterized statements are also useful for creation and update operations.
+    For example, a statement can be used for inserting rows into a table
+    
+    {code-box
+        {curl-code
+            def insert =
+                {db.create-statement
+                    "INSERT INTO log (when, where, what) VALUES (:when, :where, :what"}
+            {insert.bind when = "now", where = "here", what = "this"}
+            {insert.step}
+        }}
+    
+    {x-example-ref title = {message Statement for insert},
+        {url "examples/statement-insert.curl"}
+    }
+
+    In fact, there are predefined functions for bulk data insertion
+    that use that technique.
+    
+    {itemize
+        {item {docref SQLiteStatement.insert-proc}
+            returns an insertion procedure for a specified table.}
+        {item {docref SQLiteStatement.import-csv}
+            inserts rows into a specified table from a CSV file.}
+    }
+
+    This example uses Boston temperature data in CSV format
+    (also used in {link href = {dguide.merge "charts.curl"}, Charts chapter})
+    to compute annual summary informetion ussing SQL.
+    
+    {x-example-ref title = {message Bulk insertion},
+        {url "examples/import-csv.curl"}
+    }
+
+    The datatypes supported by the SQLite engine are:
+    
+    {Table
+        cell-margin = 2px, font-size = 0.9em,
+        margin = 6px,
+        vertical-line-width = 1px,
+        vertical-line-color = "silver",
+        background = "beige",
+        {row font-weight = "bold",
+            {cell {docref SQLiteDatatype}}
+            {cell Curl {docref Type}}},
+        {row
+            {cell TEXT}
+            {cell {docref String}}},
+        {row
+            {cell INTEGER}
+            {cell {docref int} or {docref int64}}},
+        {row
+            {cell REAL}
+            {cell {docref double}}},
+        {row
+            {cell BLOB}
+            {cell {docref ByteArray}}},
+        {row
+            {cell NULL}
+            {cell {docref null}}}}
+
+    The SQLite engine is more flexible about datatypes than the typical database:
+    columns can contain values off different types. This is convenient for cases
+    where dynamic data is used.  The engine will convert between datatypes when
+    necessary, according to definite rules.  Input values are converted
+    according to the "type affinity" of the column, which is based on
+    the declared type from the {ctext CREATE TABLE} statement,
+    using rules which match the conventional SQL datatype declarations.
+}
+
+|| ====================
+{heading level=3,
+   RecordSets
+}
+{paragraph    
+    You can combine the power of SQL for data manipulation
+    with that of Curl for application logic and GUI.
+
+    The standard Curl
+    {link href = {dguide.merge "data-access.curl"}, Data Access}
+    packages provide for representation and display of
+    data organized in records and fields,
+    using {docref RecordSet}, {docref RecordView} and related classes.
+    Any SQLite query can be used to create an {docref SQLiteRecordSet}.
+
+    The {ctext RecordSet} API includes modification operations,
+    which are enabled by the {docref-abbr RecordSet.modifiable?} property.
+    For SQL modifications to be performed, there must be a well defined
+    relationship between a {italic table}, its {italic column}s, and its
+    {italic unique rows}.  This relationship is established automaticly
+    for recordsets created using {docref SQLiteRecordSet.create-from-table-name}.
+    For recordsets created from arbitrary SQL using {docref SQLiteRecordSet.create},
+    the relationship can be specified using keywords.
+
+    The standard Curl {link href = {dguide.merge "data-connection.curl"}, Connected Data} package
+    provides a generic mechanism to connect with an external data source.
+    Use {docref SQLiteConnection} to apply that API to SQLite databases.
+
+    {itemize
+        {item {docref SQLiteConnection.create-record-set} calls
+            {docref SQLiteRecordSet.create}}
+        {item {docref SQLiteConnection.create-record-set-from-table-name} calls
+            {docref SQLiteRecordSet.create-from-table-name}}
+    }
+
+    The {docref RecordField}s in a {docref SQLiteRecordSet} may
+    contain values of any datatype supported by the SQLite engine.
+    The data conversion behavior provided by {docref SQLiteVariantDomain}
+    matches that of the underlying engine.
+    Thus, the {docref Domain.type} is {docref any}.
+
+    In some cases, Curl GUI objects make decisions based on that type.
+    (For example, {docref RecordGrid} and {docref Chart} recognize numeric types.)
+    Use the {ctext strict-types?} keyword to control whether
+    the recordset domains enforce type affinity.    
+    
+    Some kinds of processing can performed either
+    at the level of the database engine (in SQL),
+    or at the level of the application (in Curl).
+    It can be confusing when similar processing is specified at both levels.
+    
+    In general, it is preferable to rely on the database layer
+    for data-centric processing.
+
+
+    {itemize
+        {item {bold sort/filter criteria} 
+            These can be specified with {docref RecordView.sort} and {docref RecordView.filter},
+            and are used by {docref RecordGrid} and {docref RecordSetDisplay} subclasses.
+            SQL queries offer powerful facilities for sorting and filtering.
+            
+            Note that any ordering specified by SQL will be "shadowed"
+            by sort criteria specified using DATA-ACCESS classes.
+        }
+        {item {bold commit/revert}
+            These methods allow for provisional RecordSet changes,
+            managed using {docref RecordSet.commit} and {docref RecordSet.revert}.
+            Consumers of the RecordSet can see and react to data changes
+            before anything is submitted to the underlying database.        
+            This is useful, for example, to manage operations from a GUI for.        
+            
+            Processing specified in the database
+            (like constraints, default values, and triggers)
+            is not performed until changes are submitted.
+            
+            SQL transactions (bounded by {monospace BEGIN}
+            and {monospace COMMIT} or {monospace ROLLBACK}) allow
+            compound operations to be performed atomically.
+        }
+        {item {bold constraints}
+            Certain constraints ({docref RecordField.nullable?} and
+            {docref RecordField.index-type}) are enforced by {ctext RecordSet}s.
+            
+            SQL offers powerful facilities for enforcing these (and other) constraints.
+            
+            With {ctext SQLiteRecordSet}s, constraints are enforced by SQLite, not by Curl.
+        }
+        {item {bold database selection}
+            The generic {docref Connection} API allows for more than one database
+            to be accessed through a connection, as is typical in a server side DBMS.
+            Therefore, {ctext database-name} is a significant parameter or return value.
+            
+            SQLite databases are single files, so the {ctext database-name} parameter is not meaningful.
+            However, using the SQL extensions {ctext ATTACH} and {ctext DETACH}, more than
+            one database can be active through a single SQLite database.
+        }
+    }
+
+    These examples show uses of {ctext SQLiteRecordSet}
+    with Curl GUI classes for {ctext RecordSet} display.
+    Note the following techniques:
+
+    {itemize
+        {item use of {ctext request-modifiable?} parameter
+            to enable updates to occur}
+        {item use of {docref CurrentRecordChangeRequest}
+            to submit changes to database whenever
+            current record changes}
+        {item use of {ctext strict-types?} parameter
+            to preserve numeric type affinity}
+    }
+    
+    {x-example-ref title = {message RecordSet with Grid},
+        {url "examples/recordset-grid.curl"}
+    }
+    
+    {x-example-ref title = {message RecordSet with Form},
+        {url "examples/recordset-form.curl"}
+    }
+    
+    {x-example-ref title = {message RecordSet with Chart},
+        {url "examples/recordset-chart.curl"}
+    }
+
+    This example shows use of an attached database.
+    The example uses an in-memory database to log GUI events.
+    When you use the "Save" command, it attaches a file database,
+    and duplicates the table.
+    
+    {x-example-ref title = {message Attach Database},
+        {url "examples/attach-save.curl"}
+    }
+}
+    
+|| ====================
+{heading level=3,
+   Feedback
+}
+{paragraph
+    The SQLite engine allows for application to be notified of changes,
+    by registration of callbacks.  These notification mechanisms
+    are exposed by {docref SQLiteDatabase} using {docref SQLiteEvent} subclasses.
+
+    {itemize
+        {item {bold Progress handler}
+            Use {docref SQLiteDatabase.set-progress-handler}
+            to get periodic calls to a function
+            during long-running SQL operations.
+        }
+        {item {bold Authorizers}
+            These allow the full range of SQL statements to be restricted.
+            This would be useful, for example, when processing user-supplied
+            SQL, to disallow modification oprations.
+            Use {docref SQLiteDatabase.authorizer} to supply a function
+            that will be called before any statement is prepared,
+            in order to allow or deny the correponding kind of operation.
+        }
+        {item {bold Busy handlers}
+            When more than one process might access the same database concurrently,
+            the SQLite engine uses locking to prevent inconsistent changes.
+            Attempts by an application to perform an operation which is locked
+            will get a {docref SQLiteStatus}.{ctext BUSY} result,
+            which, by default, will be thrown as an exception.
+            Use {docref SQLiteDatabase.busy-timeout}
+            (or the more advanced {docref SQLiteDatabase.busy-handler})
+            to control behavior for this condition.
+        }
+        {item {bold Update notification}
+            The application can observe changes by adding event handlers
+            for these actions.
+            {itemize
+                {item {docref SQLiteUpdateEvent} when a row is modified.}
+                {item {docref SQLiteCommitEvent} before SQL {ctext COMMIT}.}
+                {item {docref SQLiteRollbackEvent} after SQL {ctext REVERT}.}
+            }}
+    }
+
+    Several of these techniques are used in the following "database explorer" example,
+    which allows SQL expressions to be created and evaluated.
+
+    The examples are started with a query over the {ctext sqlite_master} table,
+    used by the SQLite engine to describe the database schema,
+    so that you can see tables and views defined in the database.
+
+    {itemize
+        {item
+            The code is a bit long for an example box.
+            Look at {link href = {curl-edit-url {url "examples/simple-explorer.scurl"}},
+            in the IDE}.
+        }
+        {item {ctext authorizer} callback is used to disallow inappropriate operations.
+            {x-code-ref title = "Authorizer",
+                {url "examples/authorization.scurl"}}
+            {itemize
+                {item in Authorization example,  schema changes are prohibited.}
+                {item in Progess example, modifications are also prohibited.}
+            }}
+        {item {ctext set-progress-handler} is used to give a visual indication
+            when a query is executing.  Note the use of {docref dispatch-events}
+            so that the UI will refresh during the callback, and so that
+            a time-consuming operation can be cancelled using {docref SQLiteDatabase.interrupt}.
+            {x-code-ref title = "Progress",
+                {url "examples/progress.scurl"}}
+            The initial query in this example is contrived to be slow.
+            It returns pairs of words with matching suffix and prefix,
+            using self-join over 5000 records, with a condition that requires a full table scan.
+            It will take some seconds to return the 4000 results for words starting with 'a'.
+            It takes some minutes to return 66000 results if you eliminate the where clause.
+            Use the {ctext Cancel} button if you don't want to wait.
+        }
+    }
+    
+
+    {x-example-ref title = {message Simple Explorer},
+        {url "examples/simple-explorer.curl"}
+    }
+
+    {x-example-ref title = {message Authorization},
+        {url "examples/authorization.curl"}
+    }
+
+    {x-example-ref title = {message Progress Notification},
+        {url "examples/progress.curl"}
+    }
+
+||--    {x-example-ref title = {message Busy Handler},
+||--        {url "examples/busy-handler.curl"}
+||--    }
+}
+
+|| ====================
+{heading level=3,
+   Extension
+}
+{paragraph
+    The SQLite engine allows for definition of application extensions,
+    by registration of callbacks.  These extension mechanisms
+    are exposed by {docref SQLiteDatabase}.
+
+    {itemize
+        {item {bold functions}
+            The built-in SQLite functions can be extended using
+            {docref SQLiteDatabase.install-function}.
+            A {bold function} computes a value from its arguments,
+            and can be used anywhere a value is expected.
+        }
+        {item {bold aggregates}
+            An {bold aggregation function} accumulates values
+            from a set of records, often used in a statement
+            with a {ctext GROUP BY} partition. 
+        }
+    }
+
+    {x-example-ref title = {message Install Function},
+        {url "examples/install-function.curl"}
+    }
+
+    {x-example-ref title = {message Install Aggregate Function},
+        {url "examples/install-aggregate.curl"}
+    }
+}
+
+|| ====================
+{heading level=3,
+   Encrypted Databases
+}
+{paragraph
+    Curl Release 7 incorporates the SQLite engine (as {docref CURL.IO.SQLITE-LIBRARY}).
+    
+    Encrypted databases are supported,
+    via the {link href = {url "http://www.hwaci.com/sw/sqlite/prosupport.html#crypto"},
+    SQLite Encryption Extension (SEE)}.
+
+    An encryption key can be provided when accessing a database
+    (with {docref SQLiteDatabase.default} or {docref SQLiteDatabase.attach}).
+    
+    This feature can only be used by an applet that has a Curl Pro server license.
+
+}
+
+|| ====================
+{heading level=3,
+   Operational considerations
+}
+
+{itemize
+    {item {bold use over HTTP}
+        
+        The SQLite engine runs as a native executable, from the local filesystem,
+        and uses local files for database storage.  Therefore, when confronted with
+        HTTP {docref Url}, this library makes copies in the local filesystem.
+
+        When the CDK library is deployed over HTTP,
+        the SQLIte engine is included as an HTTP resource.
+        That executable library is copied into
+        the local {ctext curl://user-data/} partition,
+        the first time a particular version is needed.
+
+        Any database file specified by an application as an HTTP resource
+        is copied into the local {ctext curl://local-data/} partition
+        for that applet, before it can be opened.
+
+        Note that modifications to the database occur only in the local copy.
+        The application must make provisions for any submission
+        of data to an external destination.  Changes made to local copy may be overwritten.
+    }
+    {item {bold lifecycle and resource usage}
+
+        While a database is open system resources are in use.
+        Each prepared statement employs additional resources.
+        These resources are freed when statements are finalized,
+        and databases are closed.
+
+        You should release resources explicitly when you know
+        they are no longer needed.  You can use the
+        {docref with-database} and {docref with-statement} macros
+        to enclose temporary uses.
+
+        When applets are terminated, open databases and statements
+        are automatically closed, releasing their resources.
+        This may happen after applets are suspended.
+
+        SQLite always assures that data is written to the filesystem,
+        so no matter how a database is closed, it will be consistent,
+        and can be reopened.  Of course, memory databases, and temporary tables
+        and views are not preserved when the database is closed.
+    }
+    {item {bold concurrency, transactions and locking}
+
+        The SQLite engine is designed for reliable operation
+        with concurrent connections.  Database files are locked during
+        operations, to ensure consistency.  
+    }
+    {item {bold pragma settings}
+
+        The SQLite {ctext PRAGMA} command allows for applications
+        to change some operational characteristics of the engine.
+        Use {docref SQLiteDatabase.execute} to issue {ctext PRAGMA} directives,
+        just like any SQL statement. 
+    }
+}
+
+|| ====================
+{heading level=3,
+   More about SQLITE
+}
+{paragraph
+    The {link href = {url "http://www.sqlite.org"}, SQLite website}
+    is the authoritative reference.
+
+    You can find information on
+    {itemize
+        {item {link href = {url "http://www.sqlite.org/lang.html"}, SQL Syntax}}
+        {item {link href = {url "http://www.sqlite.org/datatype3.html"}, datatypes and affinities}}
+        {item {link href = {url "http://www.sqlite.org/lockingv3.html"}, locking and concurrency}}
+        {item {link href = {url "http://www.sqlite.org/pragma.html"}, pragma commands}}
+        || {item {link href = {url "", xxx}}}        
+    }
+
+    and {link href = {url "http://www.sqlite.org/sitemap.html"}, much more}.
+
+    An execellent reference book is
+    {link href = {url "http://www.apress.com/book/view/1590596730"}, 
+    The Definitive Guide to SQLite}.
+}
+
+|| ====================
+{curl-copyright}
+
