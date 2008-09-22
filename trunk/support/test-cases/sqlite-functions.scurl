@@ -591,7 +591,7 @@
                 {db.sql-value "SELECT foo('')"}
              catch ex:SQLiteException do
                 set errmsg = ex.message
-                set status = SQLiteStatus.ABORT
+                set status = ex.code
             }
             {TestCondition.assert {errmsg.find-string "Rooty-Tooty"} >= 0 and
                 status == SQLiteStatus.ABORT

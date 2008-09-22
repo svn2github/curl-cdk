@@ -302,10 +302,6 @@
         this will effectively remove the callback function, if one was
         previously registered.
     }
-    {return-vals
-        On success it returns {ctext SQLiteStatus.OK} otherwise it
-        will return an error {docref SQLiteStatus} code.
-    }
     {details
         If a callback function is registered, SQLite may call it
         rather than the SQLite methods returning {ctext
@@ -315,11 +311,6 @@
         be invoked whenever there is a lock contention. If SQLite
         determines that invoking the busy handler could result in a
         deadlock, it will return {ctext SQLiteStatus.BUSY} instead.
-
-        Since SQLite is re-entrant, the busy handler could in theory
-        start a new query. However, the busy handler will delete data
-        structures out from under the executing query and will
-        probably result in crashing the program.
     }
     {notes
         This replaces the implicit busy handler set with

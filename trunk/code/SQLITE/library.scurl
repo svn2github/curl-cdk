@@ -100,7 +100,8 @@
     set SQLiteInterface.interface = null
     || This could recurse, but deactivate won't do anything if not {active?}.
     {self.deactivate}
-    || TODO: when can we safely do this?
+     || TODO: when can we safely do this?  Testing implies that upto 80-130k
+     || may be kept around until this is called.
     || {self.shutdown}
   }
 
@@ -569,8 +570,8 @@
         method.
     }
   }
-  {method public {step stmt:SQLiteStatementHandle}:SQLiteStatus
-    {return {SQLiteStatus index = {self.step-internal stmt._handle}}}
+  {method package {step stmt:LowSQLiteStatementHandle}:SQLiteStatus
+    {return {SQLiteStatus index = {self.step-internal stmt}}}
   }
 
   {dll-method private {step-internal ("sqlite3_step") ||""
@@ -1028,10 +1029,10 @@
         their values on the subsequent execution.
     }
   }
-  {method public {reset
-                     stmt:SQLiteStatementHandle
-                 }:SQLiteStatus
-    {return {SQLiteStatus index = {self.reset-internal stmt._handle}}}
+  {method package {reset
+                      stmt:LowSQLiteStatementHandle
+                  }:SQLiteStatus
+    {return {SQLiteStatus index = {self.reset-internal stmt}}}
   }
 
   {dll-method private {reset-internal ("sqlite3_reset") ||""
@@ -1522,7 +1523,7 @@
     }
   }
   {method package {busy-handler
-                      sqlite3:LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       callback:#SQLiteBusyHandlerProcType
                   }:(SQLiteStatus, SQLiteBusyHandlerPointerType)
     let ret:SQLiteBusyHandlerPointerType =
@@ -1532,8 +1533,10 @@
                     {userdata-ptr:CPointer,
                      ncalls:int
                     }:int
-                    {with-defered-exceptions
-                        {return {if {callback ncalls} then 1 else 0}}
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {return {if {callback ncalls} then 1 else 0}}
+                        }
                     }
                     {return 0}
                 }
@@ -1543,7 +1546,7 @@
         }
     {return
         {SQLiteStatus
-            index = {self.busy-handler-internal sqlite3, ret, 0}
+            index = {self.busy-handler-internal sqlite3.non-null-sqlite3, ret, 0}
         },
         ret
     }
@@ -1620,7 +1623,7 @@
     }
   }
   {method package {update-hook
-                      sqlite3:LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       callback:#SQLiteUpdateHookProcType
                   }:SQLiteUpdateCallbackPointerType
     let constant ret:SQLiteUpdateCallbackPointerType =
@@ -1633,10 +1636,12 @@
                      table:CStringUTF8,
                      rowid:int64
                     }:void
-                    {with-defered-exceptions
-                        {callback 
-                            {SQLiteOperation index = which}, 
-                            {database.to-String}, {table.to-String}, rowid
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {callback 
+                                {SQLiteOperation index = which}, 
+                                {database.to-String}, {table.to-String}, rowid
+                            }
                         }
                     }
                 }
@@ -1644,7 +1649,7 @@
          else
             {uninitialized-value-for-type SQLiteUpdateCallbackPointerType}
         }
-    {self.update-hook-internal sqlite3, ret, 0}
+    {self.update-hook-internal sqlite3.non-null-sqlite3, ret, 0}
     {return ret}
   }
 
@@ -1675,15 +1680,17 @@
     }
   }
   {method package {commit-hook
-                      sqlite3:LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       callback:#SQLiteCommitHookProcType
                   }:SQLiteCommitCallbackPointerType
     let constant ret:SQLiteCommitCallbackPointerType =
         {if-non-null callback then
             {SQLiteCommitCallbackPointerType
                 {proc {userdata-ptr:CPointer}:int
-                    {with-defered-exceptions
-                        {return {if {callback} then 1 else 0}}
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {return {if {callback} then 1 else 0}}
+                        }
                     }
                     {return 1}
                 }
@@ -1691,7 +1698,7 @@
          else
             {uninitialized-value-for-type SQLiteCommitCallbackPointerType}
         }
-    {self.commit-hook-internal sqlite3, ret, 0}
+    {self.commit-hook-internal sqlite3.non-null-sqlite3, ret, 0}
     {return ret}
   }
 
@@ -1726,22 +1733,24 @@
     }
   }
   {method package {rollback-hook
-                      sqlite3: LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       callback:#SQLiteRollbackHookProcType
                   }:SQLiteRollbackCallbackPointerType
     let ret:SQLiteRollbackCallbackPointerType =
         {if-non-null callback then
             {SQLiteRollbackCallbackPointerType
                 {proc {userdata-ptr:CPointer}:void
-                    {with-defered-exceptions
-                        {callback}
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {callback}
+                        }
                     }
                 }
             }
          else
             {uninitialized-value-for-type SQLiteRollbackCallbackPointerType}
         }
-    {self.rollback-hook-internal sqlite3, ret, 0}
+    {self.rollback-hook-internal sqlite3.non-null-sqlite3, ret, 0}
     {return ret}
   }
 
@@ -1819,7 +1828,8 @@
                        num-args:int,
                        args:LowSQLiteValueHandleArray
                       }:void
-                    {xstep context,
+                    {xstep
+                        context,
                         {LowSQLiteValueHandleArray-to-Array args, num-args}
                     }
                 }
@@ -2551,7 +2561,7 @@
     }
   }
   {method package {progress-handler
-                      sqlite3:LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       instruction-count:int,
                       callback:#SQLiteProgressHandlerProcType
                   }:SQLiteProgressHandlerPointerType
@@ -2559,8 +2569,10 @@
         {if-non-null callback then
             {SQLiteProgressHandlerPointerType
                 {proc {userdata:CPointer}:int
-                    {with-defered-exceptions
-                        {return {if {callback} then 1 else 0}}
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {return {if {callback} then 1 else 0}}
+                        }
                     }
                     {return 1}
                 }
@@ -2569,7 +2581,7 @@
             {uninitialized-value-for-type SQLiteProgressHandlerPointerType}
         }
     {self.progress-handler-internal
-        sqlite3,
+        sqlite3.non-null-sqlite3,
         instruction-count,
         ret,
         0
@@ -2617,7 +2629,7 @@
     }
   }
   {method package {set-authorizer
-                      sqlite3:LowSQLiteDatabaseHandle,
+                      sqlite3:SQLiteDatabaseHandle,
                       callback:#SQLiteAuthorizerProcType
                   }:(SQLiteStatus, SQLiteAuthorizerPointerType)
     let constant ret:SQLiteAuthorizerPointerType =
@@ -2627,15 +2639,17 @@
                        data1:CStringUTF8, data2:CStringUTF8,
                        data3:CStringUTF8, data4:CStringUTF8
                       }:int
-                    {with-defered-exceptions
-                        {return
-                            {callback
-                                {SQLiteOperation index = operation},
-                                {data1.to-String-or-null},
-                                {data2.to-String-or-null},
-                                {data3.to-String-or-null},
-                                {data4.to-String-or-null}
-                            }.index
+                    {with sqlite3._change-lock-out? = true do
+                        {with-defered-exceptions
+                            {return
+                                {callback
+                                    {SQLiteOperation index = operation},
+                                    {data1.to-String-or-null},
+                                    {data2.to-String-or-null},
+                                    {data3.to-String-or-null},
+                                    {data4.to-String-or-null}
+                                }.index
+                            }
                         }
                     }
                     {return SQLiteAuthorizerReturnCode.DENY.index}
@@ -2649,7 +2663,7 @@
         {SQLiteStatus
             index =
                 {self.set-authorizer-internal
-                    sqlite3,
+                    sqlite3.non-null-sqlite3,
                     ret,
                     0
                 }

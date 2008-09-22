@@ -75,11 +75,45 @@
 }
 {define-class public final SQLiteStatementHandle
   field package _handle:LowSQLiteStatementHandle
+  field private _lock-out?:bool
   {constructor public {default}
     set self._handle = 0
   }
   {getter public {open?}:bool
     {return self._handle != 0}
+  }
+  {method private inline {check-lock-out}:void
+    {if self._lock-out? then
+        {throw
+            {SQLiteException 
+                SQLiteStatus.MISUSE,
+                {hlmessage Can not call step, reset, or finalize while executing
+                    a statement.}
+            }
+        }
+    }
+  }
+  {method package {finalize}:SQLiteStatus
+    {self.check-lock-out}
+    {with self._lock-out? = true do
+        let constant status:SQLiteStatus =
+            {{SQLiteInterface}.finalize self._handle}
+        set self._handle = 0
+        {return status}
+    }
+  }
+  {method public {step}:SQLiteStatus
+    {self.check-lock-out}
+    {with self._lock-out? = true do
+        {return {{SQLiteInterface}.step self._handle}}
+    }
+  }
+  {method public {reset}:SQLiteStatus
+    {self.check-lock-out}
+    {if not self.open? then {return SQLiteStatus.OK}}
+    {with self._lock-out? = true do
+        {return {{SQLiteInterface}.reset self._handle}}
+    }
   }
 }
 
@@ -97,6 +131,42 @@
 {define-class public final SQLiteDatabaseHandle
 
   field private _sqlite3:LowSQLiteDatabaseHandle
+
+  || Indicates that it is not safe to do any API call that changes the
+  || database handle.  Used in this class and SQLiteInterface during
+  || hooks, callbacks and handlers.
+  || FIXME: really the changing of this field should be in this class
+  || not SQLiteInterface and SQLiteInterface should take the Low handle
+  || for all of the hooks, callbaks and handlers, but it was easier
+  || to do it this way.
+  field package _change-lock-out?:bool
+
+  || Indicates that it is not safe to do any API call that closes the
+  || database handle.  Used in this class during installed functions.
+  field private _close-lock-out?:bool
+
+  {define-proc private {throw-lock-out-error}:never-returns
+    {throw
+        {SQLiteException 
+            SQLiteStatus.MISUSE,
+            {hlmessage Can not call close the database or
+                finalize or prepare new statements
+                while executing a hook or callback.}
+        }
+    }
+  }
+
+  {method private inline {check-change-lock-out}:void
+    {if self._change-lock-out? then
+        {SQLiteDatabaseHandle.throw-lock-out-error}
+    }
+  }
+
+  {method private inline {check-close-lock-out}:void
+    {if self._change-lock-out? or self._close-lock-out? then
+        {SQLiteDatabaseHandle.throw-lock-out-error}
+    }
+  }
 
   {doc-next
     {purpose
@@ -218,7 +288,7 @@
     {if-built-in
         {if not {process-privileged?} then
             {self.low-set-authorizer
-            {proc
+                {proc
                     {operation:SQLiteOperation,
                      data1:#String,
                      data2:#String,
@@ -491,6 +561,7 @@
   }
   {method public open {close}:(SQLiteStatus, errmsg:#String)
     {if self._sqlite3 == 0 then {return SQLiteStatus.OK, null}}
+    {self.check-close-lock-out}
 
     let constant statements:{Array-of SQLiteStatementHandle} = self.statements
     {while statements.size > 0 do
@@ -601,7 +672,7 @@
         let status:SQLiteStatus
         set (status, self.busy-handler-callback-ptr) =
             {{SQLiteInterface}.busy-handler
-                self.non-null-sqlite3,
+                self,
                 callback
             }
         {if status != SQLiteStatus.OK then
@@ -666,7 +737,7 @@
     set self.update-callback = callback
     {if self.sqlite3 != 0 then
         set self.update-callback-ptr =
-            {{SQLiteInterface}.update-hook self.non-null-sqlite3, callback}
+            {{SQLiteInterface}.update-hook self, callback}
     }
   }
 
@@ -693,7 +764,7 @@
     set self.commit-callback = callback
     {if self.sqlite3 != 0 then
         set self.commit-callback-ptr =
-            {{SQLiteInterface}.commit-hook self.non-null-sqlite3, callback}
+            {{SQLiteInterface}.commit-hook self, callback}
     }
   }
 
@@ -725,7 +796,7 @@
     {if self.sqlite3 != 0 then
         set self.rollback-callback-ptr =
             {{SQLiteInterface}.rollback-hook
-                self.non-null-sqlite3,
+                self,
                 callback
             }
     }
@@ -767,7 +838,7 @@
     {if self.sqlite3 != 0 then
         set self.progress-callback-ptr =
             {{SQLiteInterface}.progress-handler
-                self.non-null-sqlite3, instruction-count, callback}
+                self, instruction-count, callback}
     }
   }
 
@@ -821,7 +892,7 @@
         let status:SQLiteStatus
         set (status, self.authorizer-ptr) =
             {{SQLiteInterface}.set-authorizer
-                self.non-null-sqlite3, callback}
+                self, callback}
         {if status != SQLiteStatus.OK then
             {return status, {{SQLiteInterface}.errmsg self}}
         }
@@ -948,6 +1019,8 @@
     let constant final-function:#SQLiteFinalFunctionProcType =
         {if final-xfunc != null then
             {proc {context:SQLiteContextHandle}:void
+                let old-close-lock-out?:bool = self._close-lock-out?
+                set self._close-lock-out? = true
                 {try
                     let func-type:ProcType = {type-of final-xfunc} asa ProcType
                     let retval:any =
@@ -970,6 +1043,7 @@
                     {{SQLiteInterface}.result-error context, ex.message}
                  finally
                     {self.set-aggregate-context-value context, null}
+                    set self._close-lock-out? = old-close-lock-out?
                 }
             }
          else
@@ -1192,6 +1266,8 @@
             }
         }
     }
+    let old-close-lock-out?:bool = self._close-lock-out?
+    set self._close-lock-out? = true
     {try
         let retval:any =
             {with-compiler-directives allow-any-calls? = true do
@@ -1207,6 +1283,8 @@
         {{SQLiteInterface}.result-error-code context, ex.code}
      catch ex:Exception do
         {{SQLiteInterface}.result-error context, ex.message}
+     finally
+        set self._close-lock-out? = old-close-lock-out?
     }
   }
 
@@ -1256,6 +1334,7 @@
                      sql:String,
                      handle:SQLiteStatementHandle
                  }:(tail:#String, SQLiteStatus, errmsg:#String)
+    {self.check-change-lock-out}
     {if handle.open? then
         {return null, SQLiteStatus.MISUSE, 
             {lmessage Tried to prepare already prepared statement.}}
@@ -1281,10 +1360,11 @@
   {method public {finalize-statement
                      handle:SQLiteStatementHandle
                  }:SQLiteStatus
-    let constant status:SQLiteStatus =
-        {{SQLiteInterface}.finalize handle._handle}
-    set handle._handle = 0
-    {self.note-statement-finalized handle}
+    {self.check-change-lock-out}
+    let status:SQLiteStatus = {handle.finalize}
+    {if status == SQLiteStatus.OK then
+        {self.note-statement-finalized handle}
+    }
     {return status}
   }
 
@@ -1311,6 +1391,7 @@
                          SQLiteEncryptionType.none,
                      key:#ByteArray = null
                  }:(status:SQLiteStatus, errmsg:#String)
+    {self.check-change-lock-out}
     {if-built-in
         {{get-process-security-manager}.check-write-local-file u}
     }
@@ -1360,6 +1441,7 @@
     }
   }
   {method public {detach name:String}:void
+    {self.check-change-lock-out}
     {self.exec "DETACH '" & {SQLiteDatabaseHandle.sql-quote name} & "'"} ||""
   }
 

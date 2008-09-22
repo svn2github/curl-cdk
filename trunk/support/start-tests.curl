@@ -38,6 +38,7 @@
             {TestSuite.import {url "test-cases/sqlite-basics.scurl"}},
             {TestSuite.import {url "test-cases/sqlite-databases.scurl"}},
             {TestSuite.import {url "test-cases/sqlite-functions.scurl"}},
+            {TestSuite.import {url "test-cases/sqlite-callbacks.scurl"}},
             {TestSuite.import {url "test-cases/sqlite-recordsets.scurl"}},
             || dguide
             {TestSuite "dguide",
