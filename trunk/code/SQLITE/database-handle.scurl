@@ -117,6 +117,21 @@
   }
 }
 
+{define-class package SQLiteAttachInfo
+  field package constant url:Url
+  field package constant encryption-type:SQLiteEncryptionType
+  field package constant key:#ByteArray
+  {constructor package {default
+                           url:Url,
+                           encryption-type:SQLiteEncryptionType,
+                           key:#ByteArray
+                       }
+    set self.url = url
+    set self.encryption-type = encryption-type
+    set self.key = key
+  }
+}
+
 {doc-next
     {purpose
         An object representing a SQLite database connection.
@@ -249,6 +264,8 @@
   || Saved and re-installed when the database is re-opened.
   field private constant installed-functions:{Array-of FunctionSpec} =
     {new {Array-of FunctionSpec}}
+
+  field private attached-databases:#{HashTable-of String, SQLiteAttachInfo}
 
   {doc-next
     {purpose
@@ -388,7 +405,6 @@
   {method public {open}:(SQLiteStatus, errmsg:#String)
     {if self._sqlite3 != 0 then {return SQLiteStatus.OK, null}}
 
-
     let filename:String =
         {if-non-null u = self.url then
             {if-non-null f = u.local-filename then
@@ -422,6 +438,7 @@
 ||--    }
 
     let status:SQLiteStatus
+    let errmsg:#String
     set (status, self._sqlite3) = 
         {{SQLiteInterface}.open
             filename,
@@ -429,12 +446,11 @@
             read-only? = self.read-only?
         }
     {if status != SQLiteStatus.OK then
-        let errmsg:String = {{SQLiteInterface}.errmsg self}
+        set errmsg = {{SQLiteInterface}.errmsg self}
         {{SQLiteInterface}.close self._sqlite3}
         set self._sqlite3 = 0
         {return status, errmsg}
     }
-    let errmsg:#String
     set (status, errmsg) =
         {self.set-key self._encryption-type, self._key}
     {if status != SQLiteStatus.OK then
@@ -517,7 +533,7 @@
             }
     
         {if status != SQLiteStatus.OK then
-            let errmsg:String = {{SQLiteInterface}.errmsg self}
+            set errmsg = {{SQLiteInterface}.errmsg self}
             {return status, errmsg}
         }
     }
@@ -541,6 +557,18 @@
     }
     {if-non-null callback = self.progress-callback then
         {self.set-progress-handler self.progress-callback-arg, callback}
+    }
+    {if-non-null attached-databases = self.attached-databases then
+        {for ad key name in attached-databases do
+            let constant (status:SQLiteStatus, errmsg:#String) =
+                {self.attach
+                    ad.url, name,
+                    encryption-type = ad.encryption-type, key = ad.key
+                }
+            {if status != SQLiteStatus.OK then
+                {return status, errmsg}
+            }
+        }
     }
     {return SQLiteStatus.OK, null}
   }
@@ -1386,7 +1414,9 @@
         Key to use for an encrypted database.
     }
   }
-  {method public {attach u:Url, name:String,
+  {method public {attach
+                     u:Url,
+                     name:String,
                      encryption-type:SQLiteEncryptionType =
                          SQLiteEncryptionType.none,
                      key:#ByteArray = null
@@ -1401,7 +1431,7 @@
          else
             {error {lmessage Invalid database url '{value u}'.}}
         }
-    {return
+    let (status:SQLiteStatus, errmsg:#String) =
         {self.exec
             "ATTACH '" & {SQLiteDatabaseHandle.sql-quote filename} &
             "' AS '" & {SQLiteDatabaseHandle.sql-quote name} &
@@ -1410,7 +1440,15 @@
                 {SQLiteInterface.make-key-bytearray encryption-type, key}
             } ||""
         }
+    {if status == SQLiteStatus.OK then
+        {if self.attached-databases == null then
+            set self.attached-databases =
+                {new {HashTable-of String, SQLiteAttachInfo}}
+        }
+        set self.attached-databases[name] =
+            {SQLiteAttachInfo u, encryption-type, key}
     }
+    {return status, errmsg}
   }
   {define-proc private {ByteArray-as-blob-string-interface
                            b:#ByteArray
@@ -1440,9 +1478,14 @@
         Name supplied when the database was attached.
     }
   }
-  {method public {detach name:String}:void
+  {method public {detach name:String}:(status:SQLiteStatus, errmsg:#String)
     {self.check-change-lock-out}
-    {self.exec "DETACH '" & {SQLiteDatabaseHandle.sql-quote name} & "'"} ||""
+    {if-non-null attached-databases = self.attached-databases then
+        {attached-databases.remove name, error-if-missing? = false}
+    }
+    {return
+        {self.exec "DETACH '" & {SQLiteDatabaseHandle.sql-quote name} & "'"} ||""
+    }
   }
 
   {define-proc private {sql-quote s:String}:String

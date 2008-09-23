@@ -1087,7 +1087,10 @@
     }
   }
   {method public {detach name:String}:void
-    {self._handle.detach name}
+    let (status:SQLiteStatus, errmsg:#String) = {self._handle.detach name}
+    {if status != SQLiteStatus.OK then
+        {throw {SQLiteException status, {non-null errmsg}}}
+    }
   }
 
   {method public {open}:void
