@@ -102,10 +102,45 @@
         {return status}
     }
   }
+
+  {doc-next
+    {purpose
+        Executes a prepared query.
+    }
+    {return-vals
+        The return value is either {ctext SQLiteStatus.BUSY}, {ctext
+        SQLiteStatus.DONE}, {ctext SQLiteStatus.ROW}, {ctext
+        SQLiteStatus.ERROR} or
+        {ctext SQLiteStatus.MISUSE}.
+
+        {ctext SQLiteStatus.DONE} means that the statement has finished
+        executing successfully. {ctext SQLiteStatementHandle.step} should
+        not be called again on this virtual machine without calling
+        {docref SQLiteStatementHandle.reset}.
+
+        If the SQL statement being executed returns any data, then
+        {ctext SQLiteStatus.ROW} is returned for each time a row of data is
+        ready for processing by the caller. The values can be accessed
+        by using {ctext SQLiteInterface.column-*} method. Subsequent
+        rows are retrieved by calling {ctext SQLiteStatementHandle.step}
+        method.
+    }
+  }
   {method public {step}:SQLiteStatus
     {self.check-lock-out}
     {with self._lock-out? = true do
         {return {{SQLiteInterface}.step self._handle}}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Resets a prepared SQL statement.
+    }
+    {notes
+        After this call {param stmt} is ready to be re-executed. Any
+        SQL parameters that have values bound to them will retain
+        their values on the subsequent execution.
     }
   }
   {method public {reset}:SQLiteStatus

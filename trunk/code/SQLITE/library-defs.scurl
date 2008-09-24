@@ -331,9 +331,9 @@
                 {ctext SQLiteInterface.bind-*} out of range.
             }
             {item {ctext NOTADB}: File opened is not a database file.}
-            {item {ctext ROW}: {docref SQLiteInterface.step} has another 
+            {item {ctext ROW}: {docref SQLiteStatementHandle.step} has another 
                 row ready.}
-            {item {ctext DONE}: {docref SQLiteInterface.step} has finished
+            {item {ctext DONE}: {docref SQLiteStatementHandle.step} has finished
                 executing.}
         }
     }

@@ -482,7 +482,7 @@
         {ctext null}.
 
         This compiled statement can be executed by calling {docref
-        SQLiteInterface.step} method. 
+        SQLiteStatementHandle.step} method. 
 
         The calling function is responsible to delete the memory
         allocated for this compiled statement by calling {docref
@@ -558,15 +558,15 @@
         {ctext SQLiteStatus.MISUSE}.
 
         {ctext SQLiteStatus.DONE} means that the statement has finished
-        executing successfully. {ctext SQLiteInterface.step} should
+        executing successfully. {ctext SQLiteStatementHandle.step} should
         not be called again on this virtual machine without calling
-        {docref SQLiteInterface.reset}.
+        {docref SQLiteStatementHandle.reset}.
 
         If the SQL statement being executed returns any data, then
         {ctext SQLiteStatus.ROW} is returned for each time a row of data is
         ready for processing by the caller. The values can be accessed
         by using {ctext SQLiteInterface.column-*} method. Subsequent
-        rows are retrieved by calling {ctext SQLiteInterface.step}
+        rows are retrieved by calling {ctext SQLiteStatementHandle.step}
         method.
     }
   }
@@ -590,8 +590,8 @@
         See Also: {docref SQLiteDatabaseHandle.prepare-statement}.
     }
     {return-vals
-        If called before {docref SQLiteInterface.step} or after {ctext
-        SQLiteInterface.step} has returned a value that is not {ctext
+        If called before {docref SQLiteStatementHandle.step} or after {ctext
+        SQLiteStatementHandle.step} has returned a value that is not {ctext
         SQLiteStatus.ROW}, the return value is zero. Otherwise it is the
         number of values in the current row of the result set.
     }
@@ -1065,9 +1065,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are not reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are not reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
@@ -1110,9 +1110,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are nor reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are nor reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
@@ -1158,9 +1158,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are nor reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are nor reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
@@ -1202,9 +1202,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are nor reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are nor reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
@@ -1246,9 +1246,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are nor reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are nor reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
@@ -1315,9 +1315,9 @@
     }
     {notes
         This method must be called after {docref
-        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteInterface.reset} and
-        before {docref SQLiteInterface.step}. Bindings are nor reset
-        by the {ctext SQLiteInterface.reset} method. Unbound
+        SQLiteDatabaseHandle.prepare-statement} or {docref SQLiteStatementHandle.reset} and
+        before {docref SQLiteStatementHandle.step}. Bindings are nor reset
+        by the {ctext SQLiteStatementHandle.reset} method. Unbound
         parameters are interpreted as NULL.
     }
   }
