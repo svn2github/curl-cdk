@@ -895,5 +895,42 @@ INSERT INTO t VALUES (3, 9);
                 }
             }
         }
+    },
+    {test-case "close and reopen database",
+        let dbloc:Url = {get-temp-database-file}
+        let dbloc2:#Url
+        let db:SQLiteDatabase =
+            {SQLiteDatabase dbloc, encryption-type = SQLiteEncryptionType.rc4,
+                key = {ByteArray 3, 2, 1}}
+        {try
+            {db.execute "CREATE TABLE test (val1, val2)"}
+            {db.execute "INSERT INTO test VALUES ('a', 'bbb')"}
+            {db.execute "INSERT INTO test VALUES ('b', 'aaa')"}
+            set dbloc2 = {get-temp-database-file}
+            {db.attach {non-null dbloc2}, "testdb",
+                encryption-type = SQLiteEncryptionType.aes128,
+                key = {ByteArray 9, 10, 11}
+            }
+            {db.execute "CREATE TABLE testdb.test2 (val1, val2)"}
+            {db.execute "INSERT INTO testdb.test2 VALUES ('z', 'bbb')"}
+            {db.execute "INSERT INTO testdb.test2 VALUES ('y', 'xxx')"}
+            let r:Array =
+                {db.sql-row "SELECT test.val1, testdb.test2.val1 FROM test, " &
+                    " testdb.test2 WHERE test.val2 == testdb.test2.val2"}
+            {TestCondition.assert r[0] == "a" and r[1] == "z"}
+            || Close database, so we can make sure that attached databases
+            || and encryption info is maintained when it is re-opened.
+            {db.close}
+            let r2:Array =
+                {db.sql-row "SELECT test.val1, testdb.test2.val1 FROM test, " &
+                    " testdb.test2 WHERE test.val2 == testdb.test2.val2"}
+            {TestCondition.assert r[0] == "a" and r[1] == "z"}
+         finally
+            {db.close}
+            {delete dbloc, error-if-missing? = false}
+            {if-non-null dbloc2 then
+                {delete dbloc2, error-if-missing? = false}
+            }
+        }
     }
 }
