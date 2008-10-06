@@ -29,18 +29,4 @@
         token = token
     }
   }
-
-  {method public {clone}:Event
-    {return
-        {InvokeEvent
-            self.type,
-            message = self.message,
-            token = self.token
-        }
-    }
-  }
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

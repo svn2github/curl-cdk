@@ -36,25 +36,10 @@
     set self.headers = headers
   }
 
-  {method public {clone}:Event
-    {return
-        {ResultEvent
-            self.type,
-            message = self.message,
-            token = self.token,
-            result = self.result,
-            headers = self.headers
-        }
-    }
-  }
-
   {method public {call-token-responders}:void
-    {if-non-null self.token then
-        {self.token.apply-result self}
+    {if-non-null token = self.token then
+        {token.apply-result self}
     }
   }
 
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

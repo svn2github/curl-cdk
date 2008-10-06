@@ -36,26 +36,10 @@
     set self.headers = headers
   }
 
-  {method public {clone}:Event
-    {return
-        {FaultEvent
-            self.type,
-            message = self.message,
-            token = self.token,
-            fault = self.fault,
-            headers = self.headers
-        }
-    }
-  }
-
   {method public {call-token-responders}:void
     {if-non-null self.token then
         {self.token.apply-fault self}
     }
-  }
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
   }
 
 ||--  {define-proc public {create-event

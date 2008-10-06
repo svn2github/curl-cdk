@@ -30,14 +30,6 @@
     set self.message = message
   }
 
-  {method public {clone}:Event
-    {return
-        {MessageEvent
-            self.type,
-            message = self.message
-        }
-    }
-  }
 
   {method public {to-String}:String
     {return {format "%s", self}}

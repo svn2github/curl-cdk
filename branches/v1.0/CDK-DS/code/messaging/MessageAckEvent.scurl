@@ -31,17 +31,4 @@
     set self.correlation = correlation
   }
 
-  {method public {clone}:Event
-    {return
-        {MessageAckEvent
-            self.type,
-            ack = self.message asa #AcknowledgeMessage,
-            correlation = self.correlation
-        }
-    }
-  }
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

@@ -38,18 +38,6 @@
     set self.connected? = connected?
   }
 
-  {method public {clone}:Event
-    {return
-        {new ChannelEvent,
-            self.type,
-            channel = self.channel,
-            reconnecting? = self.reconnecting?,
-            rejected? = self.rejected?,
-            connected? = self.connected?
-        }
-    }
-  }
-
   {method public {to-String}:String
     {return {format "%s", self}}
   }

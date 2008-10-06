@@ -46,23 +46,4 @@
     set self.root-cause = root-cause
   }
 
-  {method public {clone}:Event
-    {return
-        {ChannelFaultEvent
-            self.type,
-            channel = self.channel,
-            reconnecting? = self.reconnecting?,
-            rejected? = self.rejected?,
-            connected? = self.connected?,
-            code = self.fault-code,
-            level = self.fault-string,
-            description = self.fault-detail,
-            root-cause = self.root-cause
-        }
-    }
-  }
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

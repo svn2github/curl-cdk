@@ -44,16 +44,6 @@
     {return self.message.fault-detail}
   }
 
-  {method public {clone}:Event
-    {return
-        {MessageFaultEvent
-            self.type,
-            message = self.message,
-            root-cause = self.root-cause
-        }
-    }
-  }
-
   {method public {to-String}:String
     {return {format "%s", self}}
   }
