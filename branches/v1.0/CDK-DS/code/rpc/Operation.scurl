@@ -36,8 +36,7 @@
 ||--            }
 ||--        }
 ||--    }
-    def remoting-message = {new RemotingMessage}
-    set remoting-message.operation = self.name
+    def remoting-message = {RemotingMessage operation = self.name}
     set remoting-message.body = args
     {type-switch self.service
      case ro:RemoteObject do

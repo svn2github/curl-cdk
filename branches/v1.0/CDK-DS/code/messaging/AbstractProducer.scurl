@@ -21,8 +21,8 @@
   field public reconnect-interval:Time = 0ms
   field private connect-message:#CommandMessage
 
-  {constructor public {default}
-    {construct-super}
+  {constructor public {default ...:EventHandler}
+    {construct-super ...}
   }
 
   {method public {connect}:void
