@@ -357,21 +357,21 @@
   }
 
   {method public {internal-set-channel-set channel-set:#ChannelSet}:void
-    {if self.channel-set != channel-set then
-        {if-non-null self.channel-set then
-            {self.channel-set.disconnect self}
+    {if self._channel-set != channel-set then
+        {if-non-null old-channel-set = self._channel-set then
+            {old-channel-set.disconnect self}
         }
         || TODO: Create a PropertyChangeEvent
         set self._channel-set = channel-set
-        {if-non-null self.channel-set then
+        {if-non-null channel-set then
             {if-non-null self.credentials then
-                {self.channel-set.set-credentials
+                {channel-set.set-credentials
                     self.credentials,
                     agent = self,
                     charset = self.credentials-charset
                 }
             }
-            {self.channel-set.connect self}
+            {channel-set.connect self}
         }
         || TODO: Dispatch the PropertyChangeEvent
     }

@@ -15,7 +15,6 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractService {inherits EventTarget}
-  field private constant endpoint:#Url
   field protected _request-timeout:Time
   field protected async-request:AsyncRequest
 
@@ -27,10 +26,8 @@
                       }
     {construct-super ...}
 
-    set self.endpoint = endpoint
-
     set self.async-request =
-        {AsyncRequest channel-set = channel-set, destination = destination}
+        {AsyncRequest endpoint = endpoint, destination = destination, channel-set = channel-set}
   }
 
   {getter public {channel-set}:#ChannelSet
@@ -86,7 +83,6 @@
   }
 
   {method public {send name:String, async?:bool = false, ...:any}:void
-||--    {if-non-null u = self.endpoint then
         def operation = {self.get-operation name}
         set operation.async? = async?
         {operation.send ...}
@@ -95,7 +91,6 @@
 ||--         else
 ||--            {self.async-invoke-method name, ...}
 ||--        }
-||--    }
   }
 
   {method public {get-operation name:String}:AbstractOperation
