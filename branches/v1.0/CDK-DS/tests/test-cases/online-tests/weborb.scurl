@@ -22,7 +22,7 @@
 || -- do not terminate this by '/'
 {def
     weborb-url =
-        {url "http://localhost:8080/test-weborb/examples/flex/remoting"}
+        {url "http://census-test.curl.com:8080/test-weborb/examples/flex/remoting"}
 }
 
 || Make weborb tests

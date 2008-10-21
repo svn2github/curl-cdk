@@ -20,7 +20,8 @@
 || Url of BlazeDS
 || -- do not terminate this by '/'
 {def
-    blazeds-url = {url "http://localhost:8080/test-blazeds/messagebroker"}
+    blazeds-url =
+        {url "http://census-test.curl.com:8080/test-blazeds/messagebroker"}
 }
 
 || Make 'products' tests

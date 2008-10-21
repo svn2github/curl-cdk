@@ -43,7 +43,6 @@
   
   {method public {invoke-method
                      name:String,
-                     channel-id:String,
                      ...
                  }:#MessageEventAdapter
     {self.initialize}
