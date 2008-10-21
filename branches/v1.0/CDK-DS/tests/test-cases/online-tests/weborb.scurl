@@ -38,8 +38,7 @@
     {return
         {test-case test-name,
             {test-condition
-                {tro.invoke-method
-                    method-name, channel-id, {splice rest}},
+                {tro.invoke-method method-name, {splice rest}},
                 expect-fault? = expect-fault?
             }
         }

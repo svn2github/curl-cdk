@@ -28,8 +28,7 @@
 {define-proc public {product-tests
                         name:String,
                         destination:String,
-                        endpoint-tail:String,
-                        channel-id:String = "my-amf"
+                        endpoint-tail:String
                     }:TestSuite
     def endpoint = {blazeds-url.concat endpoint-tail}
     def service = {TestRemoteObject endpoint, destination}
@@ -38,12 +37,12 @@
             {test-case "getProducts",
                 {test-condition
                     {service.invoke-method
-                        "getProducts", channel-id}}
+                        "getProducts"}}
             },
             {test-case "getProduct",
                 {test-condition
                     {service.invoke-method
-                        "getProduct", channel-id, "1"}}
+                        "getProduct", "1"}}
             },
             {test-case "update",
                 def ti = {StandardDataObjectTraits
@@ -71,12 +70,12 @@
                            }
                 {test-condition
                     {service.invoke-method
-                        "update", channel-id, dobj}}
+                        "update", dobj}}
             },
             {test-case "getProduct-expected-error",
                 {test-condition
                     {service.invoke-method
-                        "getProduct", channel-id, ""},
+                        "getProduct", ""},
                     expect-fault? = true
                 }
             }
