@@ -98,6 +98,12 @@
                 || Answers from Servers
                 || --------------------
                 {TestSuite.import {url "test-cases/answers-from-servers.scurl"}},
+
+                || Online tests
+                {TestSuite.import
+                    {url "test-cases/online-tests/blazeds.scurl"}},
+                {TestSuite.import
+                    {url "test-cases/online-tests/weborb.scurl"}},
                 
                 || postlude
                 || --------------------

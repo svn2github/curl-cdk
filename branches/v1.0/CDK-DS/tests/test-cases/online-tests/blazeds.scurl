@@ -1,0 +1,126 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
+
+|| Url of BlazeDS
+|| -- do not terminate this by '/'
+{def
+    blazeds-url = {url "http://localhost:8080/test-blazeds/messagebroker"}
+}
+
+|| Make 'products' tests
+{define-proc public {product-tests
+                        name:String,
+                        destination:String,
+                        endpoint-tail:String,
+                        channel-id:String = "my-amf"
+                    }:TestSuite
+    def endpoint = {blazeds-url.concat endpoint-tail}
+    def service = {TestRemoteObject endpoint, destination}
+    {return
+        {TestSuite name,
+            {test-case "getProducts",
+                {test-condition
+                    {service.invoke-method
+                        "getProducts", channel-id}}
+            },
+            {test-case "getProduct",
+                {test-condition
+                    {service.invoke-method
+                        "getProduct", channel-id, "1"}}
+            },
+            {test-case "update",
+                def ti = {StandardDataObjectTraits
+                             "flex.samples.product.Product",
+                             {StringArray
+                                 "name",
+                                 "image",
+                                 "category",
+                                 "productId",
+                                 "qtyInStock",
+                                 "description",
+                                 "price"
+                             },
+                             dynamic? = false
+                         }
+                def dobj = {StandardDataObject
+                               traits = ti,
+                               "name",        "Nokia",
+                               "image",       "Nokinoki",
+                               "category",    "6000",
+                               "productId",   1,
+                               "qtyInStock",  8,
+                               "description", "desc",
+                               "price",       3000
+                           }
+                {test-condition
+                    {service.invoke-method
+                        "update", channel-id, dobj}}
+            },
+            {test-case "getProduct-expected-error",
+                {test-condition
+                    {service.invoke-method
+                        "getProduct", channel-id, ""},
+                    expect-fault? = true
+                }
+            }
+        }
+    }
+}
+
+
+
+|| BlazeDS TestSuite
+{TestSuite "BlazeDS",
+    {product-tests
+        "default settings",
+        "product",
+        "amf"
+    },
+    {product-tests
+        "enable-small-message = false",
+        "product-esm",
+        "esm"
+    },
+    {product-tests
+        "ignore-property-errors = false",
+        "product-ipe",
+        "ipe"
+    },
+    {product-tests
+        "legacy-collection = true",
+        "product-lc",
+        "lc"
+    },
+    {product-tests
+        "legacy-map = true",
+        "product-lm",
+        "lm"
+    },
+    {product-tests
+        "restore-references = true",
+        "product-rr",
+        "rr"
+    },
+    {product-tests
+        "instantiate-types = false",
+        "product-it",
+        "it"
+    }
+}
+

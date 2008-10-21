@@ -17,12 +17,12 @@
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
 
-{define-proc {test-answer-from-server dir:Directory}:TestSuite
+{define-proc {test-answer-from-server dir:LocalDirectory}:TestSuite
     def files = {{Array-of Test}}
     def dirs = {{Array-of Test}}
     {for e key name in dir do
         {type-switch e
-         case d:Directory do
+         case d:LocalDirectory do
             {if d.url.filename != ".svn" then
                 {dirs.append {test-answer-from-server d}}
             }
@@ -36,7 +36,10 @@
                     {try
                         def ret = {deserializer.deserialize}
                         {if not ret.bodies.empty? then
-                            set msg = {message return '{value {type-of ret.bodies[0].data}}'}
+                            set msg =
+                                {message
+                                    return '{value {type-of ret.bodies[0].data}}'
+                                }
                         }
                      catch ex:Exception do
                         set ok? = false
@@ -55,9 +58,10 @@
     def suite = {TestSuite dir.url.basename}
     def add2suite = {proc {array:{Array-of Test}}:void
                         {array.sort
-                            comparison-proc = {proc {x:Test, y:Test}:bool
-                                                  {return {String-leq? x.name, y.name}}
-                                              }}
+                            comparison-proc =
+                                {proc {x:Test, y:Test}:bool
+                                    {return {String-leq? x.name, y.name}}
+                                }}
                         {for t in array do {suite.add t}}
                     }
     {add2suite dirs}
@@ -66,6 +70,22 @@
     {return suite}
 }
 
-{test-answer-from-server
-    {{url "Answers_from_Servers"}.instantiate-Directory}
+|| responses from servers
+|| -----------------------
+{value
+    def data-dir = {manifest-url "directory", "test-data"}
+    def name = "Answers_from_Servers"
+    def dir = {{data-dir.concat name}.instantiate-Directory}
+    {type-switch dir
+     case ld:LocalDirectory do
+        {test-answer-from-server ld}
+     else
+        {TestSuite name,
+            {SimpleTestCase {lmessage WARNING},
+                {proc {}:void
+                    {error
+                        {lmessage
+                            HttpDirectory not supported. }}
+                }}}
+    }
 }

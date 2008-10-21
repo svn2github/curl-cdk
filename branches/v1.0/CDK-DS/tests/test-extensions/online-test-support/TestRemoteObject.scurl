@@ -1,0 +1,74 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+
+|| RemoteObject for online testings
+{define-class public TestRemoteObject
+  {inherits RemoteObject, TimingMeans}
+  
+  field private result:#MessageEventAdapter
+
+  {constructor public {default
+                          endpoint:Url,
+                          destination:String,
+                          source:String = ""
+                      }
+    {construct-super.RemoteObject endpoint, destination}
+    {construct-super.TimingMeans}
+    set self.source = source
+
+    || set channel-set
+    def channel = {AMFChannel id=destination, uri=endpoint}
+    def channel-set = {ChannelSet}
+    {channel-set.add-channel channel}
+    set self.channel-set = channel-set
+    
+    {self.initialize}
+  }
+
+  {method protected {initialize}:void
+    set self.result = null
+  }
+
+  {method public {exe args:Arguments}:void
+    {self.send {splice args}}
+  }
+  
+  {method public {invoke-method
+                     name:String,
+                     channel-id:String,
+                     ...
+                 }:#MessageEventAdapter
+    {self.initialize}
+
+    {self.start-with-idling
+        {Arguments name, async? = true, {splice ...}}
+    }
+
+    {return self.result}
+  }
+
+  {method public {on-result-event re:ResultEvent}:void
+    set self.result = {ResultAdapter re}
+    {self.end-idling}
+  }
+  
+  {method public {on-fault-event fe:FaultEvent}:void
+    set self.result = {FaultAdapter fe}
+    {self.end-idling}
+  }
+}
+

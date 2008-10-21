@@ -1,0 +1,106 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| Handle MessageEvent
+{define-class abstract public MessageEventAdapter
+
+  field public constant event:MessageEvent
+
+  {constructor public {default event:MessageEvent}
+    set self.event = event
+  }
+
+  {getter abstract public {error?}:bool}
+
+  {getter abstract public {message}:String}
+  
+}
+
+
+|| Handler for ResultEvent
+{define-class public ResultAdapter {inherits MessageEventAdapter}
+
+  {constructor public {default event:MessageEvent}
+    {construct-super event}
+  }
+
+  {getter public {result-event}:ResultEvent
+    {return self.event asa ResultEvent}
+  }
+
+  {getter public {result}:any
+    {return self.result-event.result}
+  }
+  
+  {getter public {error?}:bool
+    {return false}
+  }
+
+  || Return message depending on class type
+  {getter public {message}:String
+    {return
+        {if self.result isa Object then
+            {type-switch self.result
+             case s:String do
+                s
+             case dt:DateTime do
+                dt.info.iso-full
+             case ea:ExtendedArray do
+                def buf = {StringBuf}
+                {if-non-null data = ea.data then
+                    {buf.concat data.traits.name}
+                }
+                {for a in ea do
+                    {buf.concat " "}
+                    {buf.concat {String a}}
+                }
+                {buf.to-String}
+             case obj:DataObject do
+                obj.traits.name
+             else
+                "unsupported type : " & {type-of self.result}
+            }
+         else
+            {String self.result}
+        }
+    }
+  }
+}
+
+
+|| Handler for FaultEvent
+{define-class public FaultAdapter {inherits MessageEventAdapter}
+
+  {constructor public {default event:MessageEvent}
+    {construct-super event}
+  }
+
+  {getter public {fault-event}:FaultEvent
+    {return self.event asa FaultEvent}
+  }
+
+  {getter public {error?}:bool
+    {return true}
+  }
+
+  {getter public {message}:String
+    {if-non-null f = self.fault-event.fault then
+        {return f.fault-string & " : " & f.fault-detail}
+    }
+    {return ""}
+  }
+}
+
