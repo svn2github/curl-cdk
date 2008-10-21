@@ -40,40 +40,42 @@
     def base = "http://localhost:8400/samples/"
     def destination = "market-data-feed"
     def endpoint = {url base & "messagebroker/amfpolling"}
-    def channel-id = "per-client-qos-polling-amf"
+||--    def channel-id = "per-client-qos-polling-amf"
 ||--    def channel-id = "my-streaming-amf"
 ||--    def channel-id = "my-polling-amf"
-
-    || configure the connection
-    def channel =
-        {AMFChannel
-            id = destination,
-            uri = endpoint}
-    def channel-set = {ChannelSet}
-    {channel-set.add-channel channel}
+    def channel-set =
+        {ChannelSet
+            channel =
+                {AMFChannel
+                    id = destination,
+                    uri = endpoint}
+        }
 
     || ==================== \\
     || QOS service 
     || --------------------
     def qos-destination = "flex-client-qos-config"
     def qos-endpoint = {url base & "messagebroker/qosamfpolling"}
+
+    def qos-channel-set =
+        {ChannelSet
+            channel =
+                {AMFChannel
+                    id = qos-destination,
+                    uri = qos-endpoint}
+        }
+
     def qos-service =
         {RemoteObject 
             qos-endpoint,
             qos-destination,
+            channel-set = qos-channel-set,
             {on e:FaultEvent do
                 def f = e.fault
                 def msg = {message Fault Code: {value f.fault-code} '{value f.fault-string}'}
                 {popup-message msg}
             }
         }
-    def qos-channel =
-        {AMFChannel
-            id = qos-destination,
-            uri = qos-endpoint}
-    def qos-channel-set = {ChannelSet}
-    {qos-channel-set.add-channel qos-channel}
-    set qos-service.channel-set = qos-channel-set
 
     def set-attribute = {qos-service.get-operation "setAttribute"}
     {set-attribute.add-event-handler
@@ -114,8 +116,9 @@
     def producer =
         {Producer
             endpoint = endpoint,
-            destination = destination}
-    set producer.channel-set = channel-set
+            destination = destination,
+            channel-set = channel-set
+        }
     def send-data =
         {proc {body:any, subtopic:String = ""}:void
             def msg = {AsyncMessage body = body}
@@ -262,10 +265,11 @@
             def consumer =
                 {Consumer 
                     endpoint = endpoint,
-                    destination = destination}
-            set consumer.subtopic = symbol
-            set consumer.channel-set = channel-set
-            {consumer.add-event-handler message-handler}
+                    destination = destination,
+                    channel-set = channel-set,
+                    subtopic = symbol,
+                    message-handler
+                }
             {consumer.subscribe}
             set consumers[symbol] = consumer
         }

@@ -30,12 +30,6 @@
     {construct-super.TimingMeans}
     set self.source = source
 
-    || set channel-set
-    def channel = {AMFChannel id=destination, uri=endpoint}
-    def channel-set = {ChannelSet}
-    {channel-set.add-channel channel}
-    set self.channel-set = channel-set
-    
     {self.initialize}
   }
 

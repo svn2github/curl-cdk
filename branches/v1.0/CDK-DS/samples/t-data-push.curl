@@ -35,24 +35,24 @@
     || connection parameters
     def base = "http://localhost:8400/samples/"
     def destination = "feed"
-    def channel-id = "my-polling-amf"
     def endpoint = {url base & "messagebroker/amfpolling"}
-    
-    || messaging
-    def consumer =
-        {Consumer
-            endpoint = endpoint,
-            destination = destination}
 
     || configure the connection
     def channel =
         {AMFChannel
             id = destination,
             uri = endpoint}
+    def channel-set = {ChannelSet channel = channel}
     set channel.connection.object-encoding = CurlConnection.AMF3
-    def channel-set = {ChannelSet}
-    {channel-set.add-channel channel}
     set consumer.channel-set = channel-set
+
+    || messaging
+    def consumer =
+        {Consumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set
+        }
 
     || display    
     def tf = {TextField width = 2cm}

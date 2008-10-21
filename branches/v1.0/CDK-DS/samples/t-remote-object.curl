@@ -21,7 +21,7 @@
 {import * from COM.CURL.CDK.RPC}
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.DATA-OBJECT}
-{import ServerConfig from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.MESSAGING}
   
 || sample
 || --------------------
@@ -37,7 +37,7 @@
     || --------------------
     def destination = "product"
     def endpoint = {url "http://localhost:8400/samples/messagebroker/amf"}
-    set ServerConfig.config["my-amf"] = endpoint
+||     set ServerConfig.config["my-amf"] = endpoint
 
     || product service
     || --------------------
@@ -45,6 +45,14 @@
         {RemoteObject 
             endpoint,
             destination,
+            channel-set =
+                {ChannelSet
+                    channel =
+                        {AMFChannel
+                            id = destination,
+                            uri = endpoint
+                        }
+                },
             {on e:FaultEvent do
                 set cb.enabled? = true
                 def f = e.fault
@@ -62,7 +70,7 @@
             cursor = cursor-hand,
             {on Action at cb:CommandButton do
                 set cb.enabled? = false
-                {service.send "getProducts",  async? = true}
+                {get-products.send}
             }
         }
     , result-display =

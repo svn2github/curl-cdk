@@ -36,25 +36,27 @@
     def channel-id = "my-polling-amf"
     def endpoint = {url base & "messagebroker/amfpolling"}
 
+    def channel-set =
+        {ChannelSet
+            channel =
+                {AMFChannel
+                    id = destination,
+                    uri = endpoint}
+        }
+
     || messaging
     def producer =
         {Producer 
             endpoint = endpoint,
-            destination = destination}
+            destination = destination,
+            channel-set = channel-set
+        }
     def consumer =
         {Consumer 
             endpoint = endpoint,
-            destination = destination}
-
-    || configure the connection
-    def channel =
-        {AMFChannel
-            id = destination,
-            uri = endpoint}
-    def channel-set = {ChannelSet}
-    {channel-set.add-channel channel}
-    set consumer.channel-set = channel-set
-    set producer.channel-set = channel-set
+            destination = destination,
+            channel-set = channel-set
+        }
 
     || display
     def transcript = {VBox spacing = 2px}
