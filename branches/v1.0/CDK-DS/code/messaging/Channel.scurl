@@ -22,10 +22,8 @@
   field private _connected?:bool = false
   field private connecting?:bool = false
   field private owns-wait-guard?:bool = false
-  field private _endpoint:#String
   field private failover-uris:#{Array-of Url}
   field private _id:#String
-  field private protocol:#String
   field private _reconnecting?:bool = false
   field private _uri:#Url
   field protected login-after-disconnect?:bool = false
@@ -37,10 +35,6 @@
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
     set self._uri = uri
-  }
-
-  {getter public {endpoint}:#String
-    {return self._endpoint}
   }
 
   {getter public {channel-sets}:{Array-of ChannelSet}
@@ -209,8 +203,8 @@
             {if self.connect-timeout > 0s then
                 || TODO: Start a timeout timer.
             }
-            {if {FlexClient.get-instance}.id == null then
-                def flex-client = {FlexClient.get-instance}
+            def flex-client = {FlexClient.get-instance}
+            {if flex-client.id == null then
                 {if not flex-client.wait-for-flex-client-id? then
                     set flex-client.wait-for-flex-client-id? = true
                     set self.owns-wait-guard? = true
@@ -304,13 +298,14 @@
 
   {method protected {initialize-request-timeout responder:MessageResponder}:void
     def message = responder.message
-    {if {message.headers.key-exists? AbstractMessage.REQUEST_TIMEOUT_HEADER}
-     then
-        {responder.start-request-timeout
-            message.headers[AbstractMessage.REQUEST_TIMEOUT_HEADER]
+    def (timeout-header, found?) = 
+        {message.headers.get-if-exists AbstractMessage.REQUEST_TIMEOUT_HEADER}
+    {responder.start-request-timeout
+        {if found? then
+            timeout-header
+         else
+            self.request-timeout
         }
-     else
-        {responder.start-request-timeout self.request-timeout}
     }
   }
 

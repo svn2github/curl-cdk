@@ -33,7 +33,9 @@
             "timestamp",
             "extendedData",
             "faultCode",
-            "messageId"}
+            "messageId",
+            "code" || Not in many of the descriptions of the format, but seems to be used.
+        }
       }
 
   field public extended-data:any
@@ -41,6 +43,7 @@
   field public fault-detail:#String
   field public fault-string:#String
   field public root-cause:any
+  field public code:#String
 
   let public constant MESSAGE_DELIVERY_IN_DOUBT:String =
       "Client.Error.DeliveryInDoubt"

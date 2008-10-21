@@ -26,10 +26,15 @@
 ||--  field protected make-objects-bindable?:bool = true
   field protected active-calls:ActiveCalls
 
-  {constructor public {default}
-    set self._async-request = {new AsyncRequest}
+  {constructor public {default async-request:#AsyncRequest = null}
+    set self._async-request =
+        {if-non-null async-request then
+            async-request
+         else
+            {AsyncRequest}
+        }
     {self.init-handlers}
-    set self.active-calls = {new ActiveCalls}
+    set self.active-calls = {ActiveCalls}
   }
 
   {getter protected {async-request}:AsyncRequest

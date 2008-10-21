@@ -22,8 +22,10 @@
   {constructor public {default
                           service:#AbstractService = null,
                           name:#String = null,
+                          async-request:#AsyncRequest = null,
                           ...:EventHandler
                       }
+    {construct-super async-request = async-request}
     set self.service = service
     set self.name = name
   }

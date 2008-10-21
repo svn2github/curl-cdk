@@ -29,9 +29,4 @@
     set self.type = type
     set self.message = message
   }
-
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

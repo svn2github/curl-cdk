@@ -95,7 +95,7 @@
   || response URI.
   {constructor public {default}
     {construct-super}
-    set self.timestamp = {DateTime}.data.epoch-second
+    set self.timestamp = {DateTimeData}.epoch-second
   }
 
   {define-proc public {get-operation-as-String op:int}:String

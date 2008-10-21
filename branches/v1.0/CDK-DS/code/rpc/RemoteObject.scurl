@@ -20,11 +20,13 @@
   {constructor public {default
                           endpoint:Url,
                           destination:String,
+                          channel-set:#ChannelSet = null,
                           ...:EventHandler
                       }
     {construct-super
         endpoint = endpoint,
         destination = destination,
+        channel-set = channel-set,
         {on e:FaultEvent do
             {self.on-fault-event e}
         },
@@ -38,6 +40,8 @@
     }
   }
 
+|| Not used right now, just let AbstractService.dispatch-event do the enqueue.
+|#
   {method public {dispatch-event event:Event}:void
 ||--    {super.enqueue-event event}
 ||--    {if {self.has-event-listener? event.type} then
@@ -79,4 +83,5 @@
 ||--        }
 ||--    }
   }
+#|
 }

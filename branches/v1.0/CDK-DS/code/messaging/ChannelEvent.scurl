@@ -38,7 +38,4 @@
     set self.connected? = connected?
   }
 
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

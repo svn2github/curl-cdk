@@ -17,9 +17,19 @@
 {define-class public AsyncRequest {inherits Producer}
   field private constant pending-requests:{HashTable-of String, IResponder}
 
-  {constructor public {default}
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          ...:EventHandler
+                      }
     set self.pending-requests = {new {HashTable-of String, IResponder}}
-    {construct-super}
+    {construct-super
+        endpoint = endpoint,
+        destination = destination,
+        channel-set = channel-set,
+        ...
+    }
   }
 
   {method public {acknowledge

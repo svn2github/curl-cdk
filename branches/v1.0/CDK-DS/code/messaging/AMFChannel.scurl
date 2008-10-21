@@ -31,10 +31,6 @@
     {return self.poll-outstanding?}
   }
 
-  {getter public {protocol}:String
-    {return "http"}
-  }
-
   {method protected {internal-connect}:void
     {super.internal-connect}
     set self.ignore-net-status-events? = false
@@ -50,9 +46,9 @@
     set message.headers[CommandMessage.MESSAGING_VERSION] =
         self.messaging-version
 
-    {if {ServerConfig.needs-config? self} then
-        set message.headers[CommandMessage.NEEDS_CONFIG_HEADER] = true
-    }
+||--    {if {ServerConfig.needs-config? self} then
+||--        set message.headers[CommandMessage.NEEDS_CONFIG_HEADER] = true
+||--    }
 
     {self.set-flex-client-id-on-message message}
 
@@ -98,12 +94,15 @@
     set self.result-handler =
         {proc {msg:IMessage}:void
             || TODO: Some ServerConfig stuff happens first.
-            {if {FlexClient.get-instance}.id == null and
-                {msg.headers.key-exists? AbstractMessage.FLEX_CLIENT_ID_HEADER}
-             then
-                set {FlexClient.get-instance}.id =
-                    msg.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER]
-                asa String
+            def flex-client = {FlexClient.get-instance}
+            {if flex-client.id == null then
+                def (id, found?) =
+                    {msg.headers.get-if-exists
+                        AbstractMessage.FLEX_CLIENT_ID_HEADER
+                    }
+                {if found? then
+                    set flex-client.id = id asa String
+                }
             }
             {self.connect-succeeded}
             {type-switch msg
@@ -169,7 +168,7 @@
                         channel = self,
                         code = "Channel.Connect.Failed",
                         level = "error",
-                        description = "Invalid Url: " & self.endpoint
+                        description = "Invalid Url: " & self.uri
                     }
                 }
 ||--            }

@@ -43,8 +43,4 @@
   {getter public {fault-detail}:#String
     {return self.message.fault-detail}
   }
-
-  {method public {to-String}:String
-    {return {format "%s", self}}
-  }
 }

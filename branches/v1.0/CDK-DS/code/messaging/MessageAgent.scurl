@@ -16,8 +16,8 @@
 
 {define-class public MessageAgent {inherits EventTarget}
   field private _id:String = {AbstractMessage.create-uid}
-  field protected _channel-set:#ChannelSet
-  field public endpoint:#Url
+  field private _channel-set:#ChannelSet
+  field private _endpoint:#Url
   field public _destination:String = ""
   field public request-timeout:Time = -1s
   field protected _client-id:#String
@@ -39,8 +39,16 @@
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
 
-  {constructor public {default ...:EventHandler}
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          ...:EventHandler
+                      }
     {construct-super ...}
+    set self.channel-set = channel-set
+    set self._destination = destination
+    set self.endpoint = endpoint
   }
 
   {getter public {id}:String
@@ -123,12 +131,29 @@
   }
 
   {getter public {channel-set}:#ChannelSet
+    {if self._channel-set == null then
+        {if-non-null endpoint = self._endpoint then
+            set self.channel-set =
+                {ChannelSet channel = {AMFChannel id = self.destination, uri = endpoint}}
+        }
+    }
     {return self._channel-set}
   }
 
   {setter public {channel-set channel-set:#ChannelSet}:void
     {self.internal-set-channel-set channel-set}
     set self.channel-set-mode = MessageAgent.MANUALLY_ASSIGNED_CHANNELSET
+  }
+
+  {getter public {endpoint}:#Url
+    {return self._endpoint}
+  }
+  {setter public {endpoint e:#Url}:void
+    set self._endpoint = e
+    {if e != null then
+        || Clear ChannelSet so that it can be recreated from the endpoint later.
+        set self.channel-set = null
+    }
   }
 
   {getter public {authenticated?}:bool
@@ -306,9 +331,10 @@
   {method protected {init-channel-set message:IMessage}:void
     {if self.channel-set == null then
         set self.channel-set-mode = MessageAgent.AUTO_CONFIGURED_CHANNELSET
-        {self.internal-set-channel-set
-            {ServerConfig.get-channel-set self.destination}
-        }
+||--        {self.internal-set-channel-set
+||--            {ServerConfig.get-channel-set self.destination}
+||--        }
+        {error "No channel set configured."}
     }
 
     {if self.channel-set.connected? and

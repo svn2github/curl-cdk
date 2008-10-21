@@ -40,7 +40,7 @@
 
 || gzip support
 {import * from CURL.IO.ZSTREAM}
-{define-proc {zstream-for in:HttpByteInputStream}:ByteInputStream
+{define-proc package {maybe-zstream-for in:HttpByteInputStream}:ByteInputStream
     let (enc:String, enc?:bool) = 
         {in.response-headers.get-if-exists "Content-Encoding"}
     {return

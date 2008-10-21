@@ -68,7 +68,10 @@
 
   {method public {channel-fault-handler e:ChannelFaultEvent}:void
     {self.disconnect}
-    def err = {new ErrorMessage}
+    def err = {ErrorMessage}
+    set err.fault-code = e.fault-code
+    set err.fault-detail = e.fault-detail
+    set err.fault-string = e.fault-string
     set err.correlation-id = self.message.message-id
     {if-non-null channel = e.channel then
         {if not channel.connected? then

@@ -21,11 +21,19 @@
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          selector:String = "",
+                          subtopic:String = "",
                           ...:EventHandler
                       }
-    {construct-super ...}
-    set self.endpoint = endpoint
-    set self._destination = destination
+    {construct-super
+        endpoint = endpoint,
+        destination = destination,
+        channel-set = channel-set,
+        ...
+    }
+    set self.selector = selector
+    set self.subtopic = subtopic
   }
 
   {getter public {selector}:String
@@ -33,10 +41,9 @@
   }
   {setter public {selector s:String}:void
     {if self._selector != s then
-        let reset-subscription?:bool = false
-        {if self.subscribed? then
+        let reset-subscription?:bool = self.subscribed?
+        {if reset-subscription? then
             {self.unsubscribe}
-            set reset-subscription? = true
         }
         set self._selector = s
         {if reset-subscription? then

@@ -19,9 +19,10 @@
 
   {constructor public {default
                           remote-object:#AbstractService = null,
-                          name:#String = null
+                          name:#String = null,
+                          async-request:#AsyncRequest = null
                       }
-    {construct-super service = remote-object, name = name}
+    {construct-super service = remote-object, name = name, async-request = async-request}
   }
 
   {method public {send ...:any}:#AsyncToken

@@ -15,7 +15,6 @@
 ||| limitations under the License.
 
 {define-class public HttpChannel {inherits PollingChannel}
-  field private protocol:String = "http"
 
   {constructor public {default id:#String = null, uri:#Url = null}
     {construct-super id = id, uri = uri}

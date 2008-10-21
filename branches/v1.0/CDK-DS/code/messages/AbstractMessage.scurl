@@ -46,7 +46,10 @@
     let uid:StringBuf = {new StringBuf}
     def rand = {new Random}
 
-    || This is not a real UID, since it is just random digits.
+    || FIXME: This is not a real UID, since it is just random digits.
+    || But there is not any local host information available to
+    || unprivileged applets other than time, which is what the random
+    || code is seeding with.
     {for i:int = 0 below 8 do
         def code-index = {rand.next-in-range 0, 15}
         {uid.append AbstractMessage.ALPHA_CHARS[code-index]}
@@ -62,7 +65,7 @@
 
     {uid.append '-'}
 
-    def time = {new DateTime}.data.epoch-second
+    def time = {DateTimeData}.epoch-second
     || Note: time is the number of milliseconds since 1970,
     || which is currently more than one trillion.
     || BlazeDS uses the low 8 hex digits of this number in the UID.

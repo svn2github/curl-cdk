@@ -24,12 +24,24 @@
   field protected subscribe-message:#CommandMessage
   field protected _timestamp:double = -1
 
-  {constructor public {default ...:EventHandler}
-    {construct-super ...}
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          ...:EventHandler
+                      }
+    {construct-super 
+        endpoint = endpoint,
+        destination = destination,
+        channel-set = channel-set,
+        ...
+    }
     set self.agent-type = "consumer"
   }
 
   {setter protected {client-id id:#String}:void
+    || Note: Why not just call {self.subscribe client-id = id} which does
+    || pretty much the same thing as this routine
     {if super.client-id != id then
         def reset-subscription? = self.subscribed?
         {if reset-subscription? then
@@ -235,7 +247,7 @@
 
   {method public {subscribe client-id:#String = null}:void
     def reset-client-id? =
-        self.client-id != null and super.client-id != self.client-id
+        client-id != null and self.client-id != client-id
     {if self.subscribed? and reset-client-id? then
         {self.unsubscribe}
     }
@@ -244,6 +256,7 @@
 
     set self.should-be-subscribed? = true
     {if reset-client-id? then
+        || Avoid similar logic in self.client-id setter.
         set super.client-id = client-id
     }
     set self.subscribe-message = {self.build-subscribe-message}

@@ -104,8 +104,4 @@
       }
   }
 
-  {method public {to-String}:String
-    let buf:StringBuf = {new StringBuf}
-    {return {format out = buf, "%s", self._body}}
-  }
 }

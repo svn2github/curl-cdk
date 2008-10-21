@@ -32,12 +32,28 @@
   {constructor public {default}
   }
 
-  {method public {connect uri:Url, ...}:void
+  {method public {connect uri:Url}:void
     set self.uri = uri
     || TODO: What else happens here?
   }
 
   {method public {close}:void
+  }
+
+  {define-proc private {make-io-failed-error-message ex:Exception, amf-body:AMFBody
+                       }:ErrorMessage
+    def err = {new ErrorMessage}
+    set err.fault-code = "Client.Ping.Failed"
+    set err.fault-string = "error"
+    set err.fault-detail = ex.message
+    set err.root-cause = amf-body
+    {return err}
+  }
+  {define-proc private {make-canceled-error-message}:ErrorMessage
+    def err = {new ErrorMessage}
+    set err.fault-code = "Client.Ping.Canceled"
+    set err.fault-string = "warn"
+    {return err}
   }
 
   || From the Flex docs for NetConnection.call():
@@ -78,7 +94,7 @@
         def (request-data, amf-body) =
             {self.create-request
                 command = command,
-                {Array {splice ...}}}
+                {Array ...}}
 
         {if-debuggable
             {if self.log? then
@@ -89,6 +105,7 @@
         let http-file:HttpFile = {u.instantiate-File} asa HttpFile
         
         {if amf-timing? then {stop-watch.start}}
+        || TODO: save the AsyncWorker and allow canceling?
         
         {http-file.http-async-read-open-byte
             request-method = "post",
@@ -98,39 +115,54 @@
             {on e:AsyncFileOpenEvent do
                 {if-non-null ex = e.exception then
                     {if-non-null responder then
-                        def err = {new ErrorMessage}
-                        set err.fault-code = "Client.Ping.Failed"
-                        set err.fault-string = "error"
-                        set err.fault-detail = ex.message
-                        set err.root-cause = amf-body
-                        {responder.status err}
+                        {responder.status
+                            {CurlConnection.make-io-failed-error-message ex, amf-body}
+                        }
                     }
                  elseif e.canceled? then
                     {if-non-null responder then
-                        def err = {new ErrorMessage}
-                        set err.fault-code = "Client.Ping.Canceled"
-                        set err.fault-string = "warn"
-                        set err.extended-data = e
-                        {responder.status err}
+                        {responder.status {CurlConnection.make-canceled-error-message}}
                     }
                  else
-                    def envelope = 
-                        {with-open-streams
-                            in = e.stream asa HttpByteInputStream
-                         do
-||--                            || parses HTTP stream directly
-||--                            || - most efficient, but combines transfer and parse
-||--                            ||   time
-||--                            {self.process-response-stream {zstream-for in}}
-                            || reads HTTP stream entirely, then parses
-                            || - demarcates transfer and parse time
-                            {self.process-response-stream-after-full-read
-                                {zstream-for in}
+
+                    def byte-stream = {maybe-zstream-for e.stream asa HttpByteInputStream}
+                    {if not amf-timing? then
+                        || TODO: save the AsyncWorker and allow canceling?
+                        {byte-stream.async-read
+                            {on e:AsyncStreamReadEvent do
+                                {byte-stream.close}
+                                {if-non-null ex = e.exception then
+                                    {if-non-null responder then
+                                        {responder.status
+                                            {CurlConnection.make-io-failed-error-message ex, amf-body}
+                                        }
+                                    }
+                                 elseif e.canceled? then
+                                    {if-non-null responder then
+                                        {responder.status {CurlConnection.make-canceled-error-message}}
+                                    }
+                                 else
+                                    def envelope = 
+                                        {self.process-response-stream
+                                            {ByteArrayInputStream e.data asa ByteArray}
+                                        }
+                                    {if-non-null responder then
+                                        {self.handle-response responder, envelope}
+                                    }
+                                }
                             }
                         }
-                    
-                    {if-non-null responder then
-                        {self.handle-response responder, envelope}
+                     else
+                        def envelope = 
+                            {with-open-streams in = byte-stream do
+                                || reads HTTP stream entirely, then parses
+                                || - demarcates transfer and parse time
+                                {self.process-response-stream-after-full-read in}
+                            }
+
+                        {if-non-null responder then
+                            {self.handle-response responder, envelope}
+                        }
                     }
                 }
             }
@@ -148,7 +180,7 @@
         def (request-data, amf-body) =
             {self.create-request
                 command = command,
-                {Array {splice ...}}}
+                {Array ...}}
         
         def http-file = {u.instantiate-File} asa HttpFile
         
@@ -168,13 +200,16 @@
                         request-data = request-data,
                         request-headers = self.http-headers}
                  do
-||--                || parses HTTP stream directly
-||--                || - most efficient, but combines transfer and parse time
-||--                {self.process-response-stream {zstream-for in}}
-                    || reads HTTP stream entirely, then parses
-                    || - demarcates transfer and parse time
-                    {self.process-response-stream-after-full-read
-                        {zstream-for in}
+                    {if not amf-timing? then
+                        || parses HTTP stream directly
+                        || - most efficient, but combines transfer and parse time
+                        {self.process-response-stream {maybe-zstream-for in}}
+                     else
+                        || reads HTTP stream entirely, then parses
+                        || - demarcates transfer and parse time
+                        {self.process-response-stream-after-full-read
+                            {maybe-zstream-for in}
+                        }
                     }
                 }
             
@@ -183,12 +218,9 @@
             }
          catch ex:Exception do
             {if-non-null responder then
-                def err = {new ErrorMessage}
-                set err.fault-code = "Client.Ping.Failed"
-                set err.fault-string = "error"
-                set err.fault-detail = ex.message
-                set err.root-cause = amf-body
-                {responder.status err}
+                {responder.status
+                    {CurlConnection.make-io-failed-error-message ex, amf-body}
+                }
              else
                 {throw ex}
             }
@@ -201,7 +233,7 @@
                         envelope:AMFEnvelope
                     }:void
 
-    def headers = envelope.headers
+    || Note: headers aren't looked at.
     def bodies = envelope.bodies
     || TODO: What can we reasonably expect in the envelope?
     ||       The responder's result handler takes a single
@@ -261,13 +293,14 @@
     || Note: this will do blocking reads.
     def env = {AMFEnvelope.deserialize in}
     
-    || Deserialization complete.
-    {if amf-timing? then {stop-watch.stop}}
-    || Update the deserialization time.
-    {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
-
-    || Reset the stop watch.
-    {stop-watch.reset}
+    {if amf-timing? then
+        || Deserialization complete.
+        {stop-watch.stop}
+        || Update the deserialization time.
+        {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
+        || Reset the stop watch.
+        {stop-watch.reset}
+    }
     {return env}
   }
 
@@ -291,12 +324,14 @@
     || connected.
 
     def bytes = {in.read}
-    || Server Execution & Transfer complete
-    {if amf-timing? then {stop-watch.stop}}
-    || Update the server exec and transfer time.
-    {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
-    || Reset the stop watch.
-    {stop-watch.reset}
+    {if amf-timing? then 
+        || Server Execution & Transfer complete
+        {stop-watch.stop}
+        || Update the server exec and transfer time.
+        {inc server-exec-plus-transfer-time, {stop-watch.elapsed}}
+        || Reset the stop watch.
+        {stop-watch.reset}
+    }
     
     || Reconstruct the stream.
     def response = {ByteArrayInputStream bytes}
@@ -305,23 +340,24 @@
     {if amf-timing? then {stop-watch.start}}
     
     || Deserialize.
-    || Note: this will do blocking reads.
     def env = {AMFEnvelope.deserialize response}
     
     || Deserialization complete.
-    {if amf-timing? then {stop-watch.stop}}
-    || Update the deserialization time.
-    {inc deserialization-time, {stop-watch.elapsed}}
+    {if amf-timing? then 
+        {stop-watch.stop}
+        || Update the deserialization time.
+        {inc deserialization-time, {stop-watch.elapsed}}
 
-    || Reset the stop watch.
-    {stop-watch.reset}
+        || Reset the stop watch.
+        {stop-watch.reset}
+    }
     {return env}
   }
 
   {method protected {host-and-port url:Url}:(String, uint16)
     {type-switch url.stem
      case shd:StemHttpDirectory do
-        {assert {shd.name.prefix? "http:"} or {shd.name.prefix? "https:"}}
+||--        {assert {shd.name.prefix? "http:"} or {shd.name.prefix? "https:"}}
         {return shd.host, {shd.get-port} asa uint16}
      else
         {error "Not an http: url"}

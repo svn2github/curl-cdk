@@ -15,26 +15,22 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractService {inherits EventTarget}
-  field protected _channel-set:#ChannelSet
   field private constant endpoint:#Url
-  field private _operations:{Array-of AbstractOperation} =
-      {new {Array-of AbstractOperation}}
   field protected _request-timeout:Time
   field protected async-request:AsyncRequest
 
   {constructor public {default
                           endpoint:#Url = null,
-                          destination:#String = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
                           ...:EventHandler
                       }
     {construct-super ...}
 
     set self.endpoint = endpoint
 
-    set self.async-request = {new AsyncRequest}
-    {if-non-null destination then
-        set self.async-request.destination = destination
-    }
+    set self.async-request =
+        {AsyncRequest channel-set = channel-set, destination = destination}
   }
 
   {getter public {channel-set}:#ChannelSet
@@ -42,9 +38,7 @@
   }
 
   {setter public {channel-set cs:#ChannelSet}void
-    {if self.channel-set != cs then
-        set self.async-request.channel-set = cs
-    }
+    set self.async-request.channel-set = cs
   }
 
   {getter public {destination}:String
@@ -53,21 +47,6 @@
 
   {setter public {destination d:String}:void
     set self.async-request.destination = d
-  }
-
-  {getter public {operations}:{Array-of AbstractOperation}
-    {return self._operations}
-  }
-
-  {setter public {operations operations:{Array-of AbstractOperation}}:void
-    {for operation in operations do
-        {operation.set-service self}
-||--        {if operation.name == null or operation.name.empty? then
-||--            set operation.name = ???
-||--        }
-        set operation.async-request = self.async-request
-    }
-    set self._operations = operations
   }
 
   {getter public {request-timeout}:Time
@@ -107,7 +86,7 @@
   }
 
   {method public {send name:String, async?:bool = false, ...:any}:void
-    {if-non-null u = self.endpoint then
+||--    {if-non-null u = self.endpoint then
         def operation = {self.get-operation name}
         set operation.async? = async?
         {operation.send ...}
@@ -116,23 +95,13 @@
 ||--         else
 ||--            {self.async-invoke-method name, ...}
 ||--        }
-    }
+||--    }
   }
 
   {method public {get-operation name:String}:AbstractOperation
-    let operation:#AbstractOperation
-    {for op in self.operations do
-        {if op.name == name then
-            set operation = op
-            {break}
-        }
-    }
-    {if operation == null then
-        set operation = {new Operation, remote-object = self, name = name}
-        {self.operations.append {non-null operation}}
-        set operation.async-request = self.async-request
-    }
-    {return {non-null operation}}
+    def operation =
+        {Operation remote-object = self, name = name, async-request = self.async-request}
+    {return operation}
   }
 
   || This provides a hook for custom event pre-processing.
@@ -152,17 +121,6 @@
     {return false}
   }
 
-  {method public {to-String}:String
-    def buf = {new StringBuf}
-    {buf.concat "AbstractService:\n"}
-    {buf.concat "\tendpoint = " & self.endpoint}
-    {buf.concat "\tdestination = " & self.destination}
-    {buf.concat "\toperations [" & self.operations.size & "]"}
-    {for op key i:int in self.operations do
-        {buf.concat "\t\t" & i & ": " & op.name}
-    }
-    {return {buf.to-String}}
-  }
   {method public {on-fault-event e:FaultEvent}:void}
   {method public {on-invoke-event e:InvokeEvent}:void}
   {method public {on-result-event e:ResultEvent}:void}

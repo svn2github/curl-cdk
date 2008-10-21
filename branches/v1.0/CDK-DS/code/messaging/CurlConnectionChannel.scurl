@@ -18,7 +18,10 @@
   field private _connection:#CurlConnection
 
   field public status-handler:{proc-type {net-status-event:Event}:void} =
-      {uninitialized-value-for-type {proc-type {net-status-event:Event}:void}}
+    {proc {event:Event}:void
+        || TODO: Do we need such a thing as a NetStatusEvent?
+        || Default implementation does nothing
+    }
 
   {constructor public {default id:#String = null, uri:#Url = null}
     {construct-super id = id, uri = uri}
@@ -27,7 +30,6 @@
     set self._connection = {new CurlConnection}
     set self._connection.object-encoding = CurlConnection.AMF3
     set self._connection.client = self
-    {self.init-handlers}
   }
 
   {getter public {connection}:#CurlConnection
@@ -45,25 +47,14 @@
     }
   }
 
-  {method public {send agent:MessageAgent, message:IMessage}:void
-    {super.send agent, message}
-  }
-
   {method protected {internal-send message-responder:MessageResponder}:void
-    {self.set-flex-client-id-on-message message-responder.message}
     let message:IMessage = message-responder.message
+    {self.set-flex-client-id-on-message message}
     {self.connection.call
         command = null,
         responder = message-responder,
         message
     }
-  }
-
-  {method protected {get-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return {super.get-message-responder agent, message}}
   }
 
   {method protected {get-poll-sync-message-responder
@@ -82,11 +73,4 @@
     }
   }
 
-  {method protected {init-handlers}:void
-    set self.status-handler =
-        {proc {net-status-event:Event}:void
-            || TODO: Do we need such a thing as a NetStatusEvent?
-            || Default implementation does nothing
-        }
-  }
 }

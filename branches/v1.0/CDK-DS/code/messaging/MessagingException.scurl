@@ -19,8 +19,4 @@
   {constructor public {default message:String}
     {construct-super message}
   }
-
-  {method public {to-String}:String
-    {return {format "[%s %s]", self, self.message}}
-  }
 }

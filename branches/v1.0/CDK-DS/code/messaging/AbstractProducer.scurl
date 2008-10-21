@@ -21,8 +21,19 @@
   field public reconnect-interval:Time = 0ms
   field private connect-message:#CommandMessage
 
-  {constructor public {default ...:EventHandler}
-    {construct-super ...}
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          ...:EventHandler
+                      }
+    {construct-super
+        endpoint = endpoint,
+        destination = destination,
+        channel-set = channel-set,
+        ...
+    }
+    set self.agent-type = "producer"
   }
 
   {method public {connect}:void
