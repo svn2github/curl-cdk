@@ -16,7 +16,7 @@
 
 {define-class public AsyncToken
   field private _message:IMessage
-  field protected responders:#{Array-of IResponder}
+  field private responders:#{Array-of IResponder}
   field public-get private-set result:any
 
   {constructor public {default message:IMessage}
@@ -32,10 +32,17 @@
   }
 
   {method public {add-responder responder:IResponder}:void
+    {if-non-null responders = self.responders then
+        {if {self.responders.find responder} < 0 then
+            {self.responders.append responder}
+        }
+     else
+        set self.responders = {new {Array-of IResponder}, responder}
+    }
   }
 
   {method public {has-responder?}:bool
-    {return self.responders != null and not self.responders.empty?}
+    {return self.responders != null and self.responders.size > 0}
   }
 
   {method protected {apply-result event:ResultEvent}:void

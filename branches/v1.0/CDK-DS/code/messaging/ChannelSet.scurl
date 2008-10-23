@@ -315,6 +315,7 @@
     {self.enqueue-event event}
   }
 
+  || Called by the current Channel.
   {method protected {channel-connect-handler e:ChannelEvent}:void
     set self.connecting? = false
     set self._connected? = true
@@ -346,6 +347,7 @@
     || TODO: Fire PropertyChangeEvent
   }
 
+  || Called by the current Channel.
   {method protected {channel-disconnect-handler e:ChannelEvent}:void
     {dump "TODO: ChannelSet.channel-disconnect-handler"}
     || TODO:

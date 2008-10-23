@@ -24,6 +24,7 @@
   field protected result:any
   field protected response-headers:#{Array-of any}
 ||--  field protected make-objects-bindable?:bool = true
+  || Note, this really just keeps track of id's still in use.
   field protected active-calls:ActiveCalls
 
   {constructor public {default async-request:#AsyncRequest = null}
