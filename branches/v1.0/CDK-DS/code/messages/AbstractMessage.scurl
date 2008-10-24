@@ -142,15 +142,7 @@
             }
             {if {bit-and flags, AbstractMessage.HEADERS_FLAG} != 0 then
                 def headers = {deserializer.read-one}
-                set self.headers =
-                    {type-switch headers
-                     case mh:IMessageHeaders do
-                        mh
-                     case ea:ExtendedArray do
-                        ea.data asa IMessageHeaders
-                     else
-                        {error "Unknown data type for headers."}
-                    }
+                set self.headers = headers
             }
             {if {bit-and flags, AbstractMessage.MESSAGE_ID_FLAG} != 0 then
                 set self.message-id = {deserializer.read-one} asa String
