@@ -22,8 +22,11 @@
   field public fault-handler:{proc-type {msg:IMessage}:void} =
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
 
-  {constructor public {default id:#String = null, uri:#Url = null}
-    {construct-super id = id, uri = uri}
+  {constructor public {default
+                          id:#String = null, uri:#Url = null,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
+                      }
+    {construct-super id = id, uri = uri, mapper = mapper}
     {self.init-handlers}
   }
 

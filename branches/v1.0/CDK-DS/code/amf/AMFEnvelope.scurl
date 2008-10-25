@@ -43,10 +43,10 @@
     {self.bodies.append body}
   }
 
-  {method public {serialize}:ByteArray
+  {method public {serialize mapper:AMFObjectAdapters = AMFObjectAdapters.standard}:ByteArray
     def bytes = {ByteArray}
     {with-open-streams out = {new ByteArrayOutputStream, bytes} do
-        def serializer = {new AMF0Serializer, out}
+        def serializer = {new AMF0Serializer, out, mapper = mapper}
         {serializer.serialize self}
     }
 
@@ -54,9 +54,10 @@
   }
 
   {define-proc public {deserialize
-                          stream:ByteInputStream
+                          stream:ByteInputStream,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
                       }:AMFEnvelope
-    def amf0-deserializer = {new AMF0Deserializer, stream}
+    def amf0-deserializer = {AMF0Deserializer stream, mapper = mapper}
     {return {amf0-deserializer.deserialize}}
   }
 }

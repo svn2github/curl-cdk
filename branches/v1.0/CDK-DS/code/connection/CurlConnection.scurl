@@ -18,6 +18,7 @@
   field public object-encoding:int = CurlConnection.AMF3
   field public client:any
   field protected uri:#Url
+  field private constant mapper:AMFObjectAdapters
 
   let public constant AMF3:int = 3
 
@@ -29,7 +30,8 @@
   || debugging support
   field public log?:bool = false
 
-  {constructor public {default}
+  {constructor public {default mapper:AMFObjectAdapters = AMFObjectAdapters.standard}
+    set self.mapper = mapper
   }
 
   {method public {connect uri:Url}:void
@@ -281,7 +283,7 @@
     {envelope.add-body amf-body}
 
     def request-data =
-        {AMFHttpRequestData {envelope.serialize}}
+        {AMFHttpRequestData {envelope.serialize mapper = self.mapper}}
     {return request-data, amf-body}
   }
 
@@ -291,7 +293,7 @@
     
     || Deserialize.
     || Note: this will do blocking reads.
-    def env = {AMFEnvelope.deserialize in}
+    def env = {AMFEnvelope.deserialize in, mapper = self.mapper}
     
     {if amf-timing? then
         || Deserialization complete.
@@ -340,7 +342,7 @@
     {if amf-timing? then {stop-watch.start}}
     
     || Deserialize.
-    def env = {AMFEnvelope.deserialize response}
+    def env = {AMFEnvelope.deserialize response, mapper = self.mapper}
     
     || Deserialization complete.
     {if amf-timing? then 

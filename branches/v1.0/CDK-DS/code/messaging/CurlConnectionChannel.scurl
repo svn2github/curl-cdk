@@ -23,11 +23,14 @@
         || Default implementation does nothing
     }
 
-  {constructor public {default id:#String = null, uri:#Url = null}
+  {constructor public {default
+                          id:#String = null, uri:#Url = null,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
+                      }
     {construct-super id = id, uri = uri}
     || TODO: Flex creates a NetConnection object. We need a similar,
     ||       bi-directional connection manager.
-    set self._connection = {new CurlConnection}
+    set self._connection = {CurlConnection mapper = mapper}
     set self._connection.object-encoding = CurlConnection.AMF3
     set self._connection.client = self
   }

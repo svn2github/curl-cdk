@@ -19,16 +19,19 @@
   field private constant output:ByteOutputStream
   field private constant references:AMF0References
   field private version:AMFPacketVersion = AMFPacketVersion.AMF3
+  field private constant mapper:AMFObjectAdapters
 
   let public constant UNKNOWN_CONTENT_LENGTH:int = -1
 
   {constructor public {default
                           output:ByteOutputStream,
-                          version:AMFPacketVersion = AMFPacketVersion.AMF3
+                          version:AMFPacketVersion = AMFPacketVersion.AMF3,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
                       }
     set self.output = output
     set self.references = {AMF0References}
     set self.version = version
+    set self.mapper = mapper
   }
 
   {method public {serialize envelope:AMFEnvelope}:ByteOutputStream
@@ -63,7 +66,8 @@
                 self.output,
                 AMF0Marker.avmplus-object-marker.value
             }
-            def amf3-serializer = {new AMF3Serializer, self.output}
+            def amf3-serializer =
+                {AMF3Serializer self.output, mapper = self.mapper}
             {amf3-serializer.write-one body.data}
          else
             {error "Unsupported Version"}

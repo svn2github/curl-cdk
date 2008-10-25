@@ -18,11 +18,15 @@
 
   field private constant input:ByteInputStream
   field private constant obj-ref:AMF0References
-  field public amf3-deserializer:#AMF3Deserializer
+  field private constant mapper:AMFObjectAdapters
 
   || constructor
-  {constructor public {default input:ByteInputStream}
+  {constructor public {default
+                          input:ByteInputStream,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
+                      }
     set self.input = input
+    set self.mapper = mapper
     set self.obj-ref = {AMF0References}
   }
 
@@ -99,8 +103,8 @@
          case AMF0Marker.typed-object-marker.value do
             {self.read-typed-object}
          case AMF0Marker.avmplus-object-marker.value do
-            set self.amf3-deserializer = {AMF3Deserializer self.input}
-            {self.amf3-deserializer.read-one}
+            def amf3-deserializer = {AMF3Deserializer self.input, mapper = self.mapper}
+            {amf3-deserializer.read-one}
          else
             {error "Unsupported type"}
         }
