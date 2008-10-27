@@ -66,6 +66,26 @@
     set self._message-agents = {new {Array-of MessageAgent}}
     set self.pending-messages = {new {Set-of IMessage}}
     set self.pending-sends = {new {Array-of PendingSend}}
+
+    {self.add-event-handler
+        {on e:ChannelEvent do
+            {for agent in self._message-agents do
+                {switch e.type
+                 case ChannelEvent.CONNECT do
+                    {agent.channel-connect-handler e}
+                 case ChannelEvent.DISCONNECT do
+                    {agent.channel-disconnect-handler e}
+                }
+            }
+        }
+    }
+    {self.add-event-handler
+        {on e:ChannelFaultEvent do
+            {for agent in self._message-agents do
+                {agent.channel-fault-handler e}
+            }
+        }
+    }
   }
 
   {getter public {configured?}:bool
@@ -129,21 +149,6 @@
         {if {self._message-agents.find agent} == -1 then
             {self._message-agents.append agent}
             {agent.internal-set-channel-set self}
-            {self.add-event-handler
-                {on e:ChannelEvent do
-                    {switch e.type
-                     case ChannelEvent.CONNECT do
-                        {agent.channel-connect-handler e}
-                     case ChannelEvent.DISCONNECT do
-                        {agent.channel-disconnect-handler e}
-                    }
-                }
-            }
-            {self.add-event-handler
-                {on e:ChannelFaultEvent do
-                    {agent.channel-fault-handler e}
-                }
-            }
             {if self.connected? then
                 {agent.channel-connect-handler
                     {new ChannelEvent,
@@ -160,12 +165,23 @@
   }
 
   {method public {disconnect agent:MessageAgent}:void
-    || FIXME: this should clear the event handler for the named agent and
-    || message-agents, but what else?
+    || FIXME: Should this send a synthetic disconnect event?
+    def agent-index = {self._message-agents.find agent}
+    {if agent-index >= 0 then
+        {self._message-agents.remove agent-index}
+        || This will recurse, but this time the agent won't be found.
+        {agent.internal-set-channel-set null}
+    }
   }
 
   {method public {disconnect-all}:void
-    || FIXME: this should clear event handlers and message-agents, but what else?
+    || FIXME: Should this send synthetic disconnect events?
+    def agents = {self._message-agents.clone}
+    {self._message-agents.clear}
+    {for agent in agents do
+        || This will call disconnect, but the agent won't be found.
+        {agent.internal-set-channel-set null}
+    }
   }
 
   {method public {login
@@ -298,6 +314,7 @@
     {if not self.connected? and not self.connecting? then
         set self.connecting? = true
         {self.current-channel.connect self}
+        || FIXME: this needs to be saved and removed when appropriate.
         {self.current-channel.add-event-handler
             {on e:MessageEvent do
                 {self.message-handler e}

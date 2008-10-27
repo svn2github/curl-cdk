@@ -35,6 +35,26 @@
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
     set self._uri = uri
+
+    {self.add-event-handler
+        {on e:ChannelEvent do
+            {for channel-set in self._channel-sets do
+                {switch e.type
+                 case ChannelEvent.CONNECT do
+                    {channel-set.channel-connect-handler e}
+                 case ChannelEvent.DISCONNECT do
+                    {channel-set.channel-disconnect-handler e}
+                }
+            }
+        }
+    }
+    {self.add-event-handler
+        {on e:ChannelFaultEvent do
+            {for channel-set in self._channel-sets do
+                {channel-set.channel-fault-handler e}
+            }
+        }
+    }
   }
 
   {getter public {channel-sets}:{Array-of ChannelSet}
@@ -162,30 +182,8 @@
   }
 
   {method public {connect channel-set:ChannelSet}:void
-    let exists?:bool = false
-    {for cset in self._channel-sets do
-        {if cset == channel-set then
-            set exists? = true
-            {break}
-        }
-    }
-    {if not exists? then
+    {if {self._channel-sets.find channel-set} < 0 then
         {self._channel-sets.append channel-set}
-        {self.add-event-handler
-            {on e:ChannelEvent do
-                {switch e.type
-                 case ChannelEvent.CONNECT do
-                    {channel-set.channel-connect-handler e}
-                 case ChannelEvent.DISCONNECT do
-                    {channel-set.channel-disconnect-handler e}
-                }
-            }
-        }
-        {self.add-event-handler
-            {on e:ChannelFaultEvent do
-                {channel-set.channel-fault-handler e}
-            }
-        }
     }
     {if self._connected? then
         {channel-set.channel-connect-handler
@@ -230,7 +228,11 @@
   }
 
   {method public {disconnect channel-set:ChannelSet}:void
-    || TODO:
+    || TODO: What else should this do?
+    def channel-set-index = {self._channel-sets.find channel-set}
+    {if channel-set-index >= 0 then
+        {self._channel-sets.remove channel-set-index}
+    }
   }
 
   {method public {logout agent:#MessageAgent = null}:void

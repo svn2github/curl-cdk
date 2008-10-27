@@ -15,6 +15,8 @@
 ||| limitations under the License.
 
 {define-class public CurlConnectionMessageResponder {inherits MessageResponder}
+  field private constant connect-event-handler:#EventHandler
+  field private constant disconnect-event-handler:#EventHandler
 
   {constructor public {default
                           agent:#MessageAgent,
@@ -22,20 +24,20 @@
                           channel:#CurlConnectionChannel = null
                       }
     {construct-super agent, message, channel = channel}
-    {if-non-null self.channel then
-        {self.channel.add-event-handler
+    {if-non-null channel = self.channel then
+        set self.connect-event-handler =
+            {on e:ChannelFaultEvent do
+                {self.channel-fault-handler e}
+            }
+        {channel.add-event-handler {non-null self.connect-event-handler}}
+        set self.disconnect-event-handler =
             {on e:ChannelEvent do
                 {switch e.type
                  case ChannelEvent.DISCONNECT do
                     {self.channel-disconnect-handler e}
                 }
             }
-        }
-        {self.channel.add-event-handler
-            {on e:ChannelFaultEvent do
-                {self.channel-fault-handler e}
-            }
-        }
+        {channel.add-event-handler {non-null self.disconnect-event-handler}}
     }
   }
 
@@ -45,15 +47,14 @@
   }
 
   {method protected {disconnect}:void
-    || TODO:
-||--    {self.channel.remove-event-handler
-||--        ChannelEvent.DISCONNECT,
-||--        channel-disconnect-handler
-||--    }
-||--    {self.channel.remove-event-handler
-||--        ChannelFaultEvent.FAULT,
-||--        channel-fault-handler
-||--    }
+    {if-non-null channel = self.channel then
+        {if-non-null connect-event-handler = self.connect-event-handler then
+            {channel.remove-event-handler connect-event-handler}
+        }
+        {if-non-null disconnect-event-handler = self.disconnect-event-handler then
+            {channel.remove-event-handler disconnect-event-handler}
+        }
+    }
   }
 
   {method public {channel-disconnect-handler e:ChannelEvent}:void
