@@ -16,7 +16,7 @@
 
 {define-class public abstract Channel {inherits EventTarget}
   field private _authenticated?:bool = false
-  field private authenticating?:bool = false
+  field private _authenticating?:bool = false
   field private _channel-sets:{Array-of ChannelSet} =
       {new {Array-of ChannelSet}}
   field private _connected?:bool = false
@@ -83,13 +83,26 @@
 
   {setter public {authenticated? b?:bool}:void
     {if self._authenticated? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "authenticated?", self._authenticated?, b?}
         set self._authenticated? = b?
+
         {if not self._authenticated? then
             set self.credentials = null
         }
-        || TODO: Set authenticated for each channel-set in channel-sets
-        || TODO: Fire a PropertyChangeEvent
+        {for cs in self.channel-sets do
+            {cs.set-authenticated? b?, credentials = self.credentials}}
+
+        {self.enqueue-event event}
     }
+  }
+
+  {getter public {authenticating?}:bool
+    {return self._authenticating?}
+  }
+
+  {setter public {authenticating? b?:bool}:void
+    set self._authenticating? = b?
   }
 
   {getter protected {connected?}:bool
@@ -173,10 +186,9 @@
                 set message.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] =
                     charset
             }
-            || TODO:
-||--            {self.internal-send
-||--                {new AuthenticationMessageResponder, self.agent, message, self}
-||--            }
+            {self.internal-send
+                {AuthenticationMessageResponder agent, message, self}
+            }
         }
     }
   }
@@ -236,6 +248,19 @@
   }
 
   {method public {logout agent:#MessageAgent = null}:void
+    {if (self.connected? and
+         self.authenticated? and
+         (self.credentials != null and not self.credentials.empty?)) or
+        (self.authenticating? and
+         (self.credentials != null and not self.credentials.empty?))
+     then
+        def msg = {CommandMessage}
+        set msg.operation = CommandMessage.LOGOUT_OPERATION
+        {self.internal-send
+            {AuthenticationMessageResponder agent, msg, self}}
+        set self.authenticating? = true
+    }
+    set self.credentials = null
   }
 
   {method public {send agent:MessageAgent, message:IMessage}:void

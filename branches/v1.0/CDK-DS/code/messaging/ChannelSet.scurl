@@ -192,7 +192,15 @@
   }
 
   {method public {logout agent:#MessageAgent = null}:void
-    || TODO: send LOGOUT message !
+    {if-non-null agent then
+        set self.credentials = null
+        {for ch in self.channels do
+            {if-non-null ch then
+                {ch.logout agent = agent}}}
+     else
+        || TODO: 
+        
+    }
   }
 
   {method public {send agent:MessageAgent, message:IMessage}:void
