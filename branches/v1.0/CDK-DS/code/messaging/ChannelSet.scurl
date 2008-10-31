@@ -31,6 +31,7 @@
   field private credentials-charset:#String
   field private constant pending-messages:{Set-of IMessage}
   field private constant pending-sends:{Array-of PendingSend}
+  field private constant channel-event-handler:EventHandler
 
   {constructor public {default
 ||--                          channel-ids:#{Array-of #String} = null
@@ -42,6 +43,10 @@
     {if channel != null and channels != null then
         {error "Only one of channel or channels may be supplied."}
     }
+    set self.channel-event-handler =
+        {on e:MessageEvent do
+            {self.message-handler e}
+        }
     set self.channels = {new {Array-of #Channel}}
     {if-non-null channels then
         {for c in channels do
@@ -70,11 +75,16 @@
     {self.add-event-handler
         {on e:ChannelEvent do
             {for agent in self._message-agents do
-                {switch e.type
-                 case ChannelEvent.CONNECT do
-                    {agent.channel-connect-handler e}
-                 case ChannelEvent.DISCONNECT do
-                    {agent.channel-disconnect-handler e}
+                {type-switch e
+                 case e:ChannelFaultEvent do
+                    {agent.channel-fault-handler e}
+                 else
+                    {switch e.type
+                     case ChannelEvent.CONNECT do
+                        {agent.channel-connect-handler e}
+                     case ChannelEvent.DISCONNECT do
+                        {agent.channel-disconnect-handler e}
+                    }
                 }
             }
         }
@@ -169,8 +179,34 @@
     def agent-index = {self._message-agents.find agent}
     {if agent-index >= 0 then
         {self._message-agents.remove agent-index}
-        || This will recurse, but this time the agent won't be found.
-        {agent.internal-set-channel-set null}
+        {self.disconnect-agent-helper agent}
+    }
+    {if self._message-agents.size == 0 and self.connected? then
+        {self.disconnect-channel}
+    }
+  }
+  {method private {disconnect-agent-helper agent:MessageAgent}:void
+    || This will recurse, but this time the agent won't be found.
+    || Should we really do both of these steps?
+    {agent.disconnect}
+    {agent.internal-set-channel-set null}
+    {for i = self.pending-sends.size - 1 downto 0 do
+        def ps = self.pending-sends[i]
+        {if ps.agent == agent then
+            {self.pending-sends.remove i}
+            {if-non-null message = ps.message then
+                {self.pending-messages.remove
+                    message, error-if-missing? = false
+                }
+            }
+        }
+    }
+    {agent.channel-disconnect-handler
+        {ChannelEvent
+            ChannelEvent.DISCONNECT,
+            channel = self._current-channel,
+            connected? = self.connected?
+        }
     }
   }
 
@@ -180,7 +216,10 @@
     {self._message-agents.clear}
     {for agent in agents do
         || This will call disconnect, but the agent won't be found.
-        {agent.internal-set-channel-set null}
+        {self.disconnect-agent-helper agent}
+    }
+    {if self.connected? then
+        {self.disconnect-channel}
     }
   }
 
@@ -302,7 +341,7 @@
         {return}
     }
     {if self.configured? then
-        {throw {new Exception, "Cannot Add Channels When Configured"}}
+        {throw {new Exception, "Cannot add channels when configured."}}
     }
     {self.channels.append channel}
     {if-non-null self.credentials then
@@ -315,20 +354,34 @@
   }
 
   {method public {remove-channel channel:Channel}:void
-    || TODO:
+    {if self.configured? then
+        {throw {new Exception, "Cannot remove channels when configured."}}
+    }
+    def channel-index = {self.channels.find channel}
+    {if channel-index >= 0 then
+        {self.channels.remove channel-index}
+        {if channel == self.current-channel then
+            {if self.connected? then
+                {self.disconnect-channel}
+            }
+            set self.current-channel = null
+            set self.current-channel-index = -1
+        }
+    }
   }
 
   {method protected {connect-channel}:void
     {if not self.connected? and not self.connecting? then
         set self.connecting? = true
         {self.current-channel.connect self}
-        || FIXME: this needs to be saved and removed when appropriate.
-        {self.current-channel.add-event-handler
-            {on e:MessageEvent do
-                {self.message-handler e}
-            }
-        }
+        || FIXME: this needs to be removed when appropriate.
+        {self.current-channel.add-event-handler self.channel-event-handler}
     }
+  }
+  {method protected {disconnect-channel}:void
+    set self.connecting? = false
+    {self.current-channel.remove-event-handler self.channel-event-handler}
+    {self.current-channel.disconnect self}
   }
 
 ||--  {method protected {dispatch-rpc-event event:AbstractEvent}:void

@@ -23,8 +23,17 @@
       {new {HashTable-of #ChannelSet, int}}
   field private constant consumer-duplicate-message-barrier:{HashTable-of String, any} =
       {new {HashTable-of String, any}}
+  field private constant channel-set-event-handler:EventHandler
 
-  {constructor protected {default}}
+  {constructor protected {default}
+    set self.channel-set-event-handler =
+        {on e:MessageEvent do
+            {switch e.type
+             case MessageEvent.MESSAGE do
+                {self.message-handler e}
+            }
+        }
+  }
 
   {factory public {get-instance}:ConsumerMessageDispatcher
     {if ConsumerMessageDispatcher.instance == null then
@@ -48,33 +57,26 @@
 
   {method public {register-subscription consumer:AbstractConsumer}:void
     set self.consumers[consumer.client-id] = consumer
+    def channel-set = consumer.channel-set
     def (ref-count, exists?) =
-        {self.channel-set-ref-counts.get-if-exists consumer.channel-set}
+        {self.channel-set-ref-counts.get-if-exists channel-set}
     {if not exists? then
-        {consumer.channel-set.add-event-handler
-            {on e:MessageEvent do
-                {switch e.type
-                 case MessageEvent.MESSAGE do
-                    {self.message-handler e}
-                }
-            }
-        }
+        {channel-set.add-event-handler self.channel-set-event-handler}
     }
-    set self.channel-set-ref-counts[consumer.channel-set] = ref-count + 1
+    set self.channel-set-ref-counts[channel-set] = ref-count + 1
   }
 
   {method public {unregister-subscription consumer:AbstractConsumer}:void
     {if-non-null consumer.client-id then
         {self.consumers.remove consumer.client-id, error-if-missing? = true}
     }
+    def channel-set = consumer.channel-set
     def (ref-count, exists?) =
-        {self.channel-set-ref-counts.get-if-exists consumer.channel-set}
+        {self.channel-set-ref-counts.get-if-exists channel-set}
     {if exists? then
-        set self.channel-set-ref-counts[consumer.channel-set] = ref-count - 1
+        set self.channel-set-ref-counts[channel-set] = ref-count - 1
         {if ref-count == 0 then
-||--            {consumer.channel-set.remove-event-handler
-||--                MessageEvent.MESSAGE, message-handler
-||--            }
+            {channel-set.remove-event-handler self.channel-set-event-handler}
             {self.consumer-duplicate-message-barrier.remove
                 consumer.id, error-if-missing? = false
             }
