@@ -75,16 +75,11 @@
     {self.add-event-handler
         {on e:ChannelEvent do
             {for agent in self._message-agents do
-                {type-switch e
-                 case e:ChannelFaultEvent do
-                    {agent.channel-fault-handler e}
-                 else
-                    {switch e.type
-                     case ChannelEvent.CONNECT do
-                        {agent.channel-connect-handler e}
-                     case ChannelEvent.DISCONNECT do
-                        {agent.channel-disconnect-handler e}
-                    }
+                {switch e.type
+                 case ChannelEvent.CONNECT do
+                    {agent.channel-connect-handler e}
+                 case ChannelEvent.DISCONNECT do
+                    {agent.channel-disconnect-handler e}
                 }
             }
         }
