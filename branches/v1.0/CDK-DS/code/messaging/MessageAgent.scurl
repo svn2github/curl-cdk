@@ -48,7 +48,7 @@
     {construct-super ...}
     set self.channel-set = channel-set
     set self._destination = destination
-    set self.endpoint = endpoint
+    set self._endpoint = endpoint
   }
 
   {getter public {id}:String
@@ -149,10 +149,12 @@
     {return self._endpoint}
   }
   {setter public {endpoint e:#Url}:void
-    set self._endpoint = e
-    {if e != null then
-        || Clear ChannelSet so that it can be recreated from the endpoint later.
-        set self.channel-set = null
+    {if self._endpoint != e then
+        set self._endpoint = e
+        {if e != null then
+            || Clear ChannelSet so that it can be recreated from the endpoint later.
+            set self.channel-set = null
+        }
     }
   }
 
