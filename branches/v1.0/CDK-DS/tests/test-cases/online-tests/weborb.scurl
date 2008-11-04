@@ -427,7 +427,7 @@
                 def nc = {get-ro}
                 {nc.set-credentials null, null}
                 {test-condition
-                    {nc.invoke-method "helloWorld", "my-amf"},
+                    {nc.invoke-method "helloWorld"},
                     expect-fault? = true
                 }
             },
@@ -435,14 +435,14 @@
                 def wc = {get-ro}
                 {wc.set-credentials "admin1", "changeme1"}
                 {test-condition
-                    {wc.invoke-method "helloWorld", "my-amf"},
+                    {wc.invoke-method "helloWorld"},
                     expect-fault? = true
                 }
             },
             {test-case "Credentails",
                 def c = {get-ro}
                 {c.set-credentials "admin", "changeme"}
-                def mea = {c.invoke-method "helloWorld", "my-amf"}
+                def mea = {c.invoke-method "helloWorld"}
                 {c.logout}
                 {test-condition mea}
             }
@@ -500,10 +500,7 @@
             complex-types-tests,
             multiple-args-tests,
             data-access-test,
-
-            || 'logout' not implemented
-||--            secure-tests,
-
+            secure-tests,
             cross-ref-test
         }
     }

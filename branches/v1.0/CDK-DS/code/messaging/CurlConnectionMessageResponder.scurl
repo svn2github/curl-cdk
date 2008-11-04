@@ -17,6 +17,7 @@
 {define-class public CurlConnectionMessageResponder {inherits MessageResponder}
   field private constant connect-event-handler:#EventHandler
   field private constant disconnect-event-handler:#EventHandler
+  field private disconnected?:bool = false
 
   {constructor public {default
                           agent:#MessageAgent,
@@ -47,6 +48,8 @@
   }
 
   {method protected {disconnect}:void
+    {if self.disconnected? then {return}}
+    
     {if-non-null channel = self.channel then
         {if-non-null connect-event-handler = self.connect-event-handler then
             {channel.remove-event-handler connect-event-handler}
@@ -55,6 +58,7 @@
             {channel.remove-event-handler disconnect-event-handler}
         }
     }
+    set self.disconnected? = true
   }
 
   {method public {channel-disconnect-handler e:ChannelEvent}:void
