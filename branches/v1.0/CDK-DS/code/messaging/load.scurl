@@ -36,6 +36,7 @@
     "AbstractProducer.scurl",
     "AMFChannel.scurl",
     "AMFFireAndForgetResponder.scurl",
+    "AuthenticationAgent.scurl",
     "AuthenticationMessageResponder.scurl",
     "Channel.scurl",
     "ChannelEvent.scurl",

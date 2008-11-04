@@ -29,7 +29,7 @@
   field protected agent-type:#String
   field private _authenticated?:bool = false
   field private send-remote-credentials?:bool = false
-  field private credentials:#String
+  field protected credentials:#String
   field private credentials-charset:#String
   field private remote-credentials:#String
   field private remote-credentials-charset:#String

@@ -29,6 +29,7 @@
   field private constant _message-agents:{Array-of MessageAgent}
   field private credentials:#String
   field private credentials-charset:#String
+  field private auth-agent:#AuthenticationAgent
   field private constant pending-messages:{Set-of IMessage}
   field private constant pending-sends:{Array-of PendingSend}
   field private constant channel-event-handler:EventHandler
@@ -217,26 +218,132 @@
         {self.disconnect-channel}
     }
   }
-
+  
   {method public {login
                      username:#String,
                      password:#String,
                      charset:#String = null
                  }:void
-  }
+    {if self.authenticated? then
+        || IllegalOperationError
+        {error "Channel Set is already authenticated."}}
+    
+    {if self.auth-agent != null and
+        self.auth-agent.state != AuthenticationAgent.LOGGED_OUT_STATE
+     then
+        || IllegalOperationError
+        {error "ChannelSet is in the process of logging in or logging out."}
+    }
 
+    || Use legacy charset
+    {if charset != null and
+        {http-charset-to-char-encoding {non-null charset}} != CharEncoding.utf8
+     then
+        set charset = null
+    }
+
+    || Create CommandMessage for logging in.
+    def cmd = {self.create-auth-message
+                  CommandMessage.LOGIN_OPERATION,
+                  creds = {encode-credentials
+                              username, password, charset},
+                  charset = charset
+              }
+    
+    {if self.auth-agent == null then
+        set self.auth-agent = {AuthenticationAgent self}}
+    set self.auth-agent.state = AuthenticationAgent.LOGGING_IN_STATE
+    {self.send self.agent, cmd}
+  }
+  
   {method public {logout agent:#MessageAgent = null}:void
+    set self.credentials = null
     {if-non-null agent then
-        set self.credentials = null
         {for ch in self.channels do
             {if-non-null ch then
                 {ch.logout agent = agent}}}
      else
-        || TODO: 
-        
+        {if self.auth-agent != null and
+            (self.auth-agent.state == AuthenticationAgent.LOGGING_IN_STATE or
+             self.auth-agent.state == AuthenticationAgent.LOGGING_OUT_STATE)
+         then
+            {error "ChannelSet is in the process of logging in or logging out."}
+        }
+
+        {for ma in self.message-agents do
+            set ma.credentials = null
+        }
+        {for ch in self.channels do
+            set ch.credentials = null
+        }
+
+        def cmd = {self.create-auth-message
+                      CommandMessage.LOGOUT_OPERATION}
+
+        {if self.auth-agent == null then
+            set self.auth-agent = {AuthenticationAgent self}}
+        set self.auth-agent.state = AuthenticationAgent.LOGGING_OUT_STATE
+        {self.send self.auth-agent, cmd}
     }
   }
 
+  {method protected {authenticate-succeeded
+                        agent:AuthenticationAgent,
+                        cmd:CommandMessage,
+                        ack:AcknowledgeMessage
+                    }:void
+    def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
+    {if login? then
+        def creds = cmd.body asa String
+        set self.credentials = creds
+        {for ma in self.message-agents do
+            set ma.credentials = creds
+        }
+        {for c in self.channels do
+            set c.credentials = creds
+        }
+
+        set agent.state = AuthenticationAgent.LOGGED_IN_STATE
+        set self.current-channel.authenticated? = true
+     else
+        set agent.state = AuthenticationAgent.SHUTDOWN_STATE
+        set self._auth-agent = null
+        {self.disconnect agent}
+
+        set self.current-channel.authenticated? = false
+    }
+    || TODO: Notify
+  }
+
+  {method protected {authenticate-failed
+                        agent:AuthenticationAgent,
+                        cmd:CommandMessage,
+                        err:ErrorMessage
+                    }:void
+    || TODO: Create Event
+
+    set agent.state = AuthenticationAgent.SHUTDOWN_STATE
+    set self._auth-agent = null
+    {self.disconnect agent}
+
+    || TODO: Notify
+  }
+
+  {method private {create-auth-message
+                      operation:uint,
+                      creds:#String = null,
+                      charset:#String = null
+                  }:CommandMessage
+    def cmd = {CommandMessage}
+    set cmd.operation = operation
+    set cmd.body = creds
+    set cmd.destination = "auth"
+    {if-non-null charset then
+        set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] = charset
+    }
+    {return cmd}
+  }
+  
   {method public {send agent:MessageAgent, message:IMessage}:void
     {if self.connected? then
         || TODO: Clustering?
@@ -439,4 +546,35 @@
         set self.current-channel = null
     }
   }
+}
+
+{define-proc {encode-credentials
+                 _username:#String,
+                 _password:#String,
+                 charset:#String
+             }:#String
+    {if _username == null and _password == null then
+        {return null}
+    }
+    def username = {if-non-null val = _username then val else ""}
+    def password = {if-non-null val = _password then val else ""}
+    def credentials = username & ":" & password
+    def bytes = {ByteArray}
+    def encoding =
+        {if-non-null charset then
+            def charset-encoding = {http-charset-to-char-encoding charset}
+            {if charset-encoding == CharEncoding.none-specified then
+                CharEncoding.utf8
+             else
+                charset-encoding
+            }
+         else CharEncoding.utf8
+        }
+    {with-open-streams out =
+        {TranscodingTextOutputStream
+            {ByteArrayOutputStream bytes}, encoding, false}
+     do
+        {out.write-one-string credentials}}
+    {return
+        {base64-encode bytes}}
 }
