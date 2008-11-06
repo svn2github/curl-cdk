@@ -40,8 +40,8 @@
   }
 
   {setter protected {client-id id:#String}:void
-    || Note: Why not just call {self.subscribe client-id = id} which does
-    || pretty much the same thing as this routine
+    || FIXME: This is the same as {self.subscribe client-id = id} except for how
+    || null id's are handled.
     {if super.client-id != id then
         def reset-subscription? = self.subscribed?
         {if reset-subscription? then
@@ -49,8 +49,8 @@
         }
         set super.client-id = id
         {if reset-subscription? then
-            {self.subscribe client-id = id}
-        }
+            {self.subscribe}
+         }
     }
   }
 
@@ -112,9 +112,9 @@
             {{ConsumerMessageDispatcher.get-instance}.register-subscription
                 self
             }
-            {if-non-null self.channel-set then
-                {if-non-null self.channel-set.current-channel then
-                    {type-switch self.channel-set.current-channel
+            {if-non-null channel-set = self.channel-set then
+                {if-non-null current-channel = channel-set.current-channel then
+                    {type-switch current-channel
                      case pc:PollingChannel do
                         {pc.enable-polling}
                     }
@@ -124,9 +124,9 @@
             {{ConsumerMessageDispatcher.get-instance}.unregister-subscription
                 self
             }
-            {if-non-null self.channel-set then
-                {if-non-null self.channel-set.current-channel then
-                    {type-switch self.channel-set.current-channel
+            {if-non-null channel-set = self.channel-set then
+                {if-non-null current-channel = channel-set.current-channel then
+                    {type-switch current-channel
                      case pc:PollingChannel do
                         {pc.disable-polling}
                     }
@@ -188,7 +188,7 @@
                 {super.acknowledge ack, cm}
              case CommandMessage.POLL_OPERATION do
                 {type-switch ack.body
-                    case array:{Array-of any} do
+                 case array:{Array-of any} do
                     {for a in array do
                         {type-switch a
                          case msg:IMessage do
@@ -224,8 +224,8 @@
     }
     {if {err.headers.key-exists? ErrorMessage.RETRYABLE_HINT_HEADER} then
         {if self.resubscribe-timer == null then
-            {if-non-null self.subscribe-message then
-                {if err.correlation-id == self.subscribe-message.message-id then
+            {if-non-null subscribe-message = self.subscribe-message then
+                {if err.correlation-id == subscribe-message.message-id then
                     set self.should-be-subscribed? = false
                 }
             }
@@ -248,7 +248,7 @@
   {method public {subscribe client-id:#String = null}:void
     def reset-client-id? =
         client-id != null and self.client-id != client-id
-    {if self.subscribed? and reset-client-id? then
+    {if self.subscribed? and (reset-client-id? or client-id == null) then
         {self.unsubscribe}
     }
 
@@ -283,6 +283,21 @@
 
   {method public {resubscribe event:TimerEvent}:void
     || TODO:
+    {if self.current-attempt > self.resubscribe-attempts then
+        {self.stop-resubscribe-timer}
+        set self.should-be-subscribed? = false
+        def err = {ErrorMessage}
+        set err.fault-code = "Client.ERror.Subscribe"
+        set err.fault-string = "Consumer subscribe error"
+        set err.fault-detail = "Failed to subscribe"
+        {if-non-null subscribe-message = self.subscribe-message then
+            set err.correlation-id = subscribe-message.message-id
+            {self.fault err, subscribe-message}
+        }
+     else
+        {inc self.current-attempt}
+        {self.internal-send {non-null self.subscribe-message}}
+    }
   }
 
   {method protected {build-subscribe-message
@@ -292,6 +307,7 @@
     set command-message.operation = CommandMessage.SUBSCRIBE_OPERATION
     set command-message.client-id = self.client-id
     set command-message.destination = self.destination
+    || FIXME: what about MAX_FREQUENCY_HEADER?
     {return command-message}
   }
 
@@ -311,11 +327,10 @@
 
   {method protected {start-resubscribe-timer}:void
     {if self.should-be-subscribed? and self.resubscribe-timer == null then
-        {if self.resubscribe-attempts != 0 and self.resubscribe-interval > 0s
-         then
+        {if self.resubscribe-attempts != 0 and self.resubscribe-interval > 0s then
             set self.resubscribe-timer =
-                {new Timer,
-                    interval = 1ms,
+                {Timer
+                    interval = self.resubscribe-interval,
                     {on e:TimerEvent do
                         {self.resubscribe e}
                     }
