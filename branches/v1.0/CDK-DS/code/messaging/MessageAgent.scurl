@@ -217,7 +217,7 @@
         set self.credentials-charset = null
      else
         set self.credentials =
-            {self.encode-credentials username, password, charset}
+            {encode-credentials username, password, charset}
         set self.credentials-charset = charset
     }
     {if-non-null channel-set = self.channel-set then
@@ -227,34 +227,6 @@
             charset = self.credentials-charset
         }
     }
-  }
-
-  {method private {encode-credentials
-                      _username:#String,
-                      _password:#String,
-                      charset:#String
-                  }:String
-    def username = {if-non-null val = _username then val else ""}
-    def password = {if-non-null val = _password then val else ""}
-    def credentials = username & ":" & password
-    def bytes = {ByteArray}
-    def encoding =
-        {if-non-null charset then
-            def charset-encoding = {http-charset-to-char-encoding charset}
-            {if charset-encoding == CharEncoding.none-specified then
-                CharEncoding.utf8
-             else
-                charset-encoding
-            }
-         else CharEncoding.utf8
-        }
-    {with-open-streams out =
-        {TranscodingTextOutputStream
-            {ByteArrayOutputStream bytes}, encoding, false}
-     do
-        {out.write-one-string credentials}}
-    {return
-        {base64-encode bytes}}
   }
 
   {method public {set-remote-credentials
@@ -268,7 +240,7 @@
         set self.send-remote-credentials? = false
      else
         set self.remote-credentials =
-            {self.encode-credentials remote-username, remote-password, charset}
+            {encode-credentials remote-username, remote-password, charset}
         set self.remote-credentials-charset = charset
         set self.send-remote-credentials? = true
     }

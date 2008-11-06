@@ -253,12 +253,12 @@
     {if self.auth-agent == null then
         set self.auth-agent = {AuthenticationAgent self}}
     set self.auth-agent.state = AuthenticationAgent.LOGGING_IN_STATE
-    {self.send self.agent, cmd}
+    {self.send {non-null self.auth-agent}, cmd}
   }
   
   {method public {logout agent:#MessageAgent = null}:void
-    set self.credentials = null
     {if-non-null agent then
+        set self.credentials = null
         {for ch in self.channels do
             {if-non-null ch then
                 {ch.logout agent = agent}}}
@@ -270,20 +270,14 @@
             {error "ChannelSet is in the process of logging in or logging out."}
         }
 
-        {for ma in self.message-agents do
-            set ma.credentials = null
-        }
-        {for ch in self.channels do
-            set ch.credentials = null
-        }
-
+        {self.sync-credentials null}
         def cmd = {self.create-auth-message
                       CommandMessage.LOGOUT_OPERATION}
 
         {if self.auth-agent == null then
             set self.auth-agent = {AuthenticationAgent self}}
         set self.auth-agent.state = AuthenticationAgent.LOGGING_OUT_STATE
-        {self.send self.auth-agent, cmd}
+        {self.send {non-null self.auth-agent}, cmd}
     }
   }
 
@@ -294,27 +288,19 @@
                     }:void
     def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
     {if login? then
-        def creds = cmd.body asa String
-        set self.credentials = creds
-        {for ma in self.message-agents do
-            set ma.credentials = creds
-        }
-        {for c in self.channels do
-            set c.credentials = creds
-        }
-
+        {self.sync-credentials (cmd.body asa String)}
         set agent.state = AuthenticationAgent.LOGGED_IN_STATE
         set self.current-channel.authenticated? = true
      else
         set agent.state = AuthenticationAgent.SHUTDOWN_STATE
-        set self._auth-agent = null
+        set self.auth-agent = null
         {self.disconnect agent}
 
         set self.current-channel.authenticated? = false
     }
     || TODO: Notify
   }
-
+  
   {method protected {authenticate-failed
                         agent:AuthenticationAgent,
                         cmd:CommandMessage,
@@ -323,7 +309,7 @@
     || TODO: Create Event
 
     set agent.state = AuthenticationAgent.SHUTDOWN_STATE
-    set self._auth-agent = null
+    set self.auth-agent = null
     {self.disconnect agent}
 
     || TODO: Notify
@@ -342,6 +328,16 @@
         set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] = charset
     }
     {return cmd}
+  }
+
+  {method private {sync-credentials val:#String}:void
+    set self.credentials = val
+    {for ma in self.message-agents do
+        set ma.credentials = val
+    }
+    {for ch in self.channels do
+        set ch.credentials = val
+    }
   }
   
   {method public {send agent:MessageAgent, message:IMessage}:void
