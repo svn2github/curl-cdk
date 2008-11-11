@@ -204,7 +204,7 @@
                      username:#String,
                      password:#String,
                      charset:#String = null,
-                     immediately?:bool = false
+                     immediately?:bool = true
                  }:void
     {if-non-null cs = self.channel-set then
         {cs.login

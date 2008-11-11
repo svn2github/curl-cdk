@@ -64,7 +64,7 @@
                      username:#String,
                      password:#String,
                      charset:#String = null,
-                     immediately?:bool = false
+                     immediately?:bool = true
                  }:void
     {self.async-request.login
         username,
@@ -78,13 +78,13 @@
     {self.async-request.logout}
   }
 
-  {method public {set-credentials
-                     username:#String,
-                     password:#String,
-                     charset:#String = null
-                 }:void
-    {self.async-request.set-credentials username, password, charset = charset}
-  }
+||--  {method public {set-credentials
+||--                     username:#String,
+||--                     password:#String,
+||--                     charset:#String = null
+||--                 }:void
+||--    {self.async-request.set-credentials username, password, charset = charset}
+||--  }
 
   {method public {set-remote-credentials
                      remote-username:#String,
