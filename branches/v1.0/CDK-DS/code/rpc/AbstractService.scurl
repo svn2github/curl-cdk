@@ -60,6 +60,20 @@
     {self.async-request.disconnect}
   }
 
+  {method public {login
+                     username:#String,
+                     password:#String,
+                     charset:#String = null,
+                     immediately?:bool = false
+                 }:void
+    {self.async-request.login
+        username,
+        password,
+        charset = charset,
+        immediately? = immediately?
+    }
+  }
+
   {method public {logout}:void
     {self.async-request.logout}
   }

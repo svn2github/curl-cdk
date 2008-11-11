@@ -200,6 +200,26 @@
     }
   }
 
+  {method public {login
+                     username:#String,
+                     password:#String,
+                     charset:#String = null,
+                     immediately?:bool = false
+                 }:void
+    {if-non-null cs = self.channel-set then
+        {cs.login
+            username,
+            password,
+            charset = charset,
+            agent = {if immediately? then
+                        null
+                     else
+                        self
+                    }
+        }
+    }
+  }
+
   {method public {logout}:void
     set self.credentials = null
     {if-non-null channel-set = self.channel-set then
@@ -208,18 +228,11 @@
   }
 
   {method public {set-credentials
-                     username:#String,
-                     password:#String,
+                     credentials:#String,
                      charset:#String = null
                  }:void
-    {if username == null and password == null then
-        set self.credentials = null
-        set self.credentials-charset = null
-     else
-        set self.credentials =
-            {encode-credentials username, password, charset}
-        set self.credentials-charset = charset
-    }
+    set self.credentials = credentials
+    set self.credentials-charset = charset
     {if-non-null channel-set = self.channel-set then
         {channel-set.set-credentials
             self.credentials,

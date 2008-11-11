@@ -122,9 +122,9 @@
     {return self._current-channel}
   }
 
-  {setter public {current-channel channel:#Channel}:void
-    set self._current-channel = channel
-  }
+||--  {setter public {current-channel channel:#Channel}:void
+||--    set self._current-channel = channel
+||--  }
 
   {getter public {message-agents}:{Array-of MessageAgent}
     {return self._message-agents}
@@ -218,12 +218,34 @@
         {self.disconnect-channel}
     }
   }
-  
+
   {method public {login
                      username:#String,
                      password:#String,
-                     charset:#String = null
+                     charset:#String = null,
+                     agent:#MessageAgent = null
                  }:void
+
+    || Use legacy charset
+    {if charset != null and
+        {http-charset-to-char-encoding {non-null charset}} != CharEncoding.utf8
+     then
+        set charset = null
+    }
+    def creds = {encode-credentials
+                    username, password, charset}
+
+    {if-non-null agent then
+        {agent.set-credentials creds, charset = charset}
+     else
+        {self.internal-login creds, charset = charset}
+    }
+  }
+  
+  {method private {internal-login
+                      credentials:#String,
+                      charset:#String = null
+                  }:void
     {if self.authenticated? then
         || IllegalOperationError
         {error "Channel Set is already authenticated."}}
@@ -235,18 +257,10 @@
         {error "ChannelSet is in the process of logging in or logging out."}
     }
 
-    || Use legacy charset
-    {if charset != null and
-        {http-charset-to-char-encoding {non-null charset}} != CharEncoding.utf8
-     then
-        set charset = null
-    }
-
     || Create CommandMessage for logging in.
     def cmd = {self.create-auth-message
                   CommandMessage.LOGIN_OPERATION,
-                  creds = {encode-credentials
-                              username, password, charset},
+                  credentials = credentials,
                   charset = charset
               }
     
@@ -317,12 +331,12 @@
 
   {method private {create-auth-message
                       operation:uint,
-                      creds:#String = null,
+                      credentials:#String = null,
                       charset:#String = null
                   }:CommandMessage
     def cmd = {CommandMessage}
     set cmd.operation = operation
-    set cmd.body = creds
+    set cmd.body = credentials
     set cmd.destination = "auth"
     {if-non-null charset then
         set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] = charset
@@ -332,9 +346,13 @@
 
   {method private {sync-credentials val:#String}:void
     set self.credentials = val
+
+    || Set credentials to all MessageAgents
     {for ma in self.message-agents do
         set ma.credentials = val
     }
+
+    || Set credentials to all Channels
     {for ch in self.channels do
         set ch.credentials = val
     }
@@ -386,7 +404,7 @@
 ||--    }
     {if self.configured? then
         {if-non-null channel = self.channels[self.current-channel-index] then
-            set self.current-channel = channel
+            set self._current-channel = channel
          else
             || TODO: This implementation iterates over the channels, but the
             ||       Flex implementation does it differently. Figure out what's
@@ -414,7 +432,7 @@
 ||--            }
         }
      else
-        set self.current-channel = self.channels[self.current-channel-index]
+        set self._current-channel = self.channels[self.current-channel-index]
     }
     {return true}
   }
@@ -462,7 +480,7 @@
             {if self.connected? then
                 {self.disconnect-channel}
             }
-            set self.current-channel = null
+            set self._current-channel = null
             set self.current-channel-index = -1
         }
     }
@@ -539,7 +557,7 @@
         set self.connecting? = false
         set self._connected? = false
         || FIXME: What do we need to do to let hunting continue?
-        set self.current-channel = null
+        set self._current-channel = null
     }
   }
 }
