@@ -14,9 +14,42 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+    {purpose
+        Top level object used to make remote calls to a server.
+    }
+}
 {define-class public RemoteObject {inherits AbstractService}
   field public source:#String
 
+  {doc-next
+    {purpose
+        Create a {docref RemoteObject} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this {docref RemoteObject} is going to
+        communicate with.  Also if no {docref channel-set} is provided, this will
+        be used to make a {docref ChannelSet} wrapped around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be implicitly
+        created from the {param endpoint} if it is not supplied.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref ResultEvent}s, {docref InvokeEvent}s, and {docref FaultEvent}s
+        for all messages sent and received through this object.  If events
+        for just a single request are desired, add the {docref EventHandler}
+        to the {docref Operation} returned by
+        {docref AbstractServive.get-operation} on this object.
+    }
+  }
   {constructor public {default
                           endpoint:Url,
                           destination:String,

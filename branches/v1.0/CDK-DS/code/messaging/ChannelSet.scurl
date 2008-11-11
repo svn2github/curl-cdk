@@ -14,6 +14,12 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+    {purpose
+        The object that handles communicating with a server or set of servers for
+        a {docref RemoteObject}, {docref Consumer}, or {docref Producer}.
+    }
+}
 {define-class public ChannelSet {inherits EventTarget}
   field private _authenticated?:bool = false
   field private _connected?:bool = false
@@ -34,6 +40,19 @@
   field private constant pending-sends:{Array-of PendingSend}
   field private constant channel-event-handler:EventHandler
 
+  {doc-next
+    {purpose
+        Construct a {docref ChannelSet} with one or more {docref Channel}s.
+    }
+    {parameter channel,
+        A {docref Channel} to initialize this {docref ChannelSet} with.
+        Only one of {param channel} and {docref channels} may be supplied.
+    }
+    {parameter channels,
+        An array of {docref Channel}s to initialize this {docref ChannelSet} with.
+        Only one of {param channel} and {docref channels} may be supplied.
+    }
+  }
   {constructor public {default
 ||--                          channel-ids:#{Array-of #String} = null
 ||--                          , clustered-with-load-balancing?:bool = false

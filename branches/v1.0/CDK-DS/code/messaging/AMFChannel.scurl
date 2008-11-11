@@ -14,6 +14,11 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+    {purpose {docref Channel} that can send and receive messages with a web server
+        using the AMF0 or AMF3 protocol.
+    }
+}
 {define-class public AMFChannel {inherits CurlConnectionChannel}
   field private ignore-net-status-events?:bool = false
 
@@ -22,6 +27,22 @@
   field public fault-handler:{proc-type {msg:IMessage}:void} =
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
 
+  {doc-next
+    {purpose
+        Construct an {docref AMFChannel} to be used in a {docref ChannelSet} by
+        a {docref RemoteObject}, {docref Consumer}, or a {docref Producer}.
+    }
+    {parameter id,
+        The endpoint id for the channel.
+    }
+    {parameter uri,
+        The URL of the server that this channel will talk to.
+    }
+    {parameter mapper,
+        The {docref AMFObjectAdapters} used for serializing and deserializing messages and
+        parameters to and from native data types.
+    }
+  }
   {constructor public {default
                           id:#String = null, uri:#Url = null,
                           mapper:AMFObjectAdapters = AMFObjectAdapters.standard
