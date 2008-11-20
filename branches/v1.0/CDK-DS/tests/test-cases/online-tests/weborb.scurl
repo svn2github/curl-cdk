@@ -421,30 +421,83 @@
                      {return
                          {weborb-ro
                              sec-ep, "", destination=sec-des}}}
+    def sec-test =
+        {proc {uname:#String, passworld:#String, fault?:bool}:void
+            def ro = {get-ro}
+            let pending?:bool = true
+            def agent = {ro.login uname, passworld}
+            {agent.register-responder
+                {AuthenticationResultResponder
+                    result-proc = {fn => set pending? = false},
+                    status-proc = {fn => set pending? = false}
+                }
+            }
+            {while pending? do
+                {dispatch-events true}}
+            def mea = {ro.invoke-method "helloWorld"}
+            {ro.logout}
+            {test-condition
+                mea,
+                expect-fault? = fault?}
+        }
+    
     def secure-tests =
         {TestSuite "Secure Test",
-            {test-case "NoCredentials(this should fail)",
-                def nc = {get-ro}
-                {nc.login null, null, immediately?=false}
-                {test-condition
-                    {nc.invoke-method "helloWorld"},
-                    expect-fault? = true
+            {TestSuite "Immediately login",
+                {test-case "NoCredentials(this should fail)",
+                    {sec-test null, null, true}
+                },
+                {test-case "WrongCreadentials(this should fail)",
+                    {sec-test "admin1", "changeme1", true}
+                },
+                {test-case "Credentails",
+                    {sec-test "admin", "changeme", false}
                 }
             },
-            {test-case "WrongCreadentials(this should fail)",
-                def wc = {get-ro}
-                {wc.login "admin1", "changeme1", immediately?=false}
-                {test-condition
-                    {wc.invoke-method "helloWorld"},
-                    expect-fault? = true
+            {TestSuite "Non-Immediately login",
+                {test-case "NoCredentials(this should fail)",
+                    def nc = {get-ro}
+                    {nc.login null, null, immediately?=false}
+                    {test-condition
+                        {nc.invoke-method "helloWorld"},
+                        expect-fault? = true
+                    }
+                },
+                {test-case "WrongCreadentials(this should fail)",
+                    def wc = {get-ro}
+                    {wc.login "admin1", "changeme1", immediately?=false}
+                    {test-condition
+                        {wc.invoke-method "helloWorld"},
+                        expect-fault? = true
+                    }
+                },
+                {test-case "Credentails",
+                    def c = {get-ro}
+                    {c.login "admin", "changeme", immediately?=false}
+                    def mea = {c.invoke-method "helloWorld"}
+                    {c.logout}
+                    {test-condition mea}
                 }
             },
-            {test-case "Credentails",
-                def c = {get-ro}
-                {c.login "admin", "changeme", immediately?=false}
-                def mea = {c.invoke-method "helloWorld"}
-                {c.logout}
-                {test-condition mea}
+            
+            {test-case "Bad ID in FlexClient",
+                def bi = {get-ro}
+                def agent = {bi.login "admin", "changeme"}
+                let pending? = true
+                {agent.register-responder
+                    {AuthenticationResultResponder
+                        result-proc = {fn {}:void
+                                          set {FlexClient.get-instance}.id = "foo"
+                                          set pending? = false
+                                      }
+                    }
+                }
+                {while pending? do
+                    {dispatch-events true}}
+                def mea = {bi.invoke-method "helloWorld"}
+                {test-condition
+                    mea
+                }
             }
         }
     
