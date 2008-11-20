@@ -425,7 +425,7 @@
         {TestSuite "Secure Test",
             {test-case "NoCredentials(this should fail)",
                 def nc = {get-ro}
-                {nc.set-credentials null, null}
+                {nc.login null, null, immediately?=false}
                 {test-condition
                     {nc.invoke-method "helloWorld"},
                     expect-fault? = true
@@ -433,7 +433,7 @@
             },
             {test-case "WrongCreadentials(this should fail)",
                 def wc = {get-ro}
-                {wc.set-credentials "admin1", "changeme1"}
+                {wc.login "admin1", "changeme1", immediately?=false}
                 {test-condition
                     {wc.invoke-method "helloWorld"},
                     expect-fault? = true
@@ -441,7 +441,7 @@
             },
             {test-case "Credentails",
                 def c = {get-ro}
-                {c.set-credentials "admin", "changeme"}
+                {c.login "admin", "changeme", immediately?=false}
                 def mea = {c.invoke-method "helloWorld"}
                 {c.logout}
                 {test-condition mea}
