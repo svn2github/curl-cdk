@@ -205,19 +205,22 @@
                      password:#String,
                      charset:#String = null,
                      immediately?:bool = true
-                 }:void
+                 }:#AuthenticationAgent
     {if-non-null cs = self.channel-set then
-        {cs.login
-            username,
-            password,
-            charset = charset,
-            agent = {if immediately? then
-                        null
-                     else
-                        self
-                    }
+        {return
+            {cs.login
+                username,
+                password,
+                charset = charset,
+                agent = {if immediately? then
+                            null
+                         else
+                            self
+                        }
+            }
         }
     }
+    {return null}
   }
 
   {method public {logout}:void

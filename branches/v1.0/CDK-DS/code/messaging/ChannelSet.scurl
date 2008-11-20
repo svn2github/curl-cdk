@@ -243,7 +243,7 @@
                      password:#String,
                      charset:#String = null,
                      agent:#MessageAgent = null
-                 }:void
+                 }:#AuthenticationAgent
 
     || Use legacy charset
     {if charset != null and
@@ -256,15 +256,16 @@
 
     {if-non-null agent then
         {agent.set-credentials creds, charset = charset}
+        {return null}
      else
-        {self.internal-login creds, charset = charset}
+        {return {self.internal-login creds, charset = charset}}
     }
   }
   
   {method private {internal-login
                       credentials:#String,
                       charset:#String = null
-                  }:void
+                  }:AuthenticationAgent
     {if self.authenticated? then
         || IllegalOperationError
         {error "Channel Set is already authenticated."}}
@@ -279,7 +280,11 @@
     || Create CommandMessage for logging in.
     def cmd = {self.create-auth-message
                   CommandMessage.LOGIN_OPERATION,
-                  credentials = credentials,
+                  credentials = {if-non-null credentials then
+                                    credentials
+                                 else
+                                    ""
+                                },
                   charset = charset
               }
     
@@ -287,6 +292,7 @@
         set self.auth-agent = {AuthenticationAgent self}}
     set self.auth-agent.state = AuthenticationAgent.LOGGING_IN_STATE
     {self.send {non-null self.auth-agent}, cmd}
+    {return {non-null self.auth-agent}}
   }
   
   {method public {logout agent:#MessageAgent = null}:void
@@ -331,7 +337,18 @@
 
         set self.current-channel.authenticated? = false
     }
-    || TODO: Notify
+    
+    {agent.call-result ack}
+    {self.enqueue-event
+        {AuthenticationEvent
+            {if login? then
+                AuthenticationEvent.LOGGED_IN
+             else
+                AuthenticationEvent.LOGGED_OUT
+            },
+            message = ack
+        }
+    }
   }
   
   {method protected {authenticate-failed
@@ -339,13 +356,17 @@
                         cmd:CommandMessage,
                         err:ErrorMessage
                     }:void
-    || TODO: Create Event
-
-    set agent.state = AuthenticationAgent.SHUTDOWN_STATE
     set self.auth-agent = null
     {self.disconnect agent}
+    {agent.call-status err}
 
-    || TODO: Notify
+    set agent.state = AuthenticationAgent.SHUTDOWN_STATE
+    {self.enqueue-event
+        {AuthenticationFaultEvent
+            AuthenticationFaultEvent.FAULT,
+            message = err
+        }
+    }
   }
 
   {method private {create-auth-message

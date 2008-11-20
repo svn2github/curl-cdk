@@ -32,12 +32,16 @@
 {import * from COM.CURL.CDK.CONNECTION}
 
 {include
+    "AbstractAuthenticationEvent.scurl",
     "AbstractConsumer.scurl",
     "AbstractProducer.scurl",
     "AMFChannel.scurl",
     "AMFFireAndForgetResponder.scurl",
     "AuthenticationAgent.scurl",
+    "AuthenticationEvent.scurl",
+    "AuthenticationFaultEvent.scurl",
     "AuthenticationMessageResponder.scurl",
+    "AuthenticationResultResponder.scurl",
     "Channel.scurl",
     "ChannelEvent.scurl",
     "ChannelFaultEvent.scurl",

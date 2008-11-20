@@ -96,12 +96,14 @@
                      password:#String,
                      charset:#String = null,
                      immediately?:bool = true
-                 }:void
-    {self.async-request.login
-        username,
-        password,
-        charset = charset,
-        immediately? = immediately?
+                 }:#AuthenticationAgent
+    {return
+        {self.async-request.login
+            username,
+            password,
+            charset = charset,
+            immediately? = immediately?
+        }
     }
   }
 
