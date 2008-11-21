@@ -296,7 +296,7 @@
   }
   
   {method public {logout agent:#MessageAgent = null}:void
-    {if-non-null agent then
+    {if agent != null and self.auth-agent == null then
         set self.credentials = null
         {for ch in self.channels do
             {if-non-null ch then
@@ -327,14 +327,15 @@
                     }:void
     def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
     {if login? then
+        || when LOGIN is successful.
         {self.sync-credentials (cmd.body asa String)}
         set agent.state = AuthenticationAgent.LOGGED_IN_STATE
         set self.current-channel.authenticated? = true
      else
+        || when LOGOUT is successful.
         set agent.state = AuthenticationAgent.SHUTDOWN_STATE
         set self.auth-agent = null
         {self.disconnect agent}
-
         set self.current-channel.authenticated? = false
     }
     
