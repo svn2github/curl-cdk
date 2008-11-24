@@ -26,7 +26,17 @@
                           destination:String,
                           source:String = ""
                       }
-    {construct-super.RemoteObject endpoint, destination}
+    {construct-super.RemoteObject
+        endpoint, destination,
+        {on re:ResultEvent do
+            set self.result = {ResultAdapter re}
+            {self.end-idling}
+        },
+        {on fe:FaultEvent do
+            set self.result = {FaultAdapter fe}
+            {self.end-idling}
+        }
+    }
     {construct-super.TimingMeans}
     set self.source = source
 
@@ -54,14 +64,5 @@
     {return self.result}
   }
 
-  {method public {on-result-event re:ResultEvent}:void
-    set self.result = {ResultAdapter re}
-    {self.end-idling}
-  }
-  
-  {method public {on-fault-event fe:FaultEvent}:void
-    set self.result = {FaultAdapter fe}
-    {self.end-idling}
-  }
 }
 

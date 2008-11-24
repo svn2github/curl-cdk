@@ -194,7 +194,4 @@
     {return false}
   }
 
-  {method public {on-fault-event e:FaultEvent}:void}
-  {method public {on-invoke-event e:InvokeEvent}:void}
-  {method public {on-result-event e:ResultEvent}:void}
 }

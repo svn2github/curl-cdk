@@ -16,7 +16,7 @@
 
 {doc-next
     {purpose
-        Top level object used to make remote calls to a server.
+        Object used to make remote calls to a server.
     }
 }
 {define-class public RemoteObject {inherits AbstractService}
@@ -27,16 +27,17 @@
         Create a {docref RemoteObject} with some server information.
     }
     {parameter endpoint,
-        The {docref Url} of the server that this {docref RemoteObject} is going to
-        communicate with.  Also if no {docref channel-set} is provided, this will
-        be used to make a {docref ChannelSet} wrapped around a {docref AMFChannel}.
+        The {docref Url} of the server that this {docref RemoteObject} is
+    `   going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
     }
     {parameter destination,
         The destination at the {param endpoint} for all messages being sent.
     }
     {parameter channel-set,
-        A {docref ChannelSet} to use to send messages, this will be implicitly
-        created from the {param endpoint} if it is not supplied.
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
     }
     {parameter ...,
         {docref EventHandler}s to receive events on this object.
@@ -60,16 +61,7 @@
         endpoint = endpoint,
         destination = destination,
         channel-set = channel-set,
-        {on e:FaultEvent do
-            {self.on-fault-event e}
-        },
-        {on e:InvokeEvent do
-            {self.on-invoke-event e}
-        },
-        {on e:ResultEvent do
-            {self.on-result-event e}
-        },
-        {splice ...}
+        ...
     }
   }
 
