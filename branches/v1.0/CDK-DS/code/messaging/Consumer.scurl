@@ -18,6 +18,37 @@
   field protected _selector:String = ""
   field protected _subtopic:String = ""
 
+  {doc-next
+    {purpose
+        Create an {docref Consumer} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter selector,
+        The selector understood by the destination to subscribe to.
+    }
+    {parameter subtopic,
+        The subtopic understood by the destination to subscribe to.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref MessageEvent}s and {docref MessageFaultEvent}s.
+    }
+  }
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
@@ -36,6 +67,11 @@
     set self.subtopic = subtopic
   }
 
+  {doc-next
+    {purpose
+        The selector understood by the destination to subscribe to.
+    }
+  }
   {getter public {selector}:String
     {return self._selector}
   }
@@ -53,6 +89,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        The subtopic understood by the destination to subscribe to.
+    }
+  }
   {getter public {subtopic}:String
     {return self._subtopic}
   }

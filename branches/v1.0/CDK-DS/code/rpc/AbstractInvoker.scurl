@@ -71,7 +71,7 @@
                         token:#AsyncToken = null
                     }:#AsyncToken
     {if token == null then
-        set token = {new AsyncToken, message}
+        set token = {AsyncToken message}
      else
         set token.message = message
     }

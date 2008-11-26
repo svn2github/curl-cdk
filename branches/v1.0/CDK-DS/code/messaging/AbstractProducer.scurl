@@ -14,13 +14,39 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AbstractProducer {inherits MessageAgent}
+{define-class public abstract AbstractProducer {inherits MessageAgent}
   field public auto-connect?:bool = true
   field public default-headers:#IMessageHeaders
   field public reconnect-attempts:int = 0
   field public reconnect-interval:Time = 0ms
   field private connect-message:#CommandMessage
 
+  {doc-next
+    {purpose
+        Create an {docref AbstractProducer} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref MessageFaultEvent}s, {docref MessageAckEvent}s,
+        {docref ChannelEvent}s, and {docref ChannelFaultEvent}s.
+    }
+  }
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
@@ -36,6 +62,11 @@
     set self.agent-type = "producer"
   }
 
+  {doc-next
+    {purpose
+        Connect to the endpoint.
+    }
+  }
   {method public {connect}:void
     {if not self.connected? then
         {if self.connect-message == null then
@@ -56,12 +87,20 @@
     {super.disconnect}
   }
 
+  {doc-next
+    {purpose
+        Send a message to the endpoint.
+    }
+    {parameter message,
+        {docref IMessage} to send.
+    }
+  }
   {method public {send message:IMessage}:void
     || TODO: Add default headers?
     {self.internal-send message}
   }
 
-  {method public {acknowledge
+  {method protected {acknowledge
                         ack:AcknowledgeMessage,
                         message:IMessage
                     }:void
@@ -77,7 +116,7 @@
     }
   }
 
-  {method public {fault err:ErrorMessage, message:IMessage}:void
+  {method protected {fault err:ErrorMessage, message:IMessage}:void
     {self.internal-fault err, message}
   }
 

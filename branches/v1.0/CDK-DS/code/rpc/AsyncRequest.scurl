@@ -89,7 +89,7 @@
     {self.send message}
   }
 
-  {method public {hasPendingRequestForMessage msg:IMessage}:bool
+  {method public {has-pending-request-for-message msg:IMessage}:bool
     def id = msg.message-id
     {return {self.pending-requests.key-exists? id}}
   }

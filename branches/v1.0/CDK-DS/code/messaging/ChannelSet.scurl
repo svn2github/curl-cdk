@@ -34,7 +34,7 @@
   field private current-channel-index:int = -1
   field private constant _message-agents:{Array-of MessageAgent}
   field private credentials:#String
-  field private credentials-charset:#String
+  field private credentials-character-encoding:#CharEncoding
   field private auth-agent:#AuthenticationAgent
   field private constant pending-messages:{Set-of IMessage}
   field private constant pending-sends:{Array-of PendingSend}
@@ -238,33 +238,49 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Provide server credentials to authenticate with a server.
+    }
+    {parameter username,
+        Username for credentials.
+    }
+    {parameter password,
+        Password for credentials.
+    }
+    {parameter character-encoding,
+        {docref CharEncoding} to encode credentials default is {ctext null} which means
+        {ctext CharEncoding.iso-latin-1}.
+        The only other supported {docref CharEncoding} is {ctext CharEncoding.utf8}.
+    }
+  }
   {method public {login
                      username:#String,
                      password:#String,
-                     charset:#String = null,
+                     character-encoding:#CharEncoding = null,
                      agent:#MessageAgent = null
                  }:#AuthenticationAgent
 
-    || Use legacy charset
-    {if charset != null and
-        {http-charset-to-char-encoding {non-null charset}} != CharEncoding.utf8
-     then
-        set charset = null
+    || FIXME: why not allow any character-encoding?
+    || Use legacy charset if not utf8
+    {if character-encoding != null and character-encoding != CharEncoding.utf8 then
+        set character-encoding = null
     }
-    def creds = {encode-credentials
-                    username, password, charset}
+    def creds = {encode-credentials username, password, character-encoding}
 
     {if-non-null agent then
-        {agent.set-credentials creds, charset = charset}
+        {agent.set-credentials creds, character-encoding = character-encoding}
         {return null}
      else
-        {return {self.internal-login creds, charset = charset}}
+        {return
+            {self.internal-login creds, character-encoding = character-encoding}
+        }
     }
   }
   
   {method private {internal-login
                       credentials:#String,
-                      charset:#String = null
+                      character-encoding:#CharEncoding = null
                   }:AuthenticationAgent
     {if self.authenticated? then
         || IllegalOperationError
@@ -285,7 +301,7 @@
                                  else
                                     ""
                                 },
-                  charset = charset
+                  character-encoding = character-encoding
               }
     
     {if self.auth-agent == null then
@@ -295,6 +311,11 @@
     {return {non-null self.auth-agent}}
   }
   
+  {doc-next
+    {purpose
+        Logout from the server.
+    }
+  }
   {method public {logout agent:#MessageAgent = null}:void
     {if agent != null and self.auth-agent == null then
         set self.credentials = null
@@ -373,14 +394,15 @@
   {method private {create-auth-message
                       operation:uint,
                       credentials:#String = null,
-                      charset:#String = null
+                      character-encoding:#CharEncoding = null
                   }:CommandMessage
     def cmd = {CommandMessage}
     set cmd.operation = operation
     set cmd.body = credentials
     set cmd.destination = "auth"
-    {if-non-null charset then
-        set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] = charset
+    {if-non-null character-encoding then
+        set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] =
+            {char-encoding-to-http-charset character-encoding}
     }
     {return cmd}
   }
@@ -481,14 +503,14 @@
   {method public {set-credentials
                      credentials:#String,
                      agent:#MessageAgent = null,
-                     charset:#String = null
+                     character-encoding:#CharEncoding = null
                  }:void
     set self.credentials = credentials
     {for channel in self.channels do
         {channel.set-credentials
             self.credentials,
             agent = agent,
-            charset = charset
+            character-encoding = character-encoding
         }
     }
   }
@@ -505,7 +527,7 @@
         {channel.set-credentials
             self.credentials,
             agent = null,
-            charset = self.credentials-charset
+            character-encoding = self.credentials-character-encoding
         }
     }
   }
@@ -606,7 +628,7 @@
 {define-proc {encode-credentials
                  _username:#String,
                  _password:#String,
-                 charset:#String
+                 character-encoding:#CharEncoding
              }:#String
     {if _username == null and _password == null then
         {return null}
@@ -614,17 +636,17 @@
     def username = {if-non-null val = _username then val else ""}
     def password = {if-non-null val = _password then val else ""}
     def credentials = username & ":" & password
-    def bytes = {ByteArray}
     def encoding =
-        {if-non-null charset then
-            def charset-encoding = {http-charset-to-char-encoding charset}
-            {if charset-encoding == CharEncoding.none-specified then
+        {if-non-null character-encoding then
+            {if character-encoding == CharEncoding.none-specified then
                 CharEncoding.utf8
              else
-                charset-encoding
+                character-encoding
             }
-         else CharEncoding.utf8
+         else
+            CharEncoding.iso-latin-1 || default from Adobe
         }
+    def bytes = {ByteArray}
     {with-open-streams out =
         {TranscodingTextOutputStream
             {ByteArrayOutputStream bytes}, encoding, false}

@@ -154,7 +154,7 @@
   {method public {set-credentials
                      credentials:#String,
                      agent:#MessageAgent = null,
-                     charset:#String = null
+                     character-encoding:#CharEncoding = null
                  }:void
     def changed-credentials? = (credentials != self.credentials)
 
@@ -182,9 +182,9 @@
             def message = {new CommandMessage}
             set message.operation = CommandMessage.LOGIN_OPERATION
             set message.body = credentials
-            {if-non-null charset then
+            {if-non-null character-encoding then
                 set message.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] =
-                    charset
+                    {char-encoding-to-http-charset character-encoding}
             }
             {self.internal-send
                 {AuthenticationMessageResponder agent, message, self}

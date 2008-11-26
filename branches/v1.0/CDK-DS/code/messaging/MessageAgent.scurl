@@ -30,9 +30,9 @@
   field private _authenticated?:bool = false
   field private send-remote-credentials?:bool = false
   field protected credentials:#String
-  field private credentials-charset:#String
+  field private credentials-character-encoding:#CharEncoding
   field private remote-credentials:#String
-  field private remote-credentials-charset:#String
+  field private remote-credentials-character-encoding:#CharEncoding
   field private channel-set-mode:int = MessageAgent.AUTO_CONFIGURED_CHANNELSET
   field private pending-connect-event:#ChannelEvent
 
@@ -200,10 +200,29 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Provide server credentials to authenticate with a server.
+    }
+    {parameter username,
+        Username for credentials.
+    }
+    {parameter password,
+        Password for credentials.
+    }
+    {parameter character-encoding,
+        {docref CharEncoding} to encode credentials default is {ctext null} which means
+        {ctext CharEncoding.iso-latin-1}.
+        The only other supported {docref CharEncoding} is {ctext CharEncoding.utf8}.
+    }
+    {parameter immediately?,
+        Login now or wait for the first other message to be sent.
+    }
+  }
   {method public {login
                      username:#String,
                      password:#String,
-                     charset:#String = null,
+                     character-encoding:#CharEncoding = null,
                      immediately?:bool = true
                  }:#AuthenticationAgent
     {if-non-null cs = self.channel-set then
@@ -211,7 +230,7 @@
             {cs.login
                 username,
                 password,
-                charset = charset,
+                character-encoding = character-encoding,
                 agent = {if immediately? then
                             null
                          else
@@ -223,6 +242,11 @@
     {return null}
   }
 
+  {doc-next
+    {purpose
+        Logout from the server.
+    }
+  }
   {method public {logout}:void
     set self.credentials = null
     {if-non-null channel-set = self.channel-set then
@@ -231,33 +255,51 @@
   }
 
   {method public {set-credentials
-                     credentials:#String,
-                     charset:#String = null
-                 }:void
+                      credentials:#String,
+                      character-encoding:#CharEncoding = null
+                  }:void
     set self.credentials = credentials
-    set self.credentials-charset = charset
+    set self.credentials-character-encoding = character-encoding
     {if-non-null channel-set = self.channel-set then
         {channel-set.set-credentials
             self.credentials,
             agent = self,
-            charset = self.credentials-charset
+            character-encoding = self.credentials-character-encoding
         }
     }
   }
 
+  {doc-next
+    {purpose
+        Provide remote credentials to be passed through to the remote destination.
+    }
+    {parameter username,
+        Username for credentials.
+    }
+    {parameter password,
+        Password for credentials.
+    }
+    {parameter character-encoding,
+        {docref CharEncoding} to encode credentials default is {ctext null} which means
+        {ctext CharEncoding.iso-latin-1}.
+        The only other supported {docref CharEncoding} is {ctext CharEncoding.utf8}.
+    }
+  }
   {method public {set-remote-credentials
                      remote-username:#String,
                      remote-password:#String,
-                     charset:#String = null
+                     character-encoding:#CharEncoding = null
                  }:void
     {if remote-username == null and remote-password == null then
         set self.remote-credentials = null
-        set self.remote-credentials-charset = null
+        set self.remote-credentials-character-encoding = null
         set self.send-remote-credentials? = false
      else
         set self.remote-credentials =
-            {encode-credentials remote-username, remote-password, charset}
-        set self.remote-credentials-charset = charset
+            {encode-credentials
+                remote-username, remote-password, character-encoding
+            }
+        set self.remote-credentials-character-encoding = character-encoding
         set self.send-remote-credentials? = true
     }
   }
@@ -287,8 +329,10 @@
     {if self.send-remote-credentials? then
         set message.headers[AbstractMessage.REMOTE_CREDENTIALS_HEADER] =
             self.remote-credentials
-        set message.headers[AbstractMessage.REMOTE_CREDENTIALS_CHARSET_HEADER] =
-            self.remote-credentials-charset
+        {if-non-null rcce = self.remote-credentials-character-encoding then
+            set message.headers[AbstractMessage.REMOTE_CREDENTIALS_CHARSET_HEADER] =
+                {char-encoding-to-http-charset rcce}
+        }
         set self.send-remote-credentials? = false
     }
     {if-non-null self.channel-set then
@@ -341,7 +385,7 @@
         {self.channel-set.set-credentials
             self.credentials,
             agent = self,
-            charset = self.credentials-charset
+            character-encoding = self.credentials-character-encoding
         }
     }
   }
@@ -358,7 +402,7 @@
                 {channel-set.set-credentials
                     self.credentials,
                     agent = self,
-                    charset = self.credentials-charset
+                    character-encoding = self.credentials-character-encoding
                 }
             }
             {channel-set.connect self}
@@ -397,7 +441,7 @@
     {self.enqueue-event e}
   }
 
-  {method public {acknowledge ack-message:AcknowledgeMessage, msg:IMessage}:void
+  {method protected {acknowledge ack-message:AcknowledgeMessage, msg:IMessage}:void
     {ack-message.headers.remove
         AcknowledgeMessage.ERROR_HINT_HEADER, error-if-missing? = false
     }
@@ -426,7 +470,7 @@
     }
   }
 
-  {method public {fault error-message:ErrorMessage, msg:IMessage}:void
+  {method protected {fault error-message:ErrorMessage, msg:IMessage}:void
     set self.ignore-fault? = false
     set self.config-requested? = false
     {error-message.headers.remove
@@ -459,17 +503,8 @@
     }
   }
 
-  {method public {hasPendingRequestForMessage msg:IMessage}:bool
+  {method public {has-pending-request-for-message msg:IMessage}:bool
     {return false}
   }
 
-||--  {method public {initialized document:Object, id:String}:void
-||--  }
-
-  {method public {on-message-ack-event e:MessageAckEvent}:void}
-  {method public {on-channel-connect e:ChannelEvent}:void}
-  {method public {on-channel-disconnect e:ChannelEvent}:void}
-  {method public {on-channel-fault-event e:ChannelFaultEvent}:void}
-  {method public {on-message-fault-event e:MessageFaultEvent}:void}
-||--  {method public {on-property-change-event e:PropertyChangeEvent}:void}
 }

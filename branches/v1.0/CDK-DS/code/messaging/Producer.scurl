@@ -15,12 +15,42 @@
 ||| limitations under the License.
 
 {define-class public Producer {inherits AbstractProducer}
-  field protected _subtopic:String = ""
+  field protected _subtopic:String
 
+  {doc-next
+    {purpose
+        Create a {docref Producer} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter subtopic,
+        The subtopic understood by the destination to send to.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref MessageFaultEvent}s, {docref MessageAckEvent}s,
+        {docref ChannelEvent}s, and {docref ChannelFaultEvent}s.
+    }
+  }
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
                           channel-set:#ChannelSet = null,
+                          subtopic:String = "",
                           ...:EventHandler
                       }
     {construct-super
@@ -29,9 +59,10 @@
         channel-set = channel-set,
         ...
     }
+    set self._subtopic = subtopic
   }
 
-  {method public {internal-send
+  {method protected {internal-send
                      message:IMessage,
                      wait-for-client-id?:bool = true
                  }:void
@@ -40,7 +71,12 @@
     }
     {super.internal-send message, wait-for-client-id? = wait-for-client-id?}
   }
-  || TODO: subtopic getter/setter ?
+
+  {doc-next
+    {purpose
+        The subtopic understood by the destination to subscribe to.
+    }
+  }
   {getter public {subtopic}:String
     {return self._subtopic}
   }

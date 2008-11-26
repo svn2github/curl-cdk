@@ -91,22 +91,46 @@
     {self.async-request.disconnect}
   }
 
+  {doc-next
+    {purpose
+        Provide server credentials to authenticate with a server.
+    }
+    {parameter username,
+        Username for credentials.
+    }
+    {parameter password,
+        Password for credentials.
+    }
+    {parameter character-encoding,
+        {docref CharEncoding} to encode credentials default is {ctext null} which means
+        {ctext CharEncoding.iso-latin-1}.
+        The only other supported {docref CharEncoding} is {ctext CharEncoding.utf8}.
+    }
+    {parameter immediately?,
+        Login now or wait for the first other message to be sent.
+    }
+  }
   {method public {login
                      username:#String,
                      password:#String,
-                     charset:#String = null,
+                     character-encoding:#CharEncoding = null,
                      immediately?:bool = true
                  }:#AuthenticationAgent
     {return
         {self.async-request.login
             username,
             password,
-            charset = charset,
+            character-encoding = character-encoding,
             immediately? = immediately?
         }
     }
   }
 
+  {doc-next
+    {purpose
+        Logout from the server.
+    }
+  }
   {method public {logout}:void
     {self.async-request.logout}
   }
@@ -114,18 +138,34 @@
 ||--  {method public {set-credentials
 ||--                     username:#String,
 ||--                     password:#String,
-||--                     charset:#String = null
+||--                     character-encoding:#CharEncoding = null
 ||--                 }:void
-||--    {self.async-request.set-credentials username, password, charset = charset}
+||--    {self.async-request.set-credentials username, password, character-encoding = character-encoding}
 ||--  }
 
+  {doc-next
+    {purpose
+        Provide remote credentials to be passed through to the remote destination.
+    }
+    {parameter username,
+        Username for credentials.
+    }
+    {parameter password,
+        Password for credentials.
+    }
+    {parameter character-encoding,
+        {docref CharEncoding} to encode credentials default is {ctext null} which means
+        {ctext CharEncoding.iso-latin-1}.
+        The only other supported {docref CharEncoding} is {ctext CharEncoding.utf8}.
+    }
+  }
   {method public {set-remote-credentials
                      remote-username:#String,
                      remote-password:#String,
-                     charset:#String = null
+                     character-encoding:#CharEncoding = null
                  }:void
     {self.async-request.set-remote-credentials
-        remote-username, remote-password, charset = charset
+        remote-username, remote-password, character-encoding = character-encoding
     }
   }
 

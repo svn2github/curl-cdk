@@ -45,7 +45,7 @@
     set self.channel.authenticated? = false
 
     {if self.agent != null and
-        {self.agent.hasPendingRequestForMessage self.message}
+        {self.agent.has-pending-request-for-message self.message}
      then
         {self.agent.fault
             msg asa ErrorMessage,

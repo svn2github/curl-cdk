@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AbstractConsumer {inherits MessageAgent}
+{define-class public abstract AbstractConsumer {inherits MessageAgent}
   field protected current-attempt:int
   field protected _resubscribe-attempts:int = 5
   field protected _resubscribe-interval:Time = 5000ms
@@ -24,6 +24,32 @@
   field protected subscribe-message:#CommandMessage
   field protected _timestamp:double = -1
 
+  {doc-next
+    {purpose
+        Create an {docref AbstractConsumer} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref MessageEvent}s, {docref MessageFaultEvent}s,
+        {docref ChannelEvent}s, and {docref ChannelFaultEvent}s.
+    }
+  }
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
@@ -268,9 +294,8 @@
   {method public {unsubscribe preserve-durable?:bool = false}:void
     set self.should-be-subscribed? = false
     {if self.subscribed? then
-        {if-non-null self.channel-set then
-            || TODO:
-        }
+        || TODO: should this do something to avoid ack for wrong channel-set if channel-set
+        || is changed.
         {self.internal-send
             {self.build-unsubscribe-message
                 preserve-durable? = preserve-durable?
@@ -287,7 +312,7 @@
         {self.stop-resubscribe-timer}
         set self.should-be-subscribed? = false
         def err = {ErrorMessage}
-        set err.fault-code = "Client.ERror.Subscribe"
+        set err.fault-code = "Client.Error.Subscribe"
         set err.fault-string = "Consumer subscribe error"
         set err.fault-detail = "Failed to subscribe"
         {if-non-null subscribe-message = self.subscribe-message then
@@ -380,7 +405,6 @@
             }
             set self.subscribed? = false
         }
-        {return}
      else
         {if message.timestamp > self.timestamp then
             set self.timestamp = message.timestamp
