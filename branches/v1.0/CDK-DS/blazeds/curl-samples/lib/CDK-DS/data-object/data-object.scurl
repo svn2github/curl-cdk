@@ -1,0 +1,698 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| model protocol
+|| ====================
+{define-class public abstract shared DataObject {inherits EventTarget}
+  || metadata
+  {getter public abstract {traits}:DataObjectTraits}
+  || Association-of
+  {getter public abstract {size}:int}
+  {method public abstract {get key:String}:any}
+  {method public abstract {get-if-exists key:String}:(any, bool)}
+  {method public abstract {set key:String, val:any}:void}
+  {method public abstract {set? key:String}:bool}
+  {method public abstract {unset key:String}:void}
+  {method public abstract {to-Iterator}:{Iterator-of any}}
+  {method public abstract {keys-to-Iterator}:{Iterator-of String}}
+  || change management
+  {getter public abstract {pending-update?}:bool}
+  {method public abstract {commit}:void}
+  {method public abstract {revert}:void}
+  {method public abstract {get-original key:String}:any}  || TODO: if-exixts
+  || utility
+  {method public abstract {clone}:DataObject}
+  {method public abstract {equal? other:DataObject}:bool}
+  || convenience
+  {getter public {empty?}:bool
+    {return self.size == 0}
+  }
+  || conversion
+  {method public abstract {to-HashTable}:{HashTable-of String, any}}
+  {method public abstract {to-RecordData}:RecordData}
+  {method public abstract {to-JsonObject}:JsonObject}
+  
+  || performance hacks
+  {method public abstract {set-internal index:int, val:any}:void}
+
+  || construction
+  {factory public {default ...}:StandardDataObject
+    {return
+        {StandardDataObject {splice ...}}}
+  }
+  {factory public {from-traits traits:DataObjectTraits}:DataObject
+    {return
+        {StandardDataObject.from-traits traits}}
+  }
+  || =====
+||--  def public adapters =
+||--      {{HashTable-of String, {proc-type {traits:DataObjectTraits}:DataObject}}}
+||--  {factory public {from-traits traits:DataObjectTraits}:DataObject
+||--    def (adapter, adapter?) =
+||--        {DataObject.adapters.get-if-exists traits.name}
+||--    || TODO: ensure congruency
+||--    {return
+||--        {if adapter? then
+||--            {adapter traits}
+||--         else        
+||--            {StandardDataObject.from-traits traits}}}
+||--  }
+  || =====
+  {method public {object-describe out:TextOutputStream, locale:Locale}:void
+    {wrap-object-description out = out, self,
+        description = {message '{value self.traits.name}' ({value self.size})}}
+  }
+}
+{define-class public DataObjectChanged {inherits Event}
+  field public-get constant selector:String
+  field public-get constant subject:DataObject
+  {constructor public {default subject:DataObject, selector:String}
+    set self.subject = subject
+    set self.selector = selector
+  }
+}
+|| model standard
+|| ====================
+{define-class public abstract StandardDataObject {inherits DataObject}
+  {factory public {from-traits traits:DataObjectTraits}:StandardDataObject
+    {return
+        {if traits.dynamic? then
+            {OpenDataObject.from-traits traits}
+         else
+            {SealedDataObject.from-traits traits}
+        }}
+  }
+  {factory public {default 
+                      traits:DataObjectTraits =
+                          DataObjectTraits.anonymous,
+                      default-values:#{Association-of String, any} = null,
+                      ...}:StandardDataObject
+    {return
+        {if traits.dynamic? then
+            {OpenDataObject
+                traits = traits,
+                default-values = default-values,
+                {splice ...}}
+         else
+            {SealedDataObject traits,
+                default-values = default-values,
+                {splice ...}}
+        }}
+  }
+  || construction
+  || ----------
+  {method public {to-HashTable}:{HashTable-of String, any}
+    def xs = {{HashTable-of String, any} efficient-size = self.size}
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
+  }
+  {method public {to-RecordData}:RecordData
+    def xs = {RecordData}
+    set xs.efficient-size = self.size
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
+  }
+  {method public {to-JsonObject}:JsonObject
+    def xs = {JsonObject efficient-size = self.size}
+    {for x key k in self do
+        set xs[k] = x}
+    {return xs}
+  }
+  || common
+  || ----------
+  {method protected {trigger-data-changed k:String}:void
+    {self.enqueue-event
+        {DataObjectChanged self, k}}
+  }
+  {method public {equal? other:DataObject}:bool
+    || TODO: traits ??
+    {if self.size == other.size then
+        {for x key k in self do
+            {if x != other[k] then
+                {return false}}}
+        {return true}
+     else
+        {return false}}
+  }
+  || Association-of compatibility
+  || --------------------
+  || TODO: eliminate when IMessageHeaders curlified
+  {method public {key-exists? k:String}:bool
+    {return {self.set? k}}
+  }
+  {method public {remove k:String, error-if-missing?:bool = true}:void
+    {if error-if-missing? and not {self.set? k} then
+        {error {lmessage Key not found: {value k} in {value self}}}}
+    {self.unset k}
+  }
+}
+|| ====================
+{define-class public OpenDataObject 
+  {inherits {OpenDataObject-of {BucketHashTable-of String, any}}}
+  {constructor public {default
+                          traits:DataObjectTraits =
+                              DataObjectTraits.anonymous,
+                          default-values:#{Association-of String, any} = null,
+                          ...}
+    def members = traits.members
+    def data = {{BucketHashTable-of String, any} efficient-size = members.size}
+    {construct-super traits, data}
+    def dynamic? = traits.dynamic?
+    {if-non-null default-values then
+        {for x key k in default-values do
+            || restrict to declared traits unless dynamic
+            {if dynamic? or {data.key-exists? k} then
+                set data[k] = x}}}
+    {self.process-rest-args {splice ...}}
+  }
+  {constructor public {from-traits traits:DataObjectTraits}
+    def members = traits.members
+    def data = {{BucketHashTable-of String, any} efficient-size = members.size}
+    {construct-super traits, data}
+  }
+}
+{define-class public {OpenDataObject-of T:ClassType} {inherits StandardDataObject}
+  field protected constant data:T
+  field private constant _traits:DataObjectTraits
+  {getter public {traits}:DataObjectTraits
+    {return self._traits}
+  }
+  {constructor public {default
+                          traits:DataObjectTraits,
+                          data:T}
+    set self._traits = traits
+    def members = traits.members
+    {for k in members do
+        set data[k] = null}
+    set self.data = data
+    || TODO: proper default if not initialized
+  }
+  {method public {process-rest-args ...}:void
+    || process rest args
+    def data = self.data
+    let key:#String = null
+    {for (x, k) in ... do
+        {if-non-null k then
+            || keyword arg
+            set data[k] = x
+         else
+            || treat positional as alternating key, value pairs
+            {if-non-null k = key then
+                set data[k] = x
+                set key = null
+             else
+                set key =
+                    {type-switch x
+                     case x:String do x
+                     case x:int do {String x}
+                     case x:EventHandler do
+                        || NOTE: not alternating key
+                        {self.add-event-handler x}
+                        null
+                     else {data-exception {lmessage DataObject key must be String or int, not {type-of x}}}}
+            }}}
+    {if-non-null key then
+        {data-exception {lmessage DataObject key '{value key}' has no value}}}
+  }
+  {getter public {size}:int
+    {return self.data.size}
+  }
+  {method public {get key:String}:any
+    {return self.data[key]}
+  }
+  {method public {get-if-exists key:String}:(any, bool)
+    {return {self.data.get-if-exists key}}
+  }
+  {method public {set? key:String}:bool
+    {return {self.data.key-exists? key}}
+  }
+  {method public {set key:String, val:any}:void
+    def set? = {self.set? key}
+    || NOTE: enforce dynamic
+    {if not self.traits.dynamic?
+        and not set?
+     then
+        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
+    let changed?:bool = not set? or self[key] != val
+    {if changed? then
+        {self.preserve-original-data}
+        set self.data[key] = val
+        || TODO: consider DWIM "revert" if now unchanged
+        {self.trigger-data-changed key}}
+  }
+  {method public {unset key:String}:void
+    || NOTE: enforce static members
+    {if ||not self.traits.dynamic? and
+        {self.traits.members.find key} >= 0
+     then
+        {data-exception {message Can not remove member '{value key}': {value self} declares it static.}}}
+    let changed?:bool = {self.set? key}
+    {if changed? then
+        {self.preserve-original-data}
+        {self.data.remove key}
+        {self.trigger-data-changed key}}
+  }
+  {method public {to-Iterator}:{Iterator-of any}
+    {return {self.data.to-Iterator}}
+  }
+  {method public {keys-to-Iterator}:{Iterator-of String}
+    {return {self.data.keys-to-Iterator}}
+  }
+  {method public {clone}:OpenDataObject
+    def clone = {OpenDataObject.from-traits self.traits}
+    {for x key k in self.data do
+        set clone.data[k] = x}
+    {return clone}
+  }
+  || performance hacks
+  || --------------------
+  {method public {set-internal index:int, val:any}:void
+    def key = self._traits.members[index]
+    set self.data[key] = val
+  }
+  || change management
+  || --------------------
+  field protected original-data:#T
+  {getter public {pending-update?}:bool
+    {return self.original-data != null}
+  }
+  {method public {get-original key:String}:any
+    {return
+        {if-non-null original = self.original-data then
+            original[key]
+         else
+            self[key]}}
+  }
+  {method public {commit}:void
+    || NOTE: subclasses responsible for external coordination
+    set self.original-data = null
+  }
+  {method public {revert}:void
+    || NOTE: change propagation is damped by 'changed?' checks above
+    {if-non-null original = self.original-data then
+        || delete additions
+        {for key k in self.data do
+            {if not {original.key-exists? k} then
+                {self.unset k}}}
+        || duplicate original
+        {for x key k in original do
+            set self[k] = x}
+        || now its the same
+        set self.original-data = null}
+  }
+  {method protected {preserve-original-data}:void
+    {if self.original-data == null then
+        set self.original-data = {self.data.clone}}
+  }
+}
+|| ====================
+{define-class public SealedDataObject {inherits StandardDataObject}
+  field protected constant data:FastArray
+  field private constant _traits:DataObjectTraits
+  {getter public {traits}:DataObjectTraits
+    {return self._traits}
+  }
+  {constructor public {default
+                          traits:DataObjectTraits,
+                          default-values:#{Association-of String, any} = null,
+                          ...}
+    {assert not traits.dynamic?}
+    set self._traits = traits
+    def members = traits.members
+    def data = {FastArray.from-size members.size, null}
+    set self.data = data
+    {if-non-null default-values then
+        {for x key k in default-values do
+            {self.set-internal-key k, x}}}
+    || process rest args
+    let key:#String = null
+    {for (x, k) in ... do
+        {if-non-null k then
+            || keyword arg
+            {self.set-internal-key k, x}
+         else
+            || treat positional as alternating key, value pairs
+            {if-non-null k = key then
+                {self.set-internal-key k, x}
+                set key = null
+             else
+                set key =
+                    {type-switch x
+                     case x:String do x
+                     case x:EventHandler do
+                        || NOTE: not alternating key
+                        {self.add-event-handler x}
+                        null
+                     else {data-exception {lmessage DataObject key must be String, not {type-of x}}}}
+            }}}
+    {if-non-null key then
+        {data-exception {lmessage DataObject key '{value key}' has no value}}}
+  }
+  {constructor public {from-traits traits:DataObjectTraits}
+    set self._traits = traits
+    def members = traits.members
+    set self.data = {FastArray.from-size members.size, null}
+  }
+  {getter public {size}:int
+    {return self.data.size}
+  }
+  {method public {get key:String}:any
+    def index = {self.index-for key}
+    {if index < 0 then
+        {data-exception {message Key '{value key}' not found in {value self}}}}
+    {return self.data[index]}
+  }
+  {method public {get-if-exists key:String}:(any, bool)
+    def index = {self.index-for key}
+    {return
+        {if index >= 0 then
+            (self.data[index], true)
+         else
+            (null, false)}}
+  }
+  {method public {set? key:String}:bool
+    {return {self.index-for key} >= 0}
+  }
+  {method public {set key:String, val:any}:void
+    def index = {self.index-for key}
+    {if index < 0 then
+        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
+    let changed?:bool = self.data[index] != val
+    {if changed? then
+        {self.preserve-original-data}
+        set self.data[index] = val
+        || TODO: consider DWIM "revert" if now unchanged
+        {self.trigger-data-changed key}}
+  }
+  {method public {unset key:String}:void
+    {data-exception {message Can not remove member '{value key}': {value self} is not dynamic?}}
+  }
+  {method public {to-Iterator}:{Iterator-of any}
+    {return {{FastArray-Iterator-of any} self.data}}
+  }
+  {method public {keys-to-Iterator}:{Iterator-of String}
+    {return {self.traits.members.to-Iterator}}
+  }
+  {method public {clone}:SealedDataObject
+    def clone = {SealedDataObject.from-traits self.traits}
+    {self.data.copy-into
+        clone.data, 0, 0, self.data.size
+    }
+    {return clone}
+  }
+  || performance hacks
+  || --------------------
+  {method public {set-internal-key key:String, val:any}:void
+    def index = {self.index-for key}
+    set self.data[index] = val
+  }
+  {method public {set-internal index:int, val:any}:void
+    set self.data[index] = val
+  }
+  {method final inline {index-for k:String}:int
+    {return {self._traits.index-for k}}
+  }
+  || change management
+  || --------------------
+  field protected original-data:#FastArray
+  {getter public {pending-update?}:bool
+    {return self.original-data != null}
+  }
+  {method public {get-original key:String}:any
+    def index = {self.index-for key}
+    {if index < 0 then
+        {data-exception {message Key '{value key}' not found in {value self}}}}
+    {return
+        {if-non-null original = self.original-data then
+            original[index]
+         else
+            self.data[index]}}
+  }
+  {method public {commit}:void
+    || NOTE: subclasses responsible for external coordination
+    set self.original-data = null
+  }
+  {method public {revert}:void
+    || NOTE: change propagation is damped by 'changed?' checks above
+    {if-non-null original = self.original-data then
+        {original.copy-into
+            self.data, 0, 0, original.size
+        }
+        || now its the same
+        set self.original-data = null}
+  }
+  {method protected {preserve-original-data}:void
+    {if self.original-data == null then
+        set self.original-data = {self.data.clone}}
+  }
+}
+|| ====================
+{define-class public abstract DataObjectProxy
+  {getter public abstract {subject}:Object}
+}
+{define-class public abstract DynamicDataObject {inherits DataObject, DataObjectProxy}
+  {factory public implicit
+    {from-JsonObject subject:JsonObject, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of JsonObject}
+            subject, {splice ...}}}
+  }
+  {factory public implicit
+    {from-RecordData subject:RecordData, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of RecordData}
+            subject, {splice ...}}}
+  }
+  {factory public implicit
+    {default subject:{HashTable-of String, any}, ...}:DynamicDataObject
+    {return
+        {{DynamicDataObject-of {HashTable-of String, any}}
+            subject, {splice ...}}}
+  }
+}
+{define-class public {DynamicDataObject-of T:ClassType}
+  {inherits {OpenDataObject-of T}, DynamicDataObject}
+  {constructor public {default
+                          subject:T,
+                          traits:DataObjectTraits = DataObjectTraits.anonymous,
+                          ...}
+    {construct-super.{OpenDataObject-of T} traits, subject}
+    {self.process-rest-args {splice ...}}
+  }
+  {getter public {subject}:T
+    {return self.data}
+  }
+  || NOTE: subject does no change management
+  || - call this to propagate changes from subject
+  {method public {subject-changed
+                     || specific properties that changed
+                     ...:String
+                 }:void
+    {if {count-arguments ...} > 0 then
+        {for k in ... do
+            {self.trigger-data-changed k}}
+     else
+        {for key k in self do
+            {self.trigger-data-changed k}}
+    }
+  }
+}
+|| RecordSet adapter 
+|| --------------------
+{define-class public DataObjectRecordSet {inherits GenericRecordSet}
+  {constructor public {default 
+                          traits:DataObjectTraits,
+                          type-info:#GenericRecordData = null,
+                          ...}
+    def fields = {DataObjectRecordFields traits, type-info = type-info}
+    {construct-super fields, {splice ...}}
+  }
+  {method public {append val:any}:void
+    {type-switch val
+     case d:DataObject do
+        {self.ensure-consistent-traits d.traits}
+        def r = {DataObjectRecord d, record-set = self}
+        {r.internal-attach self}
+     case r:DataObjectRecord do
+        {self.ensure-consistent-traits r.subject.traits}
+        {r.internal-attach self}
+     else
+        {self.inconsistent-traits-error}}
+  }
+  {method public {new-record}:DataObjectRecord
+    def data = {DataObject traits = self.traits}
+    {return {DataObjectRecord data, record-set = self}}
+  }
+  {getter public {fields}:DataObjectRecordFields
+    {return super.fields asa DataObjectRecordFields}
+  }
+  {getter public {traits}:DataObjectTraits
+    {return self.fields.traits}
+  }
+  {method {ensure-consistent-traits traits:DataObjectTraits}:void
+    {if not {self.traits.equal? traits} then
+        {self.inconsistent-traits-error}}
+  }
+  {method {inconsistent-traits-error}:never-returns
+    {data-exception {message {this-class}: requires {value self.traits} data}}
+  }
+}
+{define-class public DataObjectRecord {inherits GenericRecord}
+  field public-get constant subject:DataObject
+  {constructor public {default 
+                          subject:DataObject,
+                          record-set:#DataObjectRecordSet = null}
+    set self.subject = subject
+    {construct-super record-set}
+  }
+  || GenericRecord protocol
+  {method protected {internal-get k:String}:any
+    {return self.subject[k]}
+  }
+  {method protected {internal-set k:String, x:any}:void
+    set self.subject[k] = x
+  }
+  || implementation:
+  || - use DataObject change management
+  || - bypass GenericRecord change management
+  {method public {commit}:void
+    {self.subject.commit}
+    {super.commit}
+  }
+  {method public {revert}:void
+    {self.subject.revert}
+    {super.revert}
+  }
+  {method protected {preserve-data}:void
+    || NOTE: done in DataObject
+  }
+}
+{define-class public DataObjectRecordFields {inherits DefaultRecordFields}
+  field public-get constant traits:DataObjectTraits
+  {constructor public {default
+                          traits:DataObjectTraits,
+                          type-info:#GenericRecordData = null}
+    set self.traits = traits
+    || DWIM domain
+    def any-domain = {Domain.from-type any}
+    def domain-for-type =
+        {proc {t:Type}:Domain
+            {return
+                {try {Domain.from-type t}
+                 catch e:Exception do any-domain}}}
+    def domain-for = 
+        {if-non-null type-info then
+            {proc {k:String}:Domain
+                def x = {type-info.get-if-exists k}
+                {return
+                    {type-switch x
+                     case d:Domain do d
+                     case t:Type do {domain-for-type t}
+                     case x:Null do any-domain
+                     else {domain-for-type {type-of x}}}
+                }}
+         else
+            {proc {k:String}:Domain
+                {return any-domain}}
+        }
+    || derive field descriptors from traits
+    def ks = traits.members
+    def fs = {{Array-of RecordField}}
+    {for k in ks do
+        def domain = {domain-for k}
+        {fs.append
+            {RecordField k,
+                domain = domain}}}
+    {construct-super {splice fs}}
+  }
+}
+|| Used to "canonicalize" key-value info
+|| -- in lieu of duck-typing
+{define-class public GenericRecordData {inherits DefaultRecordData}
+  {factory public implicit {from-dynamic-data data:DataObject}:GenericRecordData
+    def self = {GenericRecordData}
+    {for k in data.traits.members do
+        set self[k] = data[k]}
+    {return self}
+  }
+  {factory public implicit {from-association data:{Association-of String, any}}:GenericRecordData
+    def self = {GenericRecordData}
+    {for x key k in data do
+        set self[k] = x}
+    {return self}
+  }
+  {constructor {default ...}
+    {construct-super {splice ...}}
+  }
+}
+|| ECMA Array
+|| - can have named members
+|| ====================
+{define-class public ExtendedArray {inherits Array}
+  field public data:#DataObject
+  {constructor public {default data:#DataObject = null, ...}
+    set self.data = data
+    {construct-super {splice ...}}
+  }
+  {method public {clone}:ExtendedArray
+    def other = {ExtendedArray efficient-size = self.size}
+    {for x in self do
+        {other.append x}}
+    {if-non-null data = self.data then
+        set other.data = {data.clone}}
+    {return other}
+  }
+  {method public {equal? other:{Sequence-of any}}:bool
+    {type-switch other
+     case other:ExtendedArray do
+        def equal? = 
+            {if-non-null data = self.data then
+                {if-non-null other-data = other.data then
+                    {data.equal? other-data}                     
+                 else false}
+             else other.data == null}
+        {if not equal? then
+            {return false}}}
+    {return
+        {super.equal? other}}
+  }
+}
+|| support 
+|| ====================
+{define-class {FastArray-Iterator-of T:Type} {inherits {Iterator-of T}}
+  field constant subject:{FastArray-of T}
+  field index:int
+  {constructor {default subject:{FastArray-of T}}
+    set self.subject = subject
+    {self.reset}
+  }
+  {method public {reset}:void
+    set self.index = 0
+  }
+  {method public {read-one}:(T, bool)
+    def index = self.index
+    def subject = self.subject
+    {return
+        {if index < subject.size then
+            {inc self.index}
+            (subject[index], false)
+         else
+            ({uninitialized-value-for-type T}, true)
+        }}
+  }
+}

@@ -1,0 +1,91 @@
+{curl 6.0 applet}
+
+{import * from CURL.DOC.CONTENT.ACCESSORIES}
+
+{{get-the-applet}.set-title "CDK-DS Sample - Notes"}
+
+{heading Notes}
+
+{heading level = 3, Samples}
+{paragraph
+    {itemize {underline HttpService}
+        {item
+            The CDK-DS' HttpService is not functional, so I'm using conventional
+            Curl techniques for now. I'd like to see the HttpService and
+            WebService objects start working, as a step toward unifying the
+            Curl data access APIs.
+        }
+    }
+    {itemize {underline WebService}
+        {item
+            The CDK-DS' WebService is not implemented, so I'm using conventional
+            WSDK techniques for now. I'd like to see the HttpService and
+            WebService objects start working, as a step toward unifying the
+            Curl data access APIs.
+        }
+        {item
+            Requires privilege to access data from
+            http://www.livecycledata.org/services/ProductWS
+        }
+    }
+    {itemize {underline RemoteObject}
+        {item
+            Requires specification of both the destination and endpoint, unlike
+            the Flex samples which need only to specify the destination.
+        }
+    }
+    {itemize {underline Curl Programming Model 101}
+        {item Based on the t-flex-101.curl sample applet}
+        {item
+            The t-flex-101 sample's behavior wasn't exactly the same as the
+            BlazeDS demo, so I needed to make some changes:
+            {itemize
+                {item
+                    Hacked background and overdraw-selection in TileSelector, so
+                    the background of the thumbnails is set appropriately for
+                    mouse-overs and selections.
+                }
+                {item
+                    Changed the catalog panel's ValueChanged handler, so the
+                    product panel's data-binding-context is set using an empty
+                    DataObject instead of setting the data-binding-context to
+                    null (as was originally the case). Simply setting it to null
+                    wasn't clearing the product panel when a phone was
+                    deselected.
+                }
+            }
+        }
+        {item
+            I made a variety of UI and style changes to the original sample to
+            more closely match the BlazeDS sample's appearance.
+        }
+        {item
+            The Panel class used here differs slightly from the ones used in
+            Update and Chat.
+        }
+    }
+    {itemize {underline Update}
+        {item
+            The RecordGrid briefly flashes a selection before the call to
+            {curl-code {select-nothing}}
+        }
+        {item
+            The Panel class used here differs slightly from the ones used in
+            Curl Programming Model 101 and Chat.
+        }
+    }
+    {itemize {underline Data Push}
+        {item Streaming is not supported.}
+    }
+    {itemize {underline Chat}
+        {item Streaming is not supported.}
+        {item
+            The Panel class used here differs slightly from the ones used in
+            Curl Programming Model 101 and Update.
+        }
+        {item
+            Is there a way to hide an unnecessary, disabled scrollbar in
+            TextArea?
+        }
+    }
+}

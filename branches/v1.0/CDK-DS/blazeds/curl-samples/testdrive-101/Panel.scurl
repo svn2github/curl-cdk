@@ -1,0 +1,23 @@
+{define-class public Panel {inherits SkinnableFrame}
+  field constant title-frame:DisplayFrame
+  field constant content-frame:DisplayFrame
+  {local-option public title:any
+    set self.title-frame.value = title
+  }
+  {local-option public content:any
+    set self.content-frame.value = content
+  }
+  {constructor public {default ...}
+    set self.title-frame = {DisplayFrame _style-element = "Panel/title"}
+    set self.content-frame = {DisplayFrame _style-element = "Panel/content"}
+    {construct-super
+        _style-element = "Panel",
+        {VBox
+            _style-element = "Panel/stack",
+            self.title-frame,
+            self.content-frame
+        }
+    }
+    {self.process-rest-args {splice ...}}
+  }  
+}

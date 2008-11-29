@@ -1,0 +1,80 @@
+{curl 6.0 applet}
+
+{applet manifest = "../manifest.mcurl"}
+
+{import * from COM.CURL.GUI.STYLED-CONTROLS}
+{import * from COM.CURL.CDK.MESSAGING}
+
+{document-style PlainDocument}
+
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true,
+    background = "#e6e6e6",
+    margin = 0.5cm
+}
+
+{do
+    set {prefs}["selected-ui-background"] = "black"
+    set {prefs}["selected-ui-color"] = "white"
+    {{get-the-applet}.set-title "Testdrive - Data Push"}
+}
+
+|| This applet replicates the functionality found in the BlazeDS
+|| testdrive-datapush sample (aka Publish/Subscribe Data Push Use Case).
+{value
+    {install-style-sheet {manifest-url "file", "CDK-DS-SAMPLES-STYLE-SHEET"}}
+    def tf = {new TextField, style-class = "datapush"}
+    def base = {url "http://localhost:8400/samples/"}
+    def endpoint = {base.merge "messagebroker/amfpolling"}
+    let destination:String = "feed"
+    let consumer:Consumer =
+        {new Consumer,
+            endpoint = endpoint,
+            destination = destination,
+            {on e:MessageEvent do
+                {type-switch e
+                 case ack:MessageAckEvent do
+                    || Ignore MessageAckEvents.
+                 else
+                    set tf.value = {format "%0.13f", e.message.body}
+                    {dispatch-events false}
+                }
+            }
+        }
+    def unsubscribe-cb =
+        {CommandButton
+            label = "Unsubscribe from 'feed' destination",
+            style-class = "datapush",
+            rollover-color = "#0b333c",
+            enabled? = false
+        }
+    def subscribe-cb =
+        {CommandButton
+            label = "Subscribe to 'feed' destination",
+            style-class = "datapush",
+            rollover-color = "#0b333c",
+            {on Action do
+                {consumer.subscribe}
+                set unsubscribe-cb.enabled? = true
+                set subscribe-cb.enabled? = false
+            }
+        }
+    {unsubscribe-cb.add-event-handler
+        {on Action do
+            {consumer.unsubscribe}
+            set subscribe-cb.enabled? = true
+            set unsubscribe-cb.enabled? = false
+        }
+    }
+    {StandardActiveTraversalContainer
+        {VBox
+            halign = "center",
+            spacing = 0.1cm,
+            subscribe-cb,
+            unsubscribe-cb,
+            tf,
+            {Fill}
+        }
+    }
+}

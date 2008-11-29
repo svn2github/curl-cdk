@@ -1,0 +1,122 @@
+{define-class public ProductForm {inherits RecordForm}
+  field protected _product:#Product
+
+  field protected name-tf:TextField
+  field protected category-tf:TextField
+  field protected image-tf:TextField
+  field protected price-tf:TextField
+  field protected description-ta:TextArea
+
+  {constructor public {default ...}
+
+    set self.name-tf = {TextField
+                           style-class = "update",
+                           {bind value to "name"},
+                           {on ValueChanged do
+                               {self.update}
+                           }
+                       }
+    set self.category-tf = {TextField
+                               style-class = "update",
+                               {bind value to "category"},
+                               {on ValueChanged do
+                                   {self.update}
+                               }
+                           }
+    set self.image-tf = {TextField
+                            style-class = "update",
+                            {bind value to "image"},
+                            {on ValueChanged do
+                                {self.update}
+                            }
+                        }
+    set self.price-tf =
+        {TextField
+            style-class = "update",
+            {bind value to "price",
+                {format x:any as
+                    {format "%0.2f", x}
+                }
+            },
+            {on ValueChanged do
+                {if-non-null {self.update} then
+                }
+            }
+        }
+    set self.description-ta =
+        {TextArea
+            style-class = "update",
+            {bind value to "description"},
+            {on ValueChanged do
+                {self.update}
+            }
+        }
+
+    {construct-super
+        {VBox
+            {Table
+                style-class = "update",
+                columns = 3,
+                {cell-prototype
+                    halign = "right",
+                    "Name"
+                },
+                self.name-tf,
+                {Fill},
+                {cell-prototype
+                    halign = "right",
+                    "Category"
+                },
+                self.category-tf,
+                {skip},
+                {cell-prototype
+                    halign = "right",
+                    "Image"
+                },
+                self.image-tf,
+                {skip},
+                {cell-prototype
+                    halign = "right",
+                    "Price"
+                },
+                self.price-tf,
+                {skip},
+                {row-prototype
+                    valign = "top",
+                    {cell-prototype
+                        halign = "right",
+                        "Description"
+                    },
+                    {cell-prototype
+                        colspan = 2,
+                        self.description-ta
+                    }
+                }
+            },
+            {Fill}
+        },
+        {splice ...}
+    }
+  }
+
+  {getter public {product}:#Product
+    {if-non-null r = self.current-record then
+        def qty-in-stock = r["qty-in-stock"] asa int
+        let price:double = {self.price-tf.value.to-double}
+        def product-id = r["product-id"] asa int
+        {return
+            {new Product,
+                self.category-tf.value,
+                price,
+                self.description-ta.value,
+                self.name-tf.value,
+                qty-in-stock,
+                self.image-tf.value,
+                product-id
+            }
+        }
+     else
+        {return null}
+    }
+  }
+}

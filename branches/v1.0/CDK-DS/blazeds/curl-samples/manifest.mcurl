@@ -1,0 +1,36 @@
+{curl 6.0 manifest}
+
+{manifest CDK-DS-SAMPLES}
+
+|| Libraries
+{delegate-to COM.CURL.CDK.DATA-SERVICES,
+    location = "lib/CDK-DS/manifest.mcurl"
+}
+{delegate-to COM.CURL.WSDK,
+    location = "lib/WSDK/manifest.mcurl"
+}
+{delegate-to COM.CURL.GUI.STYLED,
+    location = "lib/COM.CURL.GUI.STYLED-6.0-03-pcurl-en/manifest.mcurl"
+}
+
+|| Packages
+{component package COM.CURL.CDK.SAMPLES-SUPPORT,
+    location = "load.scurl"
+}
+{component package COM.CURL.WSDL.ProductWS,
+    location = "testdrive-webservice/ProductWS.scurl"
+}
+
+
+|| StyleSheet
+{component file CDK-DS-SAMPLES-STYLE-SHEET,
+    location = "style-sheet.scurl"
+}
+
+|| Images
+{component file CURL-LOGO,
+    location = "images/curllogo93x35_(R).gif"
+}
+{component file BLAZEDS-LOGO,
+    location = "images/blazeds.png"
+}

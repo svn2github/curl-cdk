@@ -1,0 +1,185 @@
+{curl 6.0 package}
+{package COM.CURL.WSDL.ProductWS,
+    {compiler-directives careful? = true},
+    wsdl="http://livecycledata.org/services/ProductWS?wsdl"}
+
+|| This file was generated with COM.CURL.WSDK.WSDL
+|| WSDL file: http://livecycledata.org/services/ProductWS?wsdl
+
+{import * from COM.CURL.WSDK.SOAP}
+{define-class public ProductServiceService {inherits WSDLHTTPRPCPostClient}
+
+  {method public {get-products}:(get-products-return:#ArrayOf-xsd-anyType)
+    let constant (responses:{Array-of any},
+         headers:#{Array-of any},
+         header-roles:#{Array-of #String},
+         header-must-understands:#{Array-of bool},
+         root-attributes:#{Array-of XMLAttribute})=
+        {self.soap-caller.call
+            self.service-location,
+            {{Array-of any}
+            },
+            {{Array-of #XMLName}
+            },
+            {{Array-of SOAPObjectType}
+            },
+            {{Array-of #XMLName}
+                {XMLName "", "getProductsReturn"}
+            },
+            {{Array-of SOAPObjectType}
+                {SOAPObjectType
+                    xml-type = {XMLName.unchecked SOAPTypeMapper.xml-schema-uri, "anyType[]"},
+                    curl-type = ArrayOf-xsd-anyType,
+                    nillable? = true
+                }
+            },
+            "http://schemas.xmlsoap.org/soap/encoding/",
+            soap-action = "",
+            request-operation = {XMLName "http://store.testdrive.flex", "getProducts"},
+            response-operation = {XMLName "http://www.livecycledata.org/services/ProductWS", "getProducts"},
+            default-namespace = "http://www.livecycledata.org/services/ProductWS",
+            rpc-style? = true,
+            write-type-attribute? = true,
+            write-encoding-attribute? = true
+        }
+    {return
+        responses[0] asa #ArrayOf-xsd-anyType
+    }
+  }
+
+
+  {method public {async-get-products event-handler:EventHandler, ...:EventHandler}:SOAPHTTPRPCPostAsyncWorker
+    {return
+        {self.soap-caller.async-call
+            self.service-location,
+            {{Array-of any}
+            },
+            {{Array-of #XMLName}
+            },
+            {{Array-of SOAPObjectType}
+            },
+            {{Array-of #XMLName}
+                {XMLName "", "getProductsReturn"}
+            },
+            {{Array-of SOAPObjectType}
+                {SOAPObjectType
+                    xml-type = {XMLName.unchecked SOAPTypeMapper.xml-schema-uri, "anyType[]"},
+                    curl-type = ArrayOf-xsd-anyType,
+                    nillable? = true
+                }
+            },
+            "http://schemas.xmlsoap.org/soap/encoding/",
+            soap-action = "",
+            request-operation = {XMLName "http://store.testdrive.flex", "getProducts"},
+            response-operation = {XMLName "http://www.livecycledata.org/services/ProductWS", "getProducts"},
+            default-namespace = "http://www.livecycledata.org/services/ProductWS",
+            rpc-style? = true,
+            write-type-attribute? = true,
+            write-encoding-attribute? = true,
+            event-handler,
+            ...
+        }
+    }
+  }
+
+  {method public {register-types
+                 }:(type-mapper:SOAPTypeMapper,
+                    element-name-to-xml-type:SOAPElementNameToXMLTypeMapper,
+                    xml-type-to-curl-type:SOAPXMLTypeToCurlTypeMapper,
+                    curl-type-to-xml-type:SOAPCurlTypeToXMLTypeMapper,
+                    xml-type-to-element-name:SOAPXMLTypeToElementNameMapper
+                   )
+    let constant type-mapper:DefaultSOAPTypeMapper =
+        {DefaultSOAPTypeMapper}
+    let constant element-name-to-xml-type:DefaultSOAPElementNameToXMLTypeMapper =
+        {DefaultSOAPElementNameToXMLTypeMapper}
+    let constant xml-type-to-curl-type:DefaultSOAPXMLTypeToCurlTypeMapper =
+        {DefaultSOAPXMLTypeToCurlTypeMapper}
+    let constant curl-type-to-xml-type:DefaultSOAPCurlTypeToXMLTypeMapper =
+        {DefaultSOAPCurlTypeToXMLTypeMapper}
+    let constant xml-type-to-element-name:DefaultSOAPXMLTypeToElementNameMapper =
+        {DefaultSOAPXMLTypeToElementNameMapper}
+    {do
+        let constant array-marshaler:SOAPArrayMarshaler =
+            {SOAPArrayMarshaler.from-element-type-array
+                {{Array-of SOAPObjectType}
+                    {SOAPObjectType
+                        xml-type = {XMLName SOAPTypeMapper.xml-schema-uri, "anyType"},
+                        curl-type = any
+                    },
+                    {SOAPObjectType
+                        xml-type = {XMLName.unchecked SOAPTypeMapper.xml-schema-uri, "anyType[]"},
+                        curl-type = ArrayOf-xsd-anyType,
+                        nillable? = true
+                    }
+                },
+                array-types =
+                    {{Array-of #XMLName}
+                        {XMLName.unchecked SOAPTypeMapper.xml-schema-uri, "anyType[]"}
+                    },
+                xml-type-to-curl-type = xml-type-to-curl-type,
+                curl-type-to-xml-type = curl-type-to-xml-type,
+                xml-type-to-element-name = xml-type-to-element-name
+            }
+        {array-marshaler.register
+            type-mapper = type-mapper,
+            element-name-to-xml-type-mapper = element-name-to-xml-type,
+            xml-type-to-curl-type-mapper = xml-type-to-curl-type,
+            curl-type-to-xml-type-mapper = curl-type-to-xml-type,
+            xml-type-to-element-name-mapper = xml-type-to-element-name
+        }
+    }
+    {do
+        let constant array-marshaler:SOAPArrayMarshaler =
+            {SOAPArrayMarshaler.from-element-type-array
+                {{Array-of SOAPObjectType}
+                    {SOAPObjectType
+                        xml-type = {XMLName SOAPTypeMapper.xml-schema-uri, "anyType"},
+                        curl-type = any
+                    },
+                    {SOAPObjectType
+                        xml-type = {XMLName "http://xml.apache.org/xml-soap", "Vector"},
+                        curl-type = Vector,
+                        nillable? = true
+                    }
+                },
+                element-names =
+                    {{Array-of #XMLName}
+                        {XMLName "", "item"}
+                    },
+                xml-type-to-curl-type = xml-type-to-curl-type,
+                curl-type-to-xml-type = curl-type-to-xml-type,
+                xml-type-to-element-name = xml-type-to-element-name
+            }
+        {array-marshaler.register
+            type-mapper = type-mapper,
+            element-name-to-xml-type-mapper = element-name-to-xml-type,
+            xml-type-to-curl-type-mapper = xml-type-to-curl-type,
+            curl-type-to-xml-type-mapper = curl-type-to-xml-type,
+            xml-type-to-element-name-mapper = xml-type-to-element-name
+        }
+    }
+    {return
+        type-mapper,
+        element-name-to-xml-type,
+        xml-type-to-curl-type,
+        curl-type-to-xml-type,
+        xml-type-to-element-name
+    }
+  }
+
+  {constructor public
+    {default
+        service-location:Url =
+            {abs-url "http://www.livecycledata.org/services/ProductWS"}
+    }
+    {construct-super service-location,
+        generated-using-version = "3"
+    }
+  }
+}
+
+{let public constant ArrayOf-xsd-anyType:ClassType = {Array-of any}}
+
+{let public constant Vector:ClassType = {Array-of any}}
+

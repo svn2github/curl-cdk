@@ -1,0 +1,44 @@
+{define-class public Panel {inherits SkinnableFrame}
+  field constant title-frame:DisplayFrame
+  field constant content-frame:DisplayFrame
+  {local-option public title:any
+    set self.title-frame.value = title
+  }
+  {local-option public content:any
+    set self.content-frame.value = content
+  }
+  {constructor public {default
+                          product-panel?:bool = false,
+                          update-proc:#{proc-type {}:void} = null,
+                          ...
+                      }
+    set self.title-frame = {DisplayFrame _style-element = "Panel/title"}
+    set self.content-frame =
+        {DisplayFrame _style-element = "Panel/update-content"}
+    {construct-super
+        _style-element = "Panel",
+        {if not product-panel? then
+            {VBox
+                _style-element = "Panel/stack",
+                self.title-frame,
+                self.content-frame
+            }
+         else
+            {VBox
+                _style-element = "Panel/stack",
+                self.title-frame,
+                self.content-frame,
+                {Fill height = 12px},
+                {CommandButton
+                    label = "Update",
+                    style-class = "update",
+                    {on Action do
+                        {update-proc}
+                    }
+                }
+            }
+        }
+    }
+    {self.process-rest-args {splice ...}}
+  }  
+}

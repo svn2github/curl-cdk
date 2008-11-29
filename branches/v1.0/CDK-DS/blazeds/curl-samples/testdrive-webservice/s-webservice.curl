@@ -1,0 +1,153 @@
+{curl 6.0 applet}
+
+{applet manifest = "../manifest.mcurl"}
+
+{import * from COM.CURL.GUI.STYLED-CONTROLS}
+||--{import * from COM.CURL.WSDK.XML-DOCUMENT-MODEL}
+||--{import * from COM.CURL.CDK.RPC}
+{import * from COM.CURL.WSDK.SOAP}
+{import * from COM.CURL.WSDL.ProductWS}
+{import * from COM.CURL.CDK.SAMPLES-SUPPORT}
+
+{document-style PlainDocument}
+
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true,
+    background = {LinearGradientFillPattern
+                     {Fraction2d 0, 0},
+                     {Fraction2d 0, 1},
+                     {Spectrum.from-endpoints
+                         "white",
+                         "#e6e6e6"
+                     }
+                 },
+    margin = 0.5cm
+}
+
+{do
+    set {prefs}["selected-ui-background"] = "#7fceff"
+    set {prefs}["selected-ui-color"] = "black"
+    {{get-the-applet}.set-title "Testdrive - WebService"}
+}
+
+||--{define-proc {handle-result
+||--                 result:any,
+||--                 db-name:String,
+||--                 table-name:String
+||--             }:RecordSet
+||--    {if-non-null xml = result then
+||--        let doc:XDMDocument =
+||--            {build-xml preserve-whitespace? = false, {xml.trim-clone}}
+||--        let root:XDMElement = doc.root
+||--        let items:XDMNodeSet = {doc.search db-name & "/" & table-name}
+||--        let fa:{Array-of RecordField} = {new {Array-of RecordField}}
+||--        {if not items.empty? then
+||--            def item = items[0]
+||--            def attr-names = {item.search "@*"}
+||--            {for attr-name in attr-names do
+||--                {fa.append {new RecordField, attr-name.local-name}}
+||--            }
+||--            {for f in item.children do
+||--                {fa.append {new RecordField, f.local-name}}
+||--            }
+||--            let fields:RecordFields = {new RecordFields, {splice fa}}
+||--            def result-rs = {new RecordSet, fields}
+||--            {for item in items do
+||--                let rd:RecordData = {new RecordData}
+||--                def attrs = {item.search "@*"}
+||--                {for attr in attrs do
+||--                    set rd[attr.local-name] = (attr asa XDMAttribute).value
+||--                }
+||--                {for child in item.children do
+||--                    set rd[child.local-name] = {child.get-text}
+||--                }
+||--                {result-rs.append rd}
+||--            }
+||--            {return result-rs}
+||--         else
+||--            {return {EmptyRecordSet}}
+||--        }
+||--     else
+||--        {return {EmptyRecordSet}}
+||--    }
+||--}
+|| This applet replicates the functionality found in the BlazeDS
+|| testdrive-webservice sample.
+{value
+    {install-style-sheet {manifest-url "file", "CDK-DS-SAMPLES-STYLE-SHEET"}}
+    let service:ProductServiceService = {new ProductServiceService}
+    let grid-frame:Frame =
+        {new Frame,
+            style-class = "grid-frame",
+            {Fill}
+        }
+    {StandardActiveTraversalContainer
+        {VBox
+            halign = "center",
+            spacing = 0.1cm,
+            width = {make-elastic preferred-size = 1m},
+            grid-frame,
+            {CommandButton
+                color = "#0b333c",
+                font-weight = "bold",
+                label = "Get Data",
+                style-class = "get-data",
+                {on Action do
+                    {with-busy-cursor
+                        let result:#RecordSet
+                        def response = {service.get-products}
+                        {dump response}
+||--                        {service.async-get-products
+||--                            {on e:SOAPHTTPRPCPostAsyncEvent do
+||--                                {dump e.responses}
+||--                            }
+||--                        }
+                        {grid-frame.add
+                            replace? = true,
+                            {RecordGrid
+                                width = {add-stretch},
+                                height = {add-stretch},
+                                cell-spec = PointerHandlerRecordGridCell,
+                                header-options =
+                                    {RecordGridRowOptions
+                                        background =
+                                            {LinearGradientFillPattern
+                                                {Fraction2d 1, 1},
+                                                {Fraction2d 1, 0},
+                                                {Spectrum.from-endpoints
+                                                    "#eaeaea",
+                                                    "white"
+                                                }
+                                            }
+                                    },
+                                record-source = result,
+                                sort = {proc {r1:Record, r2:Record}:int
+                                           def id1 = {r1["productId"].to-int}
+                                           def id2 = {r2["productId"].to-int}
+                                           {return {signum id1 - id2}}
+                                       },
+                                automatic-columns? = false,
+                                {RecordGridColumn
+                                    "productId",
+                                    width = {make-elastic preferred-size = 1m},
+                                    header-spec = "Product Id"
+                                },
+                                {RecordGridColumn
+                                    "name",
+                                    width = {make-elastic preferred-size = 1m},
+                                    header-spec = "Name"
+                                },
+                                {RecordGridColumn
+                                    "price",
+                                    width = {make-elastic preferred-size = 1m},
+                                    header-spec = "Price"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

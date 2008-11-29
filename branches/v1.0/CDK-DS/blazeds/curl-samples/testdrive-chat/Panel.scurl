@@ -1,0 +1,25 @@
+{define-class public Panel {inherits SkinnableFrame}
+  field constant title-frame:Frame
+  field constant content-frame:Frame
+  {constructor public {default
+                          title:any = "",
+                          content:any = "",
+                          control-bar:any = "",
+                          ...
+                      }
+    set self.title-frame = {Frame _style-element = "Panel/title", title}
+    set self.content-frame =
+        {Frame _style-element = "Panel/chat-content", content}
+    {construct-super
+        _style-element = "Panel",
+        {VBox
+            _style-element = "Panel/stack",
+            self.title-frame,
+            self.content-frame,
+            {Fill height = 12px},
+            control-bar
+        }
+    }
+    {self.process-rest-args {splice ...}}
+  }  
+}

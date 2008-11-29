@@ -1,0 +1,147 @@
+{curl 6.0 applet}
+
+{applet manifest = "../manifest.mcurl"}
+
+{import * from COM.CURL.GUI.STYLED-CONTROLS}
+{import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{include "Panel.scurl"}
+
+{document-style PlainDocument}
+
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true,
+    color = "#0b333c"
+}
+
+{do
+    set {prefs}["selected-ui-background"] = "black"
+    set {prefs}["selected-ui-color"] = "white"
+    {{get-the-applet}.set-title "Testdrive - Chat"}
+}
+
+|| This applet replicates the functionality found in the BlazeDS
+|| testdrive-chat sample (aka Publish/Subscribe Collaboration Use Case).
+{value
+    {install-style-sheet {manifest-url "file", "CDK-DS-SAMPLES-STYLE-SHEET"}}
+    || connection parameters
+    def base = {url "http://localhost:8400/samples/"}
+    def endpoint = {base.merge "messagebroker/amfpolling"}
+    def destination = "chat"
+
+||--    def channel-id = "my-polling-amf"
+||--    def channel-set =
+||--        {ChannelSet
+||--            channel =
+||--                {AMFChannel
+||--                    id = destination,
+||--                    uri = endpoint}
+||--        }
+
+    || messaging
+    def producer =
+        {Producer 
+            endpoint = endpoint,
+            destination = destination
+||--            ,
+||--            channel-set = channel-set
+        }
+    def consumer =
+        {Consumer 
+            endpoint = endpoint,
+            destination = destination
+||--            ,
+||--            channel-set = channel-set
+        }
+
+    || display
+    def string-data-model = {new StringDataModel, ""}
+    def buf = {new StringBuf}
+    def transcript =
+        {new TextArea,
+            style-class = "chat-transcript",
+            data-model = string-data-model
+        }
+    || text control
+    def input = {TextField style-class = "chat"}
+    || send button
+    def send = {CommandButton
+                   label = "Send",
+                   style-class = "chat",
+                   rollover-color = "#0b333c"
+               }
+
+    || coordination
+    {consumer.add-event-handler
+        {on e:MessageEvent do
+            def body = e.message.body
+            {type-switch e
+             case ack:MessageAckEvent do
+                || Ignore MessageAckEvents.
+             else
+                || Expecting 'chatMessage' property
+                || - for debugging, dump unexpected content
+                {type-switch body
+                 case obj:DataObject do
+                    def (x, x?) = {obj.get-if-exists "chatMessage"}
+                    {if x? then
+                        {buf.concat "\n" & x}
+                        {string-data-model.set-contents buf}
+                     else
+                        {dump obj}
+                    }
+                 else
+                    {dump body}
+                }
+                || let display refresh
+                {dispatch-events false}
+            }
+        }
+    }
+    def send-message =
+        {proc {text:String}:void
+            {if not text.empty? then
+                def msg = {AsyncMessage body = {DataObject chatMessage = text}}
+                {producer.send msg}
+                {input.unset-value}
+            }
+        }
+    {input.add-event-handler
+        {on Action do
+            {send-message input.value}            
+        }
+    }
+    {send.add-event-handler
+        {on Action do
+            {send-message input.value}            
+        }
+    }
+
+    || connect
+    {consumer.subscribe}
+
+    {SkinnableFrame
+        style-class = "main-chat",
+        {HBox
+            valign = "top",
+            style-class = "main",
+            {Panel
+                style-class = "chat",
+                title = {message Chat},
+                content =
+                    {new Frame,
+                        style-class = "chat-transcript",
+                        transcript
+                    },
+                control-bar =
+                    {HBox
+                        style-class = "chat-control-bar",
+                        input,
+                        send
+                    }
+            }
+        }
+    }
+}
