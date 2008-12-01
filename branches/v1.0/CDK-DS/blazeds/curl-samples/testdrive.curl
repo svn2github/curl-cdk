@@ -41,103 +41,7 @@
     {br},
     {br},
     {heading level = 3,
-        {text color = "#004477", Sample 1: Accessing data using HTTPService}
-    },
-    {br},
-    {bold Run the sample:},
-    {br},
-    {enumerate
-        {item
-            Click
-            {clink
-                href = {url "testdrive-httpservice/s-httpservice.curl"},
-                here
-            }
-            to run the application
-        }
-        {item
-            Click "Get Data": The DataGrid is populated with XML data returned
-            by catalog.jsp
-        }
-        {item
-            Also notice some of the built-in DataGrid features:
-            {itemize
-                {item Sortable columns  (click on a column header)}
-                {item
-                    Moveable columns (click on a column header and, with the
-                    mouse button pressed, move the column to a new position)
-                }
-            }
-        }
-    },
-    {br},
-    {br},
-    {br},
-    {bold Code walkthrough:},
-    {paragraph
-        Open testdrive-httpservice/s-httpservice.curl to look at the source code
-        of the application.
-    },
-    {paragraph
-        The application specifies a url on the BlazeDS server which, in this
-        case, points to a JSP file that formats data as XML. When you click the
-        "Get Data" button, a stream is opened to synchronously read the XML
-        (asynchronous requests are also supported). The result is converted to a
-        RecordSet and displayed in a RecordGrid.
-    },
-    {hrule color = "silver"},
-    {heading level = 3,
-        {text color = "#004477", Sample 2: Accessing data using Web Services}
-    },
-    {br},
-    {bold Run the sample:},
-    {br},
-    {enumerate
-        {item
-            Click
-            {clink
-                href = {url "testdrive-webservice/s-webservice.curl"},
-                here
-            }
-            to run the application
-            {Fill height = 10pt}
-            NOTE: Since this application accesses a live web service, you must
-            have a connection to the internet to run it.
-        }
-        {item
-            Click "Get Data": The DataGrid is populated with data returned by
-            the ProductWS web service hosted on livecycledata.org.
-        }
-    },
-    {br},
-    {br},
-    {br},
-    {bold Code walkthrough:},
-    {paragraph
-        Open the following files in the testdrive-webservice/ directory to look
-        at the source code of the application:
-        {itemize
-            {item s-webservice.curl}
-            {item ProductWS.scurl}
-        }
-        The s-webservice.curl file is the main application file, and the
-        ProductWS.scurl file is the Curl representation of the web service
-        class. The latter was generated from the
-        {clink
-            href = {url "http://livecycledata.org/services/ProductWS?wsdl"},
-            http://livecycledata.org/services/ProductWS?wsdl
-        } WSDL file using the Curl IDE's WSDL Services tool that comes with the
-        WSDK.
-    },
-    {paragraph
-        The application file instantiates a ProductServiceService object. When
-        you click the "Get Data" button, a synchronous call to the service's
-        getProducts() operation is made (asynchronous calls are also supported).
-        The result is converted to a RecordSet and displayed in a RecordGrid.
-    },
-    {hrule color = "silver"},
-    {heading level = 3,
-        {text color = "#004477", Sample 3: Accessing data using Remoting}
+        {text color = "#004477", Sample 1: Accessing data using Remoting}
     },
     {br},
     {bold Run the sample:},
@@ -200,7 +104,7 @@
     },
     {hrule color = "silver"},
     {heading level = 3,
-        {text color = "#004477", Sample 4: Curl Programming Model 101}
+        {text color = "#004477", Sample 2: Curl Programming Model 101}
     },
     {br},
     {bold Run the sample:},
@@ -259,7 +163,7 @@
     {br},
     {hrule color = "silver"},
     {heading level = 3,
-        {text color = "#004477", Sample 5: Updating Data}
+        {text color = "#004477", Sample 3: Updating Data}
     },
     {br},
     {bold Run the sample:},
@@ -319,7 +223,7 @@
     {hrule color = "silver"},
     {heading level = 3,
         {text color = "#004477",
-            Sample 6: Publish/Subscribe Messaging (Data Push Use Case)
+            Sample 4: Publish/Subscribe Messaging (Data Push Use Case)
         }
     },
     {br},
@@ -395,7 +299,7 @@
     {hrule color = "silver"},
     {heading level = 3,
         {text color = "#004477",
-            Sample 7: Publish/Subscribe Messaging (Collaboration Use Case)
+            Sample 5: Publish/Subscribe Messaging (Collaboration Use Case)
         }
     },
     {br},

@@ -217,10 +217,6 @@
                    corner-radius = 3px
                }
     },
-    || testdrive-httpservice
-    || - No specific rules
-    || testdrive-webservice
-    || - No specific rules
     || testdrive-remoteobject
     || - No specific rules
     || testdrive-101

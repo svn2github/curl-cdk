@@ -103,8 +103,8 @@
     {paragraph
         The objective of this test drive is to give you, in a very short amount
         of time, an understanding of how the CDK-DS data services work and what
-        they can do. This test drive consists of a series of seven basic samples
-        which demonstrate features of interest.
+        they can do. This test drive consists of a series of basic samples which
+        demonstrate features of interest.
     },
     {paragraph
         {clink href = {url "testdrive.curl"}, Take the test drive}
