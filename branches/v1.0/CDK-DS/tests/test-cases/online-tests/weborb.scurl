@@ -543,6 +543,11 @@
 
 
     {TestSuite "WebORB",
+        || precondition
+        || NOTE: just checks url availability
+        || TODO: guard against service inactive
+        {test-host-accessible-guard {weborb-url.stem.name.tail "http://".size}},
+        || tests
         basic-invocation,
         echo-object,
         {TestSuite "Invocation Test Suite",

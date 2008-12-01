@@ -87,6 +87,10 @@
 
 || BlazeDS TestSuite
 {TestSuite "BlazeDS",
+    || NOTE: just checks url availability
+    || TODO: guard against service inactive
+    {test-host-accessible-guard {blazeds-url.stem.name.tail "http://".size}},
+    || tests
     {product-tests
         "default settings",
         "product",
