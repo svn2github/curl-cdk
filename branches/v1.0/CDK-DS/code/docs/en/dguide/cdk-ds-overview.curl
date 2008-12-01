@@ -1,0 +1,163 @@
+ ||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+
+{applet manifest = "manifest.mcurl", locale = "en"}
+
+{include "../utils/guide-header.scurl"}
+{include "../utils/support.scurl"}
+
+{chapter
+    index= {HeadingIndex primary-key="Curl Data Kit Data Services"},
+    CDK Data Services Overview
+}
+{paragraph
+    With Curl Data Kit (CDK) library Data Services packages,
+    you can use remoting and messaging to interact with
+    servers supporting AMF protocols.
+
+    {itemize
+
+        {item {bold data object}
+            
+            The {docref COM.CURL.CDK.DATA-OBJECT} package
+            provides a flexible representation for data records.
+
+            This allows data centric Curl applications to
+            work in a uniform way with data obtained from data services.
+        }
+
+        {item {bold remote procedure calls}
+            
+            The {docref COM.CURL.CDK.RPC} package
+            provides a {docref RemoteObject} adapter for invocation
+            remote methods available from AMF service providers.
+
+            This allows data centric Curl applications to TODO XXX.
+        }
+
+        {item {bold messaging}
+            
+            The {docref COM.CURL.CDK.MESSAGING} package
+            provides a {docref Producer} and {docref Consumer} adapters
+            for exchange of messages with AMF service providers.
+
+            This allows Curl applications to participate in
+            Publish / Subscribe message exchange.
+        }
+
+        {item {bold CDK Roadmap}
+            Additional functionality is planned for future releases.
+        }
+    }
+
+    CDK development takes place at the Open Source
+    {link href = {url "http://curl-cdk.wiki.sourceforge.net/"}, Curl Data Kit Project}.
+    
+}
+
+{heading level=2,
+    What's New in CDK-DS 0.9
+}
+
+{paragraph
+    This CDK-DS Initial Release is for use with Curl API Version 6.0.
+
+    CDK-DS Initial Release packages are marked as version 0.9.
+}
+
+{paragraph
+    This is a preview of the first CDK-DS Release.
+
+    {preliminary
+        This preview contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.
+    }
+}
+
+|| ====================
+{heading level=2,
+    Data Object
+}
+{paragraph
+    TODO ...
+}
+{itemize
+    {item
+        participate in Curl DATA-ACCESS architecture as Record in RecordSet
+    }
+    {item
+        provides change management services
+    }
+    {item
+        data record adapter for strongly types structures
+    }
+    {item
+        efficient data exchange with AMF service providers
+    }
+}
+
+|| ====================
+{heading level=2,
+    AMF Service Providers
+}
+{paragraph
+    TODO ...
+}
+{itemize
+    {item
+        BlazeDS
+    }
+    {item
+        LiveCycle Data Services
+    }
+    {item
+        WebORB
+    }
+    {item
+        Zend Framework
+    }
+}
+
+|| ====================
+{heading level=2,
+    Remote Procedure Calls
+}
+{paragraph
+    TODO ...
+}
+
+|| ====================
+{heading level=2,
+    Messaging
+}
+{paragraph
+    TODO ...
+}
+
+|| ====================
+{heading level=2,
+    {italic Miscellaneous Examples} || ### TODO: reorganize
+}
+{x-example-ref title = "Data Binding 1",
+    {url "examples/data-binding.curl"}
+}
+
+|| ====================
+{curl-copyright}
+
