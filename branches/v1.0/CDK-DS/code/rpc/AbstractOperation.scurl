@@ -34,7 +34,7 @@
     {purpose
         Send a request to the server for this operation.
     }
-    {parameters ...,
+    {parameter ...,
         The arguments to send in the request.
     }
   }

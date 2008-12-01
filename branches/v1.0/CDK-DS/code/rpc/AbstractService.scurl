@@ -173,10 +173,10 @@
     {purpose
         Send a request to the server for the named operation.
     }
-    {parameters name,
+    {parameter name,
         The name of the operation to send.
     }
-    {parameters ...,
+    {parameter ...,
         The arguments to send in the request.
     }
     {notes
