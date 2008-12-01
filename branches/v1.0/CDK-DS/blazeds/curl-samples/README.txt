@@ -102,5 +102,5 @@ links to, and descriptions of, each of the CDK-DS samples.
 
 NOTES
 =====
-* All samples that access data through a server url use localhost as the
+* All samples that access data through a local server url use localhost as the
   hostname, and 8400 as the port.
