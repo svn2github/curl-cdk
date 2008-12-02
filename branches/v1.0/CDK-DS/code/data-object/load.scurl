@@ -16,8 +16,22 @@
 
 {curl 6.0 package}
 
+{doc
+    type = package,
+    COM.CURL.CDK.DATA-OBJECT
+    {purpose
+        This package provides functionality for
+        representing, and working with, sets of data values.}
+    {notes
+        {italic
+        This package contains preliminary versions of new features. 
+        These features are not yet in final form, 
+        and are subject to revision.}
+    }
+}
+
 {package COM.CURL.CDK.DATA-OBJECT,
-    version = "0.1",
+    version = "0.9",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
     resource-directory = "../resources/",
@@ -34,10 +48,16 @@
     "data-binding.scurl"
 }
 
+{doc-next ||=== DataObjectException
+    {purpose Indicates a failure related to a {docref DataObject}.}
+}
 {define-class public DataObjectException {inherits Exception}
   {constructor public {default msg:String}
     {construct-super msg}
   }
+}
+{doc-next ||=== data-exception
+    {purpose Throw a {docref DataObjectException}.}
 }
 {define-proc public {data-exception msg:String}:never-returns
     {throw {DataObjectException msg}}

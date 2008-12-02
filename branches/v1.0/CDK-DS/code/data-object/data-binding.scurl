@@ -14,12 +14,29 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next ||=== DataObjectDataBindingContext
+    {purpose An implementation of {docref DataBindingContext} 
+        for a {docref dataObject} data source.}
+}
 {define-class public DataObjectDataBindingContext 
   {inherits DataBindingContext, ConcreteEventTarget}
   || TODO: make source modifiable
   || TODO: consider array source
+  {doc-next ||=== DataObjectDataBindingContext.source
+    {purpose The data source.}
+  }
   field public-get constant source:DataObject
+  {doc-next ||=== DataObjectDataBindingContext.fields
+    {purpose Specifies the {docref DataObject} data source
+    for this {ctext DataObjectDataBindingContext}.}
+  }
   field public-get constant fields:#RecordFields
+  {doc-next ||=== DataObjectDataBindingContext.default
+    {purpose Create a {ctext DataObjectDataBindingContext} instance.}
+    {parameter source, the {docref DataObject} data source.}
+    {parameter fields, metadata characterizing the properties of the data source.}
+    {parameter ..., the rest arguments may contain {docref EventHandler}s.}
+  }
   {constructor public {default 
                           source:DataObject,
                           fields:#RecordFields = null,
@@ -35,20 +52,28 @@
     {self.process-rest-args ...}
   }
   || DataBinding implementation
+  || --------------------
+  || NOTE: docstring inherited
   {method public {get-data selector:any}:(any, bool)
     let (val:any, found?:bool) =
         {self.source.get-if-exists selector asa String}
     {return val, found?}
   }
+  || NOTE: docstring inherited
   {method public {update-internal
                      ...:DataBinding
                  }:#DataBindingValidationFailure
     {return {self.operate-internal true, ...}}
   }
+  || NOTE: docstring inherited
   {method public {validate-internal
                      ...:DataBinding
                  }:#DataBindingValidationFailure
     {return {self.operate-internal false, ...}}
+  }
+  {doc-next ||=== DataObjectDataBindingContext.operate-internal
+    {purpose Used by {docref-abbr DataObjectDataBindingContext.update-internal}
+        and {docref-abbr DataObjectDataBindingContext.validate-internal}.}
   }
   {method public {operate-internal 
                      update?:bool,
@@ -87,6 +112,7 @@
          elseif vs.size == 1 then vs[0]
          else {DataBindingMultipleValidationFailure {splice vs}}}}
   }
+  || NOTE: docstring inherited
   {method public {parse val:any, binding:DataBinding}:any
     || use specified domain to parse if possible
     {if-non-null fields = self.fields then
@@ -101,12 +127,13 @@
         }}
     {return val}
   }
+  || NOTE: docstring inherited
   {method public {format val:any, binding:DataBinding}:any
     {return
         {if val == null then
             DataBinding.unset
          elseif {binding.property-type.subtype-of? String} then
-            || use specified domain to parse if possible
+            || use specified domain to format if possible
             {if-non-null fields = self.fields then
                 let selector:String = binding.data-selector asa String
                 let d:Domain = fields[selector].domain
@@ -116,14 +143,21 @@
          else
             val}}
   }
-  || TODO: inefficient
-  || - better would be FilterIterator-of
+  {doc-next ||=== DataObjectDataBindingContext
+    {purpose Returns the {docref DataBinding}s registered for 
+        the specified selector.}
+  }
   {method public {bindings-for selector:any}:{Set-of DataBinding}
+    || TODO: inefficient
+    || - better would be FilterIterator-of
     {return
         {self.registered-bindings.filter-clone 
             {proc {b:DataBinding}:bool
                 {return b.data-selector == selector}}}}
   }
+}
+{doc-next ||=== ConcreteEventTarget
+    {purpose An {docref EventTarget} that is not abstract.}
 }
 {define-class public ConcreteEventTarget {inherits EventTarget, InitRestArgParser}
   {constructor public {default ...}
