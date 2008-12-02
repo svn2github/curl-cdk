@@ -87,9 +87,9 @@
                         self, "authenticated?", self._authenticated?, b?}
         set self._authenticated? = b?
 
-        {if not self._authenticated? then
-            set self.credentials = null
-        }
+||--        {if not self._authenticated? then
+||--            set self.credentials = null
+||--        }
         {for cs in self.channel-sets do
             {cs.set-authenticated? b?, credentials = self.credentials}}
 
@@ -244,6 +244,20 @@
     def channel-set-index = {self._channel-sets.find channel-set}
     {if channel-set-index >= 0 then
         {self._channel-sets.remove channel-set-index}
+    }
+    {if self.connected? then
+        {channel-set.channel-disconnect-handler
+            {ChannelEvent
+                ChannelEvent.DISCONNECT,
+                channel = self,
+                connected? = self.connected?
+            }
+        }
+    }
+    {if self.channel-sets.empty? then
+        {if self.connected? then
+            {self.internal-disconnect}
+        }
     }
   }
 

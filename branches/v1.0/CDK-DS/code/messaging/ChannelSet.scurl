@@ -160,6 +160,14 @@
                  }:void
     {if self._authenticated? != b? then
         set self._authenticated? = b?
+
+        {if not b? and
+            self.auth-agent != null and
+            self.auth-agent.state != AuthenticationAgent.LOGGED_OUT_STATE
+         then
+            {self.end-logging-out {non-null self.auth-agent}}
+        }
+        
         {if notify-agents? then
             {for agent in self.message-agents do
                 {agent.set-authenticated? b?, credentials = credentials}
@@ -189,38 +197,46 @@
     }
   }
 
-  {method public {disconnect agent:MessageAgent}:void
+  {method public {disconnect agent:#MessageAgent}:void
     || FIXME: Should this send a synthetic disconnect event?
-    def agent-index = {self._message-agents.find agent}
-    {if agent-index >= 0 then
-        {self._message-agents.remove agent-index}
-        {self.disconnect-agent-helper agent}
-    }
-    {if self._message-agents.size == 0 and self.connected? then
-        {self.disconnect-channel}
+    {if-non-null agent then
+        def agent-index = {self._message-agents.find agent}
+        {if agent-index >= 0 then
+            {self._message-agents.remove agent-index}
+            {self.disconnect-agent-helper agent}
+        }
+        {if self._message-agents.size == 0 and self.connected? then
+            {self.disconnect-channel}
+        }
+||--        {if agent.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET then
+||--            {agent.internal-set-channel-set null}
+||--        }
+     else
+        {self.disconnect-all}
     }
   }
   {method private {disconnect-agent-helper agent:MessageAgent}:void
     || This will recurse, but this time the agent won't be found.
     || Should we really do both of these steps?
-    {agent.disconnect}
-    {agent.internal-set-channel-set null}
-    {for i = self.pending-sends.size - 1 downto 0 do
-        def ps = self.pending-sends[i]
-        {if ps.agent == agent then
-            {self.pending-sends.remove i}
-            {if-non-null message = ps.message then
-                {self.pending-messages.remove
-                    message, error-if-missing? = false
-                }
+    {if self.connected? or self.connecting? then
+        {agent.channel-disconnect-handler
+            {ChannelEvent
+                ChannelEvent.DISCONNECT,
+                channel = self._current-channel,
+                connected? = self.connected?
             }
         }
-    }
-    {agent.channel-disconnect-handler
-        {ChannelEvent
-            ChannelEvent.DISCONNECT,
-            channel = self._current-channel,
-            connected? = self.connected?
+     else
+        {for i = self.pending-sends.size - 1 downto 0 do
+            def ps = self.pending-sends[i]
+            {if ps.agent == agent then
+                {self.pending-sends.remove i}
+                {if-non-null message = ps.message then
+                    {self.pending-messages.remove
+                        message, error-if-missing? = false
+                    }
+                }
+            }
         }
     }
   }
@@ -232,9 +248,6 @@
     {for agent in agents do
         || This will call disconnect, but the agent won't be found.
         {self.disconnect-agent-helper agent}
-    }
-    {if self.connected? then
-        {self.disconnect-channel}
     }
   }
 
@@ -349,15 +362,10 @@
     def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
     {if login? then
         || when LOGIN is successful.
-        {self.sync-credentials (cmd.body asa String)}
-        set agent.state = AuthenticationAgent.LOGGED_IN_STATE
-        set self.current-channel.authenticated? = true
+        {self.end-logging-in agent, cmd}
      else
         || when LOGOUT is successful.
-        set agent.state = AuthenticationAgent.SHUTDOWN_STATE
-        set self.auth-agent = null
-        {self.disconnect agent}
-        set self.current-channel.authenticated? = false
+        {self.end-logging-out agent}
     }
     
     {agent.call-result ack}
@@ -372,7 +380,25 @@
         }
     }
   }
-  
+
+  {method private {end-logging-in
+                      agent:AuthenticationAgent,
+                      cmd:CommandMessage
+                  }:void
+    {self.sync-credentials (cmd.body asa String)}
+    set agent.state = AuthenticationAgent.LOGGED_IN_STATE
+    set self.current-channel.authenticated? = true
+  }
+
+  {method private {end-logging-out
+                      agent:AuthenticationAgent
+                  }:void
+    set agent.state = AuthenticationAgent.SHUTDOWN_STATE
+    set self.auth-agent = null
+    {self.disconnect agent}
+    set self.current-channel.authenticated? = false
+  }
+
   {method protected {authenticate-failed
                         agent:AuthenticationAgent,
                         cmd:CommandMessage,
@@ -608,6 +634,8 @@
   {method protected {channel-disconnect-handler e:ChannelEvent}:void
     {dump "TODO: ChannelSet.channel-disconnect-handler"}
     || TODO:
+    set self.connecting? = false
+    set self._connected? = false
   }
 
   {method protected {channel-fault-handler e:ChannelFaultEvent}:void

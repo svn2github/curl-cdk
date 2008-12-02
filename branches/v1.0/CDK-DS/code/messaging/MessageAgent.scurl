@@ -490,12 +490,16 @@
         }
     }
     || Handle server session expiration.
-    {if error-message.fault-code == "Client.Authentication" and
+    || setting 401 to extended-data only happens
+    || when the authentication error occurs in WEBORB?
+    {if (error-message.fault-code == "Client.Authentication" or
+         error-message.extended-data == 401) and
         self.authenticated? and
         self.channel-set != null and
         self.channel-set.current-channel != null
      then
         set self.channel-set.current-channel.authenticated? = false
+        || there's no way to set a value to login-after-disconnect? currently.
         {if self.channel-set.current-channel.login-after-disconnect? then
             {self.reauthorize msg}
             set self.ignore-fault? = true
