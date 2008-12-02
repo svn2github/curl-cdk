@@ -13,23 +13,17 @@
 ||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
-
 {curl 6.0 package}
+
 {package COM.CURL.CDK.RECORDSET-FOR,
-    version = "0.1",
+    version = "0.9",
     resource-directory = "../../resources/",
     translations-file = "messages.xml",
     {compiler-directives
         careful? = true
     }
 }
-{import * from CURL.DATA-ACCESS.BASE}
-{import * from CURL.LANGUAGE.REFLECTION}
-{import * from CURL.UTIL.OPTION}
-{include 
-    "GenericRecordSet.scurl",
-    "RecordSet-for.scurl"
-}
+
 {doc
     type = package,
     COM.CURL.CDK.RECORDSET-FOR
@@ -41,4 +35,12 @@
         This package contains preliminary versions of new features. 
         These features are not yet in final form, 
         and are subject to revision.}}
+}
+
+{import * from CURL.DATA-ACCESS.BASE}
+{import * from CURL.LANGUAGE.REFLECTION}
+{import * from CURL.UTIL.OPTION}
+{include 
+    "GenericRecordSet.scurl",
+    "RecordSet-for.scurl"
 }

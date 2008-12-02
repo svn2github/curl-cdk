@@ -16,12 +16,34 @@
 
 {import * from CURL.LANGUAGE.REFLECTION}
 
+{doc-next ||=== RecordSet-for
+    {purpose The {ctext RecordSet-for} adapter implements the
+        {docref RecordSet} protocol for data accessible 
+        by get/set properties of Curl classes.}
+}
 {define-class public {RecordSet-for T:ClassType}
   {inherits GenericRecordSet}
+  {doc-next ||=== RecordSet-for.subject-type
+    {purpose The {docref ClassType} of underlying data instances.}
+  }
   {getter public {subject-type}:ClassType
     {return T}
   }
+  {doc-next ||=== RecordSet-for.create-subject
+    {purpose Create a data instance.}
+    {details Used by {docref RecordSet.new-record} when necessary.}
+  }
   field public-get constant create-subject:{proc-type {}:T}
+  {doc-next ||=== RecordSet-for.default
+    {purpose Create a {ctext RecordSet-for} instance.}
+    {parameter fields, the {docref RecordFields} characterizing
+        the {docref-abbr RecordSet-for.subject-type}.}
+    {parameter create-subject, function to create a data instance.
+        If unspecified, this tries to use a no-arg constructor named 'default'.}
+    {parameter ..., the rest arguments can be 
+        data instances (of {docref-abbr RecordSet-for.subject-type})
+        or {docref EventHandler}s.}
+  }
   {constructor public {default 
                           fields:RecordFields = {fields-for T},
                           create-subject:#{proc-type {}:T} = null,
@@ -67,23 +89,47 @@
         }}
   }
 }
+{doc-next ||=== RecordFacade
+    {purpose Adapter implementing {docref Record} protocol for some subject.}
+}
 {define-class public abstract RecordFacade {inherits GenericRecord}
   {constructor {default record-set:#GenericRecordSet}
     {construct-super record-set}
   }
+  {doc-next ||=== RecordFacade.subject-as-object
+    {purpose The underlying {ctext subject}, as an {docref Object}.}
+    {details This gives access to the subject in contexts where
+        the specific type parameter is not known.}
+  }
   {getter public abstract {subject-as-object}:Object}
+}
+{doc-next ||=== RecordFacade-for
+    {purpose Adapter implementing {docref Record} protocol for some subject.}
 }
 {define-class public {RecordFacade-for T:ClassType}
   {inherits RecordFacade}
+  {doc-next ||=== RecordFacade-for.subject
+    {purpose The underlying data instance.}
+  }
   field public-get constant subject:T
+  || NOTE: docstring inherits
   {getter public {subject-as-object}:Object
     {return self.subject}
+  }
+  {doc-next ||=== RecordFacade-for.default
+    {purpose Create a {ctext RecordFacade-for} instance.}
+    {parameter subject, the underlying data instance.}
+    {parameter record-set, the container {docref RecordSet-for}}
   }
   {constructor public {default 
                           subject:T,
                           record-set:#{RecordSet-for T} = null}
     set self.subject = subject
     {construct-super record-set}
+  }
+  {doc-next ||=== RecordFacade-for.from-subject
+    {purpose Create a {ctext RecordFacade-for} instance.}
+    {parameter subject, the underlying data instance.}
   }
   {factory public implicit {from-subject subject:T}:{RecordFacade-for T}
     {return {{RecordFacade-for T} subject}}
@@ -97,6 +143,12 @@
   {method protected {internal-set k:String, x:any}:void
     {set-public-property self.subject, k, x}
   }
+}
+{doc-next ||=== fields-for
+    {purpose Create {docref RecordFields} corresponding to
+        the public properties of some {docref ClassType}.}
+    {details Used by {docref RecordSet-for} as default value for
+        {docref-abbr RecordSet-for.fields}.}
 }
 || TODO: 'exclude' keyword arg
 {define-proc public {fields-for t:ClassType,
@@ -171,6 +223,10 @@
             set d = {{domain-of.construct tt}}}}
     {return d}
 }
+{doc-next ||=== Domain-of
+    {purpose A default {docref Domain} for an arbitrary {docref Type}.}
+    {details Used by {docref fields-for}.}
+}
 || TODO: need way to specialize these
 || -- registry of per-type defaults
 {define-class public {Domain-of T:Type}
@@ -198,5 +254,3 @@
                  rf:RecordField, rs:RecordSet}:any
     {error {message Need default-value}}
 }
-
-

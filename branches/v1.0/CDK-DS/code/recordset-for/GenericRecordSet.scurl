@@ -23,11 +23,28 @@
 || -- avoid n^2 performance for record lookup -- use OrderedSet
 || NOTE: both could be borrowed from BasicRecordSet
 
+{doc-next ||=== GenericRecordSet
+    {purpose A basic implementation of {docref RecordSet} protocol,
+        that is independent of internal record storage mechanism.}
+    {override
+        Subclasses should implement methods
+        {docref-abbr GenericRecordSet,internal-get},
+        {docref-abbr GenericRecordSet,internal-set} and
+        {docref-abbr GenericRecordSet,internal-attach}
+        appropriate for their record storage mechanism.}
+}
 {define-class public abstract GenericRecordSet
   {inherits EventManagingRecordSet, InitRestArgParser}
   field _fields:RecordFields
   field _modifiable?:bool
   field records:{Array-of Record}
+  {doc-next ||=== GenericRecordSet.default
+    {purpose Create a {ctext GenericRecordSet} instance.}
+    {parameter fields, specifies {docref RecordSet.fields}.}
+    {parameter modifiable?, specifies {docref RecordSet.modifiable?}.}
+    {parameter ..., the resta arguments may contain 
+        {docref GenericRecord}s or {docref EventHandler}s.}
+  }
   {constructor public {default
                           fields:RecordFields,
                           modifiable?:bool = true,
@@ -118,8 +135,16 @@
     {super.ensure-modifiable}
   }
 }
+{doc-next ||=== GenericRecord
+    {purpose An implementation of {docref Record} 
+        for use by {docref GenericRecordSet}.}
+}
 {define-class public abstract GenericRecord
   {inherits Record}
+  {doc-next ||=== GenericRecord.default
+    {purpose Create a {ctext GenericRecord} instance.}
+    {parameter record-set, the containing {docref GenericRecordSet}.}
+  }
   {constructor public {default record-set:#GenericRecordSet}
     set self._record-set = record-set
     set self._state = RecordState.new
@@ -132,6 +157,10 @@
     || -- not possible for multiple inheritance, 
     || -- and "special" types like String and Array
     {return self._record-set}
+  }
+  {doc-next ||=== GenericRecord.generic-record-set
+    {purpose The {docref-abbr GenericRecordSet.record-set} 
+        as a {docref GenericRecordSet}.}
   }
   {getter public {generic-record-set}:#GenericRecordSet
     {return self._record-set}
@@ -217,9 +246,18 @@
     }
   }
   || abstract implementation
+  {doc-next ||=== GenericRecord.internal-set
+    {purpose Set a data value for the record.}
+  }
   {method abstract protected {internal-set k:String, x:any}:void}
+  {doc-next ||=== GenericRecord.internal-get
+    {purpose Get a data value for the record.}
+  }
   {method abstract protected {internal-get k:String}:any}
   || implementation
+  {doc-next ||=== GenericRecord.internal-attach
+    {purpose Attach a record.}
+  }
   {method public {internal-attach record-set:GenericRecordSet}:void
     {if self.record-set != null and
         self.record-set != record-set then
@@ -242,6 +280,9 @@
     set self._state = state
   }
   field _original-data:#RecordData 
+  {doc-next ||=== GenericRecord.preserve-data
+    {purpose Preserves original data before a change is made.}
+  }
   {method protected {preserve-data}:void
     {if self._original-data == null then
         let data:RecordData = {RecordData}
