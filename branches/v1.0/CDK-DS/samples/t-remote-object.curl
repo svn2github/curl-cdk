@@ -37,7 +37,6 @@
     || --------------------
     def destination = "product"
     def endpoint = {url "http://localhost:8400/samples/messagebroker/amf"}
-||     set ServerConfig.config["my-amf"] = endpoint
 
     || product service
     || --------------------
@@ -99,7 +98,13 @@
                     {rs.append item}}
                 {rs.commit}
                 || refresh display
-                set rg.record-source = rs}            
+                set rg.record-source = rs
+                || readable numeric format
+                {for col in rg.columns do
+                    {switch col.field.domain.type
+                     case double do
+                        set col.format-spec = "%.2f"
+                    }}}            
             {return rg}
         }
    

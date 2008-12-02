@@ -84,7 +84,6 @@
             {dump e}
         }}
     {qos-service.send "setAttribute",
-        async? = true,
         "market-data-delay", 100 || milliseconds
     }
     || ==================== //
