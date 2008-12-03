@@ -184,15 +184,9 @@
         {docref AbstractOperation.send}.
     }
   }
-  {method public {send name:String, async?:bool = true, ...:any}:void
-        def operation = {self.get-operation name}
-        set operation.async? = async?
-        {operation.send ...}
-||--        {if not async? then
-||--            {self.invoke-method name, ...}
-||--         else
-||--            {self.async-invoke-method name, ...}
-||--        }
+  {method public {send name:String, ...:any}:void
+    def operation = {self.get-operation name}
+    {operation.send ...}
   }
 
   {doc-next

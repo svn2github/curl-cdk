@@ -40,12 +40,10 @@
     "AsyncToken.scurl",
     "Fault.scurl",
     "FaultEvent.scurl",
-||--    "HttpService.scurl",
     "InvokeEvent.scurl",
     "IResponder.scurl",
     "Operation.scurl",
     "RemoteObject.scurl",
     "Responder.scurl",
-    "ResultEvent.scurl",
-    "WebService.scurl"
+    "ResultEvent.scurl"
 }

@@ -15,7 +15,6 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractInvoker {inherits EventTarget}
-  field public async?:bool = true
   field protected _async-request:AsyncRequest
   field protected result-handler:{proc-type {x:any}:void} =
       {uninitialized-value-for-type {proc-type {x:any}:void}}
@@ -58,12 +57,7 @@
                         message:IMessage,
                         token:#AsyncToken = null
                     }:#AsyncToken
-    {if self.async? then
-        {return {self.async-invoke message, token = token}}
-     else
-        {dump "\n\n\nTODO: Synchronous Invocation not yet supported\n\n\n"}
-        {return null}
-    }
+    {return {self.async-invoke message, token = token}}
   }
 
   {method protected {async-invoke
