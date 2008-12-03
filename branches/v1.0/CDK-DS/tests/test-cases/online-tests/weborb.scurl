@@ -424,6 +424,7 @@
     def sec-test =
         {proc {uname:#String, passworld:#String, fault?:bool}:void
             def ro = {get-ro}
+            {ro.logout}
             let pending?:bool = true
             def agent = {ro.login uname, passworld}
             {agent.register-responder
