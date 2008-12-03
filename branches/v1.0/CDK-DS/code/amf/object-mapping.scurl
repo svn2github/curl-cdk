@@ -16,7 +16,7 @@
 
 || NOTE: defined first to avoid load order problem
 {def cc-upper =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" asa CharClass
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" asa CharClass ||""
 }
 
 {define-class public AMFObjectAdapter

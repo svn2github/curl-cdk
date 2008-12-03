@@ -41,6 +41,7 @@
 {import COM.CURL.CDK.MESSAGES}
 
 {include
+    "AMFException.scurl",
     "AMF0Deserializer.scurl",
     "AMF0Serializer.scurl",
     "AMF3Deserializer.scurl",

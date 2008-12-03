@@ -106,7 +106,7 @@
             def amf3-deserializer = {AMF3Deserializer self.input, mapper = self.mapper}
             {amf3-deserializer.read-one}
          else
-            {error "Unsupported type"}
+            {throw {AMFException {lmessage Unsupported AMF0 type {value type}.}}}
         }
     }
   }

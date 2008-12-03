@@ -59,7 +59,6 @@
         ||       {AMF0Serializer.write-one}.
         {switch self.version
          case AMFPacketVersion.AMF0 do
-||--            {error "Unsupported version"}
             {self.write-one body.data}
          case AMFPacketVersion.AMF3 do
             {marshal-out-uint8
@@ -70,7 +69,7 @@
                 {AMF3Serializer self.output, mapper = self.mapper}
             {amf3-serializer.write-one body.data}
          else
-            {error "Unsupported Version"}
+            {throw {AMFException {lmessage Unsupported version {value self.version}.}}}
         }
     }
     {return self.output}

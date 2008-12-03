@@ -30,7 +30,7 @@
     {if self.cached-objects.size < max-uint16 then
         {self.cached-objects.append obj}
      else
-        {throw {Exception "TooManyReferences : AMF0"}}
+        {throw {AMFException {lmessage Too many object references.}}}
     }
   }
 
@@ -39,7 +39,7 @@
     {if found? then
         {return ret}
      else
-        {throw {Exception "Object not found"}}
+        {throw {AMFException {lmessage Object for reference {value index} not found.}}}
     }
   }
 
@@ -75,7 +75,7 @@
     {if self.cached-strings.size < max-int29 then
         {self.cached-strings.append str}
      else
-        {throw {Exception "TooManyReferences"}}
+        {throw {AMFException {lmessage Too many string references.}}}
     }
   }
 
@@ -84,7 +84,7 @@
     {if found? then
         {return ret}
      else
-        {throw {Exception "String not found"}}
+        {throw {AMFException {lmessage String for reference {value index} not found.}}}
     }
   }
 
@@ -103,7 +103,7 @@
     {if self.cached-objects.size < max-int29 then
         {self.cached-objects.append obj}
      else
-        {throw {Exception "TooManyReferences"}}
+        {throw {AMFException {lmessage Too many object references.}}}
     }
   }
 
@@ -112,7 +112,7 @@
     {if found? then
         {return ret}
      else
-        {throw {Exception "Object not found"}}
+        {throw {AMFException {lmessage Object for reference {value index} not found.}}}
     }
   }
 
@@ -129,7 +129,7 @@
     {if self.cached-traits.size < 0x7FFFFFF then
         {self.cached-traits.append trait}
      else
-        {throw {Exception "TooManyReferences"}}
+        {throw {AMFException {lmessage Too many trait references.}}}
     }
   }
   
@@ -138,7 +138,7 @@
     {if found? then
         {return ret}
      else
-        {throw {Exception "Trait not found"}}
+        {throw {AMFException {lmessage Trait for reference {value index} not found.}}}
     }
   }
 
