@@ -16,26 +16,20 @@
 
 {curl 6.0 package}
 
+{package COM.CURL.CDK.DATA-OBJECT,
+    version = "1.0",
+    {compiler-directives careful? = true},
+    translations-file = "messages.xml",
+    resource-directory = "../resources/",
+    default-locale = "en"
+}
+
 {doc
     type = package,
     COM.CURL.CDK.DATA-OBJECT
     {purpose
         This package provides functionality for
         representing, and working with, sets of data values.}
-    {notes
-        {italic
-        This package contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.}
-    }
-}
-
-{package COM.CURL.CDK.DATA-OBJECT,
-    version = "0.9",
-    {compiler-directives careful? = true},
-    translations-file = "messages.xml",
-    resource-directory = "../resources/",
-    default-locale = "en"
 }
 
 {import * from CURL.GUI.STANDARD}
