@@ -237,7 +237,7 @@
                     }
                 }
              else
-                {throw {new Exception, "Unexpected message type"}}
+                {error {lmessage Unexpected message type.}}
             }
         }
   }

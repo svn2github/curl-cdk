@@ -18,9 +18,10 @@
 
   def public traits =
       {DataObjectTraits
-        "flex.messaging.messages.CommandMessage",
+        "flex.messaging.messages.CommandMessage", ||""
         dynamic? = false,
         {StringArray
+            ||""((
             "timestamp",
             "headers",
             "operation",
@@ -30,10 +31,12 @@
             "timeToLive",
             "clientId",
             "destination"}
+            ||""))
       }
 
   field public operation:uint
 
+  ||""((
   let public constant AUTHENTICATION_MESSAGE_REF_TYPE:String =
       "flex.messaging.message.AuthenticationMessage"
 
@@ -45,6 +48,7 @@
   let public constant PRESERVE_DURABLE_HEADER:String = "DSPreserveDurable"
   let public constant NO_OP_POLL_HEADER:String = "DSNoOpPoll"
   let public constant POLL_WAIT_HEADER:String = "DSPollWait"
+  ||""))
 
   let public constant SUBSCRIBE_OPERATION:uint = 0
   let public constant UNSUBSCRIBE_OPERATION:uint = 1
@@ -63,6 +67,7 @@
 
   let constant operation-names:StringArray =
       {new StringArray,
+        ||""((
         "subscribe",
         "unsubscribe",
         "poll",
@@ -76,6 +81,7 @@
         "subscription_invalidate",
         "multi_subscribe",
         "disconnect"
+        ||""))
     }
 
   || A CommandMessage has the following general form:
@@ -100,7 +106,7 @@
 
   {define-proc public {get-operation-as-String op:int}:String
     {if (op < 0 or op >= CommandMessage.operation-names.size) then
-        {return "Invalid operation: " & op}
+        {return {lmessage "Invalid operation '{value op}'.}}
     }
     {return CommandMessage.operation-names[op]}
   }

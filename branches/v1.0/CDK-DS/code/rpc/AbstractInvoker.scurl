@@ -94,10 +94,11 @@
                     FaultEvent.FAULT,
                     fault = 
                         {Fault
-                            "Invoke failed",
+                            "Invoke failed", ||""
                             me.message,
-                            fault-detail = "Cannot connect to destination: "
-                            & self.async-request.destination
+                            fault-detail =
+                                {lmessage Cannot connect to destination
+                                    {value self.async-request.destination}}
                         },
                     token = token,
                     message = message
@@ -109,7 +110,7 @@
             {self.dispatch-rpc-event
                 {FaultEvent
                     FaultEvent.FAULT,
-                    fault = {Fault "Invoke failed", e.message},
+                    fault = {Fault "Invoke failed", e.message}, ||""
                     token = token,
                     message = message
                 }
@@ -160,7 +161,7 @@
                     not ((event.message asa AsyncMessage).correlation-id == null or
                          (event.message asa AsyncMessage).correlation-id.empty?)
                     and
-                    event.fault-code != "Client.Authentication"
+                    event.fault-code != "Client.Authentication" ||""
                  then
                     {return}
                 }

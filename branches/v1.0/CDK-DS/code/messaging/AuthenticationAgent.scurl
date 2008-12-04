@@ -28,7 +28,7 @@
   {constructor public {default channel-set:ChannelSet}
     set self._state = AuthenticationAgent.LOGGED_OUT_STATE
     set self.responders = {{Array-of AuthenticationResultResponder}}
-    set self.agent-type = "authentication agent"
+    set self.agent-type = "authentication agent" ||""
     set self.channel-set = channel-set
   }
 

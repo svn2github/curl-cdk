@@ -19,7 +19,7 @@
   field public constant message:#ErrorMessage
   field public constant root-cause:any
 
-  let public constant FAULT:String = "fault"
+  let public constant FAULT:String = "fault" ||""
 
   {constructor public {default
                           type:String,

@@ -20,7 +20,7 @@
 
   let private instance:#FlexClient
 
-  let public constant NULL_FLEXCLIENT_ID:String = "nil"
+  let public constant NULL_FLEXCLIENT_ID:String = "nil" ||""
 
   {constructor protected {default}
     {construct-super}

@@ -16,8 +16,8 @@
 
 {define-class public AuthenticationEvent {inherits AbstractAuthenticatoinEvent}
 
-  let public constant LOGGED_IN:String = "logged-in"
-  let public constant LOGGED_OUT:String = "logged-out"
+  let public constant LOGGED_IN:String = "logged-in" ||""
+  let public constant LOGGED_OUT:String = "logged-out" ||""
   
   {constructor public {default
                           type:String,

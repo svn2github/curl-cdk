@@ -42,7 +42,7 @@
 
   {method protected {set-service service:AbstractService}:void
     {if-non-null self.service then
-        {throw {new Exception, "Can not reset service"}}
+        {error {lmessage Can not reset service.}}
      else
         set self.service = service
     }

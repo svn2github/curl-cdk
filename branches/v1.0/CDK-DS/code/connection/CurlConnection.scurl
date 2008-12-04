@@ -45,16 +45,16 @@
   {define-proc private {make-io-failed-error-message ex:Exception, amf-body:AMFBody
                        }:ErrorMessage
     def err = {new ErrorMessage}
-    set err.fault-code = "Client.Ping.Failed"
-    set err.fault-string = "error"
+    set err.fault-code = "Client.Ping.Failed" ||""
+    set err.fault-string = "error" ||""
     set err.fault-detail = ex.message
     set err.root-cause = amf-body
     {return err}
   }
   {define-proc private {make-canceled-error-message}:ErrorMessage
     def err = {new ErrorMessage}
-    set err.fault-code = "Client.Ping.Canceled"
-    set err.fault-string = "warn"
+    set err.fault-code = "Client.Ping.Canceled" ||""
+    set err.fault-string = "warn" ||""
     {return err}
   }
 
@@ -70,23 +70,16 @@
   {method public {call
                      command:#String = null,
                      responder:#ConnectionResponder = null,
-                     async?:bool = true,
                      ...:any
                  }:void
-    {if async? then
-        {self.call-async
-            command = command,
-            responder = responder,
-            ...}
-     else
-        {self.call-sync
-            command = command,
-            responder = responder,
-            ...}
+    {self.call-async
+        command = command,
+        responder = responder,
+        ...
     }
   }
   
-  {method public {call-async
+  {method private {call-async
                      command:#String = null,
                      responder:#ConnectionResponder = null,
                      ...:any
@@ -172,7 +165,9 @@
     }
   }
 
-  {method public {call-sync
+||-- Not used right now.
+|#
+  {method private {call-sync
                      command:#String = null,
                      responder:#ConnectionResponder = null,
                      ...:any
@@ -229,6 +224,7 @@
         }
     }
   }
+#|
 
   {method protected {handle-response
                         responder:ConnectionResponder,
@@ -260,8 +256,8 @@
         {responder.result cmd}
      else
         def err = {new ErrorMessage}
-        set err.fault-code = "Unable to find a Message"
-        set err.fault-string = "warn"
+        set err.fault-code = {lmessage Unable to find a message.}
+        set err.fault-string = "warn" ||
         set err.extended-data = bodies
         {responder.status err}
     }
@@ -362,7 +358,7 @@
 ||--        {assert {shd.name.prefix? "http:"} or {shd.name.prefix? "https:"}}
         {return shd.host, {shd.get-port} asa uint16}
      else
-        {error "Not an http: url"}
+        {error {lmessage Not an http: or https: Url.}}
     }
   }
 
@@ -374,7 +370,7 @@
             || NOTE: counting on proper serialization registration
             msg
          else
-            {error {message Expected IMessage but got {value x}}}
+            {error {lmessage Expected IMessage but got {value x}}}
         }}
   }
 }

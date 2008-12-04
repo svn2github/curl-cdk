@@ -18,9 +18,10 @@
  
   def public traits =
       {DataObjectTraits
-        "flex.messaging.messages.ErrorMessage",
+        "flex.messaging.messages.ErrorMessage", ||""
         dynamic? = false,
         {StringArray
+            ||""((
             "headers",
             "rootCause",
             "body",
@@ -35,6 +36,7 @@
             "faultCode",
             "messageId",
             "code" || Not in many of the descriptions of the format, but seems to be used.
+            ||""))
         }
       }
 
@@ -45,9 +47,11 @@
   field public root-cause:any
   field public code:#String
 
+  ||""((
   let public constant MESSAGE_DELIVERY_IN_DOUBT:String =
       "Client.Error.DeliveryInDoubt"
   let public constant RETRYABLE_HINT_HEADER:String = "DSRetryableErrorHint"
+  ||""))
 
   {constructor public {default}
     {construct-super}

@@ -69,8 +69,8 @@
   {method protected {create-request-timeout-error-message}:ErrorMessage
     def err = {new ErrorMessage}
     set err.correlation-id = self.message.message-id
-    set err.fault-code = "Client.Error.RequestTimeout"
-    set err.fault-string = "Request Timed Out"
+    set err.fault-code = "Client.Error.RequestTimeout" ||""
+    set err.fault-string = "Request Timed Out" ||""
     {return err}
   }
 

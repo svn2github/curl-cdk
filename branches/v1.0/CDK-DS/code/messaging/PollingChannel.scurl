@@ -80,7 +80,7 @@
             }
         }
      else
-        {throw {new Exception, "Negative polling interval is not allowed."}}
+        {error {lmessage Negative interval not allowed.}}
     }
   }
 

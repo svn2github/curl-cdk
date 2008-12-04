@@ -16,7 +16,7 @@
 
 {define-class public InvokeEvent {inherits AbstractEvent}
 
-  let public constant INVOKE:String = "invoke"
+  let public constant INVOKE:String = "invoke" ||""
 
   {constructor public {default
                           type:String,

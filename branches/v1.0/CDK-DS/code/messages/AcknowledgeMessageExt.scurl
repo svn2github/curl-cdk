@@ -18,7 +18,7 @@
   
   def public traits =
       {DataObjectTraits
-        "DSK",
+        "DSK", ||""
         {StringArray},
         dynamic? = false,
         externalizable? = true}

@@ -59,7 +59,7 @@
         channel-set = channel-set,
         ...
     }
-    set self.agent-type = "producer"
+    set self.agent-type = "producer" ||""
   }
 
   {doc-next
@@ -138,7 +138,7 @@
                  then
 ||--                    set self.should-be-connected? = false
                     def new-err = {new ErrorMessage}
-                    set new-err.fault-code = "Client.Error.Connect"
+                    set new-err.fault-code = "Client.Error.Connect" ||""
                     set new-err.correlation-id = self.connect-message.message-id
                     set new-err.root-cause = err.root-cause
                     {super.fault new-err, message}

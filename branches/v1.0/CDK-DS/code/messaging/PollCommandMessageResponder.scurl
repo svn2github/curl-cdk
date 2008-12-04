@@ -58,7 +58,7 @@
                   || This case intentionally left blank.
                else
                   def err = {new ErrorMessage}
-                  set err.fault-detail = "Received null"
+                  set err.fault-detail = {lmessage Received null}
                   {self.status err}
                   {return}
               }
@@ -100,14 +100,14 @@
                   {new ChannelFaultEvent,
                       ChannelFaultEvent.FAULT,
                       channel = polling-channel,
-                      code = "Channel.Polling.Error",
-                      level = "error",
+                      code = "Channel.Polling.Error", ||""
+                      level = "error", ||""
                       description = details,
                       root-cause = msg
                   }
               {type-switch msg
                case err:ErrorMessage do
-                  {if err.fault-code == "Server.PollNotSupported" then
+                  {if err.fault-code == "Server.PollNotSupported" then ||""
                       {polling-channel.poll-failed rejected? = true}
                    else
                       {polling-channel.poll-failed rejected? = false}

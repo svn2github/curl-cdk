@@ -21,8 +21,8 @@
   field public constant rejected?:bool
   field public constant connected?:bool
 
-  let public constant CONNECT:String = "channelConnect"
-  let public constant DISCONNECT:String = "channelDisconnect"
+  let public constant CONNECT:String = "channelConnect" ||""
+  let public constant DISCONNECT:String = "channelDisconnect" ||""
 
   {constructor public {default
                           type:String,

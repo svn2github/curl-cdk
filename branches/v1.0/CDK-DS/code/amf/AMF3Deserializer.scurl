@@ -46,7 +46,7 @@
 ||--         case AMF3Marker.xml-marker.value do        {self.read-xml}
          case AMF3Marker.byte-array-marker.value do {self.read-byte-array}
          else
-            {throw {AMFException {lmessage Unsupported amf3 type {value type}.}}}
+            {throw {AMFException {lmessage Unsupported AMF3 type {value type}.}}}
         }
     }
   }

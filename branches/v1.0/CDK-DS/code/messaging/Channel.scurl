@@ -17,7 +17,7 @@
 {define-class public abstract Channel {inherits EventTarget}
   field private _authenticated?:bool = false
   field private _authenticating?:bool = false
-  field private _channel-sets:{Array-of ChannelSet} =
+  field private constant _channel-sets:{Array-of ChannelSet} =
       {new {Array-of ChannelSet}}
   field private _connected?:bool = false
   field private connecting?:bool = false
@@ -159,17 +159,17 @@
     def changed-credentials? = (credentials != self.credentials)
 
     {if self.authenticating? and changed-credentials? then
-        {throw
-            {new Exception,
-                "Credentials cannot be set while authenticating or logging out."
+        {error
+            {lmessage
+                Credentials cannot be set while authenticating or logging out.
             }
         }
     }
     {if self.authenticated? and changed-credentials? then
-        {throw
-            {new Exception,
-                "Credentials cannot be set when already authenticated. "&
-                "Logout must be performed before changing credentials."
+        {error
+            {lmessage
+                Credentials cannot be set when already authenticated.
+                Logout must be performed before changing credentials.
             }
         }
     }
@@ -280,7 +280,7 @@
   {method public {send agent:MessageAgent, message:IMessage}:void
     {if message.destination.empty? then
         {if agent.destination.empty? then
-            {throw {new Exception, "InvalidDestinationError"}}
+            {error {lmessage Invalid destination in message.}}
          else
             set message.destination = agent.destination
         }
@@ -294,7 +294,7 @@
         {self.initialize-request-timeout responder}
         {self.internal-send responder}
      else
-        {throw {new Exception, "IllegalOperationError"}}
+        {error {lmessage No MessageResponder for message.}}
     }
   }
 

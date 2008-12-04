@@ -48,14 +48,17 @@
 {import * from CURL.IO.ZSTREAM}
 {define-proc package {maybe-zstream-for in:HttpByteInputStream}:ByteInputStream
     let (enc:String, enc?:bool) = 
-        {in.response-headers.get-if-exists "Content-Encoding"}
+        {in.response-headers.get-if-exists "Content-Encoding"} ||""
     {return
         {if enc? then
             {InflateByteInputStream in,
                 compression-format = 
                     {switch enc
-                     case "gzip" do CompressionFormat.gzip
-                     case "deflate" do CompressionFormat.zlib
-                     else {error {lmessage Unexpected HTTP Content-Encoding: {value enc}}}}}
-         else in}}
+                     case "gzip" do CompressionFormat.gzip ||""
+                     case "deflate" do CompressionFormat.zlib ||""
+                     else {error {lmessage Unexpected HTTP Content-Encoding: {value enc}.}}
+                    }
+            }
+         else in}
+    }
 }

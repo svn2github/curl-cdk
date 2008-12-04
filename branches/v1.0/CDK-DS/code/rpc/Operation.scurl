@@ -22,7 +22,9 @@
                           name:#String = null,
                           async-request:#AsyncRequest = null
                       }
-    {construct-super service = remote-object, name = name, async-request = async-request}
+    {construct-super
+        service = remote-object, name = name, async-request = async-request
+    }
   }
 
   {method public {send ...:any}:#AsyncToken

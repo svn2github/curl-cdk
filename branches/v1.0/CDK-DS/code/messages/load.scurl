@@ -42,7 +42,6 @@
     "CommandMessage.scurl",
     "CommandMessageExt.scurl",
     "ErrorMessage.scurl",
-    "HttpRequestMessage.scurl",
     "IMessage.scurl",
     "RemotingMessage.scurl"
 }

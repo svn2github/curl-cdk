@@ -56,8 +56,8 @@
         def cfe = {ChannelFaultEvent
                       ChannelFaultEvent.FAULT,
                       channel = self.channel,
-                      code = "Channel.Authentication.Error",
-                      level = "warn",
+                      code = "Channel.Authentication.Error", ||""
+                      level = "warn", ||""
                       description = err-msg.fault-string,
                       root-cause = err-msg
                   }

@@ -68,7 +68,7 @@
 
   {setter public {destination d:String}:void
     {if d.empty? then
-        {throw {new Exception, "InvalidDestinationError"}}
+        {error {lmessage Invalid destination.}}
     }
     {if self._destination != d then
         {if self.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET and
@@ -170,10 +170,10 @@
             {if-non-null credentials then
                 {if credentials != self.credentials then
                     def err = {new ErrorMessage}
-                    set err.fault-code = "Client.Authentication.Error"
+                    set err.fault-code = "Client.Authentication.Error" ||""
                     set err.fault-string =
-                        "Credentials specified do not match those used on underlying connection."
-                    set err.fault-detail = "Channel was authenticated with a different set of credentials than those used for this agent."
+                        "Credentials specified do not match those used on underlying connection." ||""
+                    set err.fault-detail = {lmessage "Channel was authenticated with a different set of credentials than those used for this agent."}
                     {self.enqueue-event
                         {new MessageFaultEvent,
                             MessageFaultEvent.FAULT,
@@ -368,7 +368,7 @@
 ||--        {self.internal-set-channel-set
 ||--            {ServerConfig.get-channel-set self.destination}
 ||--        }
-        {error "No channel set configured."}
+        {error {lmessage No channel set configured.}}
     }
 
     {if self.channel-set.connected? and

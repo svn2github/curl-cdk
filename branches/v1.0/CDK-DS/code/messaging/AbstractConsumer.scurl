@@ -62,7 +62,7 @@
         channel-set = channel-set,
         ...
     }
-    set self.agent-type = "consumer"
+    set self.agent-type = "consumer" ||""
   }
 
   {setter protected {client-id id:#String}:void
@@ -114,7 +114,7 @@
   {setter public {resubscribe-interval t:Time}:void
     {if self._resubscribe-interval != t then
         {if t < 0s then
-            {throw {new Exception, "Negative interval not allowed"}}
+            {error {lmessage Negative interval not allowed.}}
          elseif t == 0s then
             {self.stop-resubscribe-timer}
          else
@@ -183,7 +183,7 @@
          case cm:CommandMessage do
             let operation:uint = cm.operation
             {if operation == CommandMessage.MULTI_SUBSCRIBE_OPERATION then
-                {if {cm.headers.key-exists? "DSlastUnsub"} then
+                {if {cm.headers.key-exists? "DSlastUnsub"} then ||""
                     set operation = CommandMessage.UNSUBSCRIBE_OPERATION
                  else
                     set operation = CommandMessage.SUBSCRIBE_OPERATION
@@ -312,9 +312,9 @@
         {self.stop-resubscribe-timer}
         set self.should-be-subscribed? = false
         def err = {ErrorMessage}
-        set err.fault-code = "Client.Error.Subscribe"
-        set err.fault-string = "Consumer subscribe error"
-        set err.fault-detail = "Failed to subscribe"
+        set err.fault-code = "Client.Error.Subscribe" ||""
+        set err.fault-string = "Consumer subscribe error" ||""
+        set err.fault-detail = {lmessage Failed to subscribe}
         {if-non-null subscribe-message = self.subscribe-message then
             set err.correlation-id = subscribe-message.message-id
             {self.fault err, subscribe-message}

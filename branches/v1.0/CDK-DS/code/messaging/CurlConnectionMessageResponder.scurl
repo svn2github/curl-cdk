@@ -65,8 +65,8 @@
     {self.disconnect}
     def err = {new ErrorMessage}
     set err.correlation-id = self.message.message-id
-    set err.fault-string = "Delivery in doubt"
-    set err.fault-detail = "TODO: Delivery in doubt details"
+    set err.fault-string = "Delivery in doubt" ||""
+    set err.fault-detail = {lmessage "Delivery in doubt"}
     set err.fault-code = ErrorMessage.MESSAGE_DELIVERY_IN_DOUBT
     {self.agent.fault err, self.message}
   }
@@ -100,18 +100,19 @@
                     }
                  else
                     def err = {new ErrorMessage}
-                    set err.fault-code = "Server.Acknowledge.Failed"
-                    set err.fault-string = "Acknowledge Failed"
+                    set err.fault-code = "Server.Acknowledge.Failed" ||""
+                    set err.fault-string = "Acknowledge Failed" ||""
                     set err.fault-detail =
-                        am.correlation-id & " != " & self.message.message-id
+                        {lmessage {value am.correlation-id} !=
+                            {value self.message.message-id}}
                     set err.correlation-id = self.message.message-id
                     {self.agent.fault err, self.message}
                 }
              else
                 def err = {new ErrorMessage}
-                set err.fault-code = "Server.Acknowledge.Failed"
-                set err.fault-string = "Acknowledge Failed"
-                set err.fault-detail = "No details available"
+                set err.fault-code = "Server.Acknowledge.Failed" ||""
+                set err.fault-string = "Acknowledge Failed" ||""
+                set err.fault-detail = {lmessage No details available}
                 set err.correlation-id = self.message.message-id
                 {self.agent.fault err, self.message}
             }
@@ -133,18 +134,18 @@
                         {self.agent.fault err, self.message}
                      else
                         def err = {new ErrorMessage}
-                        set err.fault-code = "Server.Acknowledge.Failed"
-                        set err.fault-string = "No message available"
-                        set err.fault-detail = "No details available"
+                        set err.fault-code = "Server.Acknowledge.Failed" ||""
+                        set err.fault-string = "No message available" ||""
+                        set err.fault-detail = {lmessage "No details available"}
                         set err.correlation-id = self.message.message-id
                         {self.agent.fault err, self.message}
                     }
                 }
              else
                 def err = {new ErrorMessage}
-                set err.fault-code = "Server.Acknowledge.Failed"
-                set err.fault-string = "Acknowledge Failed"
-                set err.fault-detail = "No details available"
+                set err.fault-code = "Server.Acknowledge.Failed" ||""
+                set err.fault-string = "Acknowledge Failed" ||""
+                set err.fault-detail = {lmessage "No details available"}
                 set err.correlation-id = self.message.message-id
                 {self.agent.fault err, self.message}
             }

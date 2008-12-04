@@ -18,7 +18,7 @@
   field public constant fault:#Fault
   field public constant headers:any
 
-  let public constant FAULT:String = "fault"
+  let public constant FAULT:String = "fault" ||""
 
   {constructor public {default
                           type:String,

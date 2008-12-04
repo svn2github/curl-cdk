@@ -20,9 +20,10 @@
     || from IMessage.
     def public traits =
       {DataObjectTraits
-        "flex.messaging.messages.AsyncMessage",
+        "flex.messaging.messages.AsyncMessage", ||""
         dynamic? = false,
         {StringArray
+            ||""((
             "timestamp",
             "headers",
             "body",
@@ -31,12 +32,13 @@
             "timeToLive",
             "clientId",
             "destination"}
+            ||""))
       }
 
   field public correlation-id:#String
   field private correlation-id-bytes:#ByteArray
 
-  let public constant SUBTOPIC_HEADER:String = "DSSubtopic"
+  let public constant SUBTOPIC_HEADER:String = "DSSubtopic" ||""
 
   let private constant CORRELATION_ID_FLAG:uint = 1
   let private constant CORRELATION_ID_BYTES_FLAG:uint = 2

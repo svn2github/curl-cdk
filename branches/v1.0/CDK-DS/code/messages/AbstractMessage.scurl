@@ -18,6 +18,7 @@
   field private client-id-bytes:#ByteArray
   field private message-id-bytes:#ByteArray
 
+  ||""((
   let public constant FLEX_CLIENT_ID_HEADER:String = "DSId"
   let public constant DESTINATION_CLIENT_ID_HEADER:String = "DSDstClientId"
   let public constant ENDPOINT_HEADER:String = "DSEndpoint"
@@ -27,6 +28,7 @@
   let public constant REQUEST_TIMEOUT_HEADER:String = "DSRequestTimeout"
 
   let private constant ALPHA_CHARS:String = "0123456789ABCDEF"
+  ||""))
   let private constant HAS_NEXT_FLAG:uint8 = 128
   let private constant BODY_FLAG:uint8 = 1
   let private constant CLIENT_ID_FLAG:uint8 = 2

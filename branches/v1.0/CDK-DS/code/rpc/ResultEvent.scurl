@@ -18,7 +18,7 @@
   field public constant result:any
   field public constant headers:any
 
-  let public constant RESULT:String = "result"
+  let public constant RESULT:String = "result" ||""
 
   {constructor public {default
                           type:String,

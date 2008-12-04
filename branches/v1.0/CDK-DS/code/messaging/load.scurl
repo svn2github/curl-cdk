@@ -57,8 +57,6 @@
     "CurlConnectionChannel.scurl",
     "CurlConnectionMessageResponder.scurl",
     "FlexClient.scurl",
-    || not really implemented yet.
-||--    "HttpChannel.scurl",
     "MessageAckEvent.scurl",
     "MessageAgent.scurl",
     "MessageEvent.scurl",
@@ -71,5 +69,4 @@
     "PollSyncMessageResponder.scurl",
     "Producer.scurl",
     "PropertyChangeEvent.scurl"
-||--    "ServerConfig.scurl"
 }

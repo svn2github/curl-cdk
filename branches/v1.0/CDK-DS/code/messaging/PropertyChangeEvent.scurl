@@ -28,7 +28,7 @@
   field public new-value:any
   field public source:any
 
-  let public constant PROPERTY_CHANGE:String = "propertyChange"
+  let public constant PROPERTY_CHANGE:String = "propertyChange" ||""
 
   {constructor public {default
                           type:String,

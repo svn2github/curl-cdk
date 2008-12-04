@@ -91,7 +91,7 @@
                 {self.set-header k, item}}
         }
      else
-        {error "Unknown data type for headers."}
+        {error {lmessage Unknown data type for headers.}}
     }
   }
 

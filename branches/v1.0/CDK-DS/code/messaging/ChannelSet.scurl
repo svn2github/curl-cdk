@@ -61,7 +61,7 @@
                       }
     {construct-super}
     {if channel != null and channels != null then
-        {error "Only one of channel or channels may be supplied."}
+        {error {lmessage Only one of 'channel' or 'channels' may be supplied.}}
     }
     set self.channel-event-handler =
         {on e:MessageEvent do
@@ -276,7 +276,8 @@
 
     || FIXME: why not allow any character-encoding?
     || Use legacy charset if not utf8
-    {if character-encoding != null and character-encoding != CharEncoding.utf8 then
+    {if character-encoding != null and character-encoding != CharEncoding.utf8
+     then
         set character-encoding = null
     }
     def creds = {encode-credentials username, password, character-encoding}
@@ -296,14 +297,13 @@
                       character-encoding:#CharEncoding = null
                   }:AuthenticationAgent
     {if self.authenticated? then
-        || IllegalOperationError
-        {error "Channel Set is already authenticated."}}
+        {error {lmessage Channel Set is already authenticated.}}
+    }
     
     {if self.auth-agent != null and
         self.auth-agent.state != AuthenticationAgent.LOGGED_OUT_STATE
      then
-        || IllegalOperationError
-        {error "ChannelSet is in the process of logging in or logging out."}
+        {error {lmessage ChannelSet is in the process of logging in or logging out.}}
     }
 
     || Create CommandMessage for logging in.
@@ -340,7 +340,7 @@
             (self.auth-agent.state == AuthenticationAgent.LOGGING_IN_STATE or
              self.auth-agent.state == AuthenticationAgent.LOGGING_OUT_STATE)
          then
-            {error "ChannelSet is in the process of logging in or logging out."}
+            {error {lmessage ChannelSet is in the process of logging in or logging out.}}
         }
 
         {self.sync-credentials null}
@@ -425,7 +425,7 @@
     def cmd = {CommandMessage}
     set cmd.operation = operation
     set cmd.body = credentials
-    set cmd.destination = "auth"
+    set cmd.destination = "auth" ||""
     {if-non-null character-encoding then
         set cmd.headers[CommandMessage.CREDENTIALS_CHARSET_HEADER] =
             {char-encoding-to-http-charset character-encoding}
@@ -481,7 +481,7 @@
 
   {method private {hunt}:bool
     {if self.channels.empty? then
-        {throw {new Exception, "NoChannelAvailableError"}}
+        {error {lmessage No channel available.}}
     }
     {inc self.current-channel-index}
     {if self.current-channel-index >= self.channels.size then
@@ -517,7 +517,7 @@
 ||--                    {throw {new Exception, "NoChannelAvailableError"}}
 ||--                }
 ||--             else
-                {throw {new Exception, "NoChannelAvailableError"}}
+                    {error {lmessage No channel available.}}
 ||--            }
         }
      else
@@ -546,7 +546,7 @@
         {return}
     }
     {if self.configured? then
-        {throw {new Exception, "Cannot add channels when configured."}}
+        {error {lmessage Cannot add channels when configured.}}
     }
     {self.channels.append channel}
     {if-non-null self.credentials then
@@ -560,7 +560,7 @@
 
   {method public {remove-channel channel:Channel}:void
     {if self.configured? then
-        {throw {new Exception, "Cannot remove channels when configured."}}
+        {error {lmessage Cannot remove channels when configured.}}
     }
     def channel-index = {self.channels.find channel}
     {if channel-index >= 0 then
@@ -632,17 +632,17 @@
 
   || Called by the current Channel.
   {method protected {channel-disconnect-handler e:ChannelEvent}:void
-    {dump "TODO: ChannelSet.channel-disconnect-handler"}
+||--    {dump "TODO: ChannelSet.channel-disconnect-handler"}
     || TODO:
     set self.connecting? = false
     set self._connected? = false
   }
 
   {method protected {channel-fault-handler e:ChannelFaultEvent}:void
-    {dump e.fault-code}
-    {dump e.fault-string}
-    {dump e.fault-detail}
-    {dump "TODO: ChannelSet.channel-fault-handler"}
+||--    {dump e.fault-code}
+||--    {dump e.fault-string}
+||--    {dump e.fault-detail}
+||--    {dump "TODO: ChannelSet.channel-fault-handler"}
     || TODO: What should we be doing here?
     {if self.current-channel == e.channel then
         set self.connecting? = false
