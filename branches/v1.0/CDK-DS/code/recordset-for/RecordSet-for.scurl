@@ -65,7 +65,7 @@
                     || NOTE: this gives a mysterious failure
                     ||{return {uninitialized-value-for-type T}
                     {error
-                        {message 'RecordSet-for.new-record' can not create a '{value T}'
+                        {lmessage 'RecordSet-for.new-record' can not create a '{value T}'
                             because '{value T}' does not have a no-arg 'default' constructor
                             and no 'create-subject' procedure was supplied.}}}
             }}
@@ -85,7 +85,7 @@
         {r.internal-attach self}
      else 
         {with-compiler-directives allow-any-calls? = true do
-            {error {message Type {value T} required for {value self}.append}}
+            {error {lmessage Type {value T} required for {value self}.append}}
         }}
   }
 }
@@ -252,5 +252,5 @@
 || work around insistence on default-value
 {define-proc {default-value-proc 
                  rf:RecordField, rs:RecordSet}:any
-    {error {message Need default-value}}
+    {error {lmessage Need default-value}}
 }

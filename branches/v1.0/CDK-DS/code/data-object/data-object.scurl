@@ -475,7 +475,7 @@
     {if not self.traits.dynamic?
         and not set?
      then
-        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
+        {data-exception {lmessage Can not add member '{value key}': {value self} is not dynamic?}}}
     let changed?:bool = not set? or self[key] != val
     {if changed? then
         {self.preserve-original-data}
@@ -489,7 +489,7 @@
     {if ||not self.traits.dynamic? and
         {self.traits.members.find key} >= 0
      then
-        {data-exception {message Can not remove member '{value key}': {value self} declares it static.}}}
+        {data-exception {lmessage Can not remove member '{value key}': {value self} declares it static.}}}
     let changed?:bool = {self.set? key}
     {if changed? then
         {self.preserve-original-data}
@@ -633,7 +633,7 @@
   {method public {get key:String}:any
     def index = {self.index-for key}
     {if index < 0 then
-        {data-exception {message Key '{value key}' not found in {value self}}}}
+        {data-exception {lmessage Key '{value key}' not found in {value self}}}}
     {return self.data[index]}
   }
   || NOTE: docstring inherited
@@ -653,7 +653,7 @@
   {method public {set key:String, val:any}:void
     def index = {self.index-for key}
     {if index < 0 then
-        {data-exception {message Can not add member '{value key}': {value self} is not dynamic?}}}
+        {data-exception {lmessage Can not add member '{value key}': {value self} is not dynamic?}}}
     let changed?:bool = self.data[index] != val
     {if changed? then
         {self.preserve-original-data}
@@ -663,7 +663,7 @@
   }
   || NOTE: docstring inherited
   {method public {unset key:String}:void
-    {data-exception {message Can not remove member '{value key}': {value self} is not dynamic?}}
+    {data-exception {lmessage Can not remove member '{value key}': {value self} is not dynamic?}}
   }
   || NOTE: docstring inherited
   {method public {to-Iterator}:{Iterator-of any}
@@ -706,7 +706,7 @@
   {method public {get-original key:String}:any
     def index = {self.index-for key}
     {if index < 0 then
-        {data-exception {message Key '{value key}' not found in {value self}}}}
+        {data-exception {lmessage Key '{value key}' not found in {value self}}}}
     {return
         {if-non-null original = self.original-data then
             original[index]
@@ -874,7 +874,7 @@
         {self.inconsistent-traits-error}}
   }
   {method {inconsistent-traits-error}:never-returns
-    {data-exception {message {this-class}: requires {value self.traits} data}}
+    {data-exception {lmessage {this-class}: requires {value self.traits} data}}
   }
 }
 {doc-next ||=== DataObjectRecord

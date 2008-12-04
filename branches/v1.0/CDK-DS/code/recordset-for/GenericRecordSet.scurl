@@ -261,7 +261,7 @@
   {method public {internal-attach record-set:GenericRecordSet}:void
     {if self.record-set != null and
         self.record-set != record-set then
-        {error {message Record {value self} already attached}}}
+        {error {lmessage Record {value self} already attached}}}
     {record-set.records.append self}
     set self._record-set = record-set
     set self.state = RecordState.appended
@@ -294,7 +294,7 @@
   {method {ensure-attached}:void
     {if self._record-set == null then
         {error
-            {message Attempted to perform operation on detached Record.}
+            {lmessage Attempted to perform operation on detached Record.}
         }}
   }
   {method {ensure-modifiable}:void
