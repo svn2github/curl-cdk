@@ -28,8 +28,9 @@
             "messageId",
             "timeToLive",
             "clientId",
-            "destination"},
+            "destination"
             ||""))
+        },
         dynamic? = false
       }
   

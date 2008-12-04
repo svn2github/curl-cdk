@@ -19,7 +19,7 @@
   field private constant _content-type:String
   {constructor public {default
                           bytes:ByteArray,
-                          content-type:String = "application/x-amf"
+                          content-type:String = "application/x-amf" ||""
                       }
     {construct-super}
     set self.bytes = bytes

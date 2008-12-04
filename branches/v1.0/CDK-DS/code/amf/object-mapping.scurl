@@ -148,7 +148,7 @@
 || --------------------
 {define-proc {class-traits-for type:ClassType}:#DataObjectTraits
     {return
-        {if-non-null class-traits = {type.get-class-variable "traits"} then
+        {if-non-null class-traits = {type.get-class-variable "traits"} then ||""
             {type-switch {class-traits.get-value}
              case traits:DataObjectTraits do
                 traits
@@ -261,7 +261,7 @@
     let factory-name:String = ""
     {for c in cs do
         def name = c.name
-        {if name == "default" then
+        {if name == "default" then ||""
             set factory-name = name
             {break}
          elseif factory-name == "" then

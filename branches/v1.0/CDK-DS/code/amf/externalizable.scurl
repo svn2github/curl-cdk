@@ -18,7 +18,7 @@
 
   def public traits =
       {DataObjectTraits
-        "flex.messaging.io.ArrayCollection",
+        "flex.messaging.io.ArrayCollection", ||""
         {StringArray},
         dynamic? = false,
         externalizable? = true}

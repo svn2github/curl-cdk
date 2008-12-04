@@ -31,8 +31,9 @@
             "messageId",
             "timeToLive",
             "clientId",
-            "destination"}
+            "destination"
             ||""))
+        }
       }
 
   field public correlation-id:#String

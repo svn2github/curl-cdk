@@ -94,7 +94,7 @@
         {if-debuggable
             {if self.log? then
                 {for x in ... do
-                    {output "sending message: " & x}
+                    {output "sending message: " & x} ||""
                 }}}
         
         let http-file:HttpFile = {u.instantiate-File} asa HttpFile
@@ -103,7 +103,7 @@
         || TODO: save the AsyncWorker and allow canceling?
         
         {http-file.http-async-read-open-byte
-            request-method = "post",
+            request-method = HttpRequestMethod.post,
             request-data = request-data,
             request-headers = self.http-headers,
             
@@ -257,7 +257,7 @@
      else
         def err = {new ErrorMessage}
         set err.fault-code = {lmessage Unable to find a message.}
-        set err.fault-string = "warn" ||
+        set err.fault-string = "warn" ||""
         set err.extended-data = bodies
         {responder.status err}
     }
@@ -271,7 +271,7 @@
         {AMFEnvelope}
     def amf-body =
         {AMFBody
-            target-uri = {if-non-null command then command else "null"},
+            target-uri = {if-non-null command then command else "null"}, ||""
             response-uri = "/" & CurlConnection.response-uri-count,
             length = AMF0Serializer.UNKNOWN_CONTENT_LENGTH,
             args}

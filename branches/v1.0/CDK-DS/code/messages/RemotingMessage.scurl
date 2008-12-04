@@ -30,8 +30,9 @@
             "clientId",
             "destination",
             "operation",
-            "source"}
+            "source"
             ||""))
+        }
       }
 
   field public operation:#String

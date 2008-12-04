@@ -84,7 +84,7 @@
   {setter public {authenticated? b?:bool}:void
     {if self._authenticated? != b? then
         def event = {PropertyChangeEvent.create-update-event
-                        self, "authenticated?", self._authenticated?, b?}
+                        self, "authenticated?", self._authenticated?, b?} ||""
         set self._authenticated? = b?
 
 ||--        {if not self._authenticated? then

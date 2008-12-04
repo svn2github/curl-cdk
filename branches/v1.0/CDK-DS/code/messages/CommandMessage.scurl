@@ -30,8 +30,9 @@
             "messageId",
             "timeToLive",
             "clientId",
-            "destination"}
+            "destination"
             ||""))
+        }
       }
 
   field public operation:uint
@@ -106,7 +107,7 @@
 
   {define-proc public {get-operation-as-String op:int}:String
     {if (op < 0 or op >= CommandMessage.operation-names.size) then
-        {return {lmessage "Invalid operation '{value op}'.}}
+        {return {lmessage Invalid operation '{value op}'.}}
     }
     {return CommandMessage.operation-names[op]}
   }

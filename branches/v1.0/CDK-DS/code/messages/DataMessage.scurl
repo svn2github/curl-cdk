@@ -82,7 +82,7 @@
 
   {define-proc public {get-operation-as-String op:uint}:String
     {if (op < 0 or operation >= self.operation-names.size) then
-        {return {lmessage "Invalid operation '{value op}'.}}
+        {return {lmessage Invalid operation '{value op}'.}}
     }
     {return operation-names[op]}
   }

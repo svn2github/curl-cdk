@@ -173,7 +173,10 @@
                     set err.fault-code = "Client.Authentication.Error" ||""
                     set err.fault-string =
                         "Credentials specified do not match those used on underlying connection." ||""
-                    set err.fault-detail = {lmessage "Channel was authenticated with a different set of credentials than those used for this agent."}
+                    set err.fault-detail =
+                        {lmessage Channel was authenticated with a
+                            different set of credentials than those used
+                            for this agent.}
                     {self.enqueue-event
                         {new MessageFaultEvent,
                             MessageFaultEvent.FAULT,
@@ -356,8 +359,7 @@
                 {self.channel-set.send self, message}
             }
          else
-            || TODO: InvalidDestinationError
-            {throw {new Exception, "InvalidDestinationError"}}
+            {error {lmessage Invalid destination.}}
         }
     }
   }
@@ -492,7 +494,7 @@
     || Handle server session expiration.
     || setting 401 to extended-data only happens
     || when the authentication error occurs in WEBORB?
-    {if (error-message.fault-code == "Client.Authentication" or
+    {if (error-message.fault-code == "Client.Authentication" or ||""
          error-message.extended-data == 401) and
         self.authenticated? and
         self.channel-set != null and

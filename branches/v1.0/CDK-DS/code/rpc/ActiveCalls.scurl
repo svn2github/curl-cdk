@@ -51,7 +51,9 @@
     def (token:#AsyncToken, token-exists?) = {self.calls.get-if-exists id}
     {if token-exists? then
         {self.calls.remove id}
-        def index = {self.call-order.find id, search-direction = "backward"}
+        def index =
+            {self.call-order.find
+                id, search-direction = SearchDirection.backward}
         {if index != -1 then
             {self.call-order.remove index}
         }

@@ -66,7 +66,7 @@
     def err = {new ErrorMessage}
     set err.correlation-id = self.message.message-id
     set err.fault-string = "Delivery in doubt" ||""
-    set err.fault-detail = {lmessage "Delivery in doubt"}
+    set err.fault-detail = {lmessage Delivery in doubt}
     set err.fault-code = ErrorMessage.MESSAGE_DELIVERY_IN_DOUBT
     {self.agent.fault err, self.message}
   }
@@ -136,7 +136,7 @@
                         def err = {new ErrorMessage}
                         set err.fault-code = "Server.Acknowledge.Failed" ||""
                         set err.fault-string = "No message available" ||""
-                        set err.fault-detail = {lmessage "No details available"}
+                        set err.fault-detail = {lmessage No details available}
                         set err.correlation-id = self.message.message-id
                         {self.agent.fault err, self.message}
                     }
@@ -145,7 +145,7 @@
                 def err = {new ErrorMessage}
                 set err.fault-code = "Server.Acknowledge.Failed" ||""
                 set err.fault-string = "Acknowledge Failed" ||""
-                set err.fault-detail = {lmessage "No details available"}
+                set err.fault-detail = {lmessage No details available}
                 set err.correlation-id = self.message.message-id
                 {self.agent.fault err, self.message}
             }

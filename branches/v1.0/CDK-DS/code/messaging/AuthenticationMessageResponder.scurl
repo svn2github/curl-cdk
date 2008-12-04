@@ -31,11 +31,11 @@
     set channel.authenticating? = false
     {if cmd.operation == CommandMessage.LOGIN_OPERATION then
         {if-debuggable
-            {output "Login successful"}}
+            {output "Login successful"}} ||""
         set channel.authenticated? = true
      else
         {if-debuggable
-            {output "Logout successful"}}
+            {output "Logout successful"}} ||""
         set channel.authenticated? = false
     }
   }

@@ -53,7 +53,8 @@
             create-subject
          else
             {if-non-null create-subject =
-                {if-non-null c = {(T asa ClassType).get-constructor "default"} then
+                {if-non-null c = {(T asa ClassType).get-constructor "default"} ||""
+                 then
                     {if (c.type asa ProcType).num-args == 0 then
                         {proc {}:T
                             {return {c.new} asa T}}

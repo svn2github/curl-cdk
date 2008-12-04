@@ -35,7 +35,7 @@
 {import * from COM.CURL.CDK.MESSAGES}
 
 {let public amf-timing?:bool = false}
-{let public stop-watch:StopWatch = {new StopWatch}}
+{let public constant stop-watch:StopWatch = {new StopWatch}}
 {let public server-exec-plus-transfer-time:Time = 0s}
 {let public deserialization-time:Time = 0s}
 

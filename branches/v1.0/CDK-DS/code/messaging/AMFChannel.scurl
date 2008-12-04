@@ -190,9 +190,9 @@
                     {new ChannelFaultEvent,
                         ChannelFaultEvent.FAULT,
                         channel = self,
-                        code = "Channel.Connect.Failed",
-                        level = "error",
-                        description = "Invalid Url: " & self.uri
+                        code = "Channel.Connect.Failed", ||""
+                        level = "error", ||""
+                        description = {lmessage Invalid Url '{value self.uri}.}
                     }
                 }
 ||--            }
@@ -201,7 +201,7 @@
         {proc {msg:IMessage}:void
             {type-switch msg
              case err:ErrorMessage do
-                {if err.fault-code == "Client.Authentication" then
+                {if err.fault-code == "Client.Authentication" then ||""
                     || Connection succeeded, but authentication failed.
                     {self.result-handler err}
                     {self.enqueue-event
@@ -209,7 +209,7 @@
                             ChannelFaultEvent.FAULT,
                             channel = self,
                             code = err.fault-code,
-                            level = "warn",
+                            level = "warn", ||""
                             description = err.fault-detail,
                             root-cause = err
                         }
@@ -229,9 +229,10 @@
                         {ChannelFaultEvent
                             ChannelFaultEvent.FAULT,
                             channel = self,
-                            code = "Channel.Ping.Failed",
-                            level = "error",
-                            description = err.fault-detail & "url: " & self.uri,
+                            code = "Channel.Ping.Failed", ||""
+                            level = "error", ||""
+                            description =
+                                {lmessage {value err.fault-detail} Url: {value self.uri}},
                             root-cause = err
                         }
                     }
