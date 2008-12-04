@@ -58,7 +58,7 @@
     {self.initialize}
 
     {self.start-with-idling
-        {Arguments name, async? = true, {splice ...}}
+        {Arguments name, {splice ...}}
     }
 
     {return self.result}
