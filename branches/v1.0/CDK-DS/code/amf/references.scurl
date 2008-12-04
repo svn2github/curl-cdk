@@ -30,7 +30,7 @@
     {if self.cached-objects.size < max-uint16 then
         {self.cached-objects.append obj}
      else
-        {throw {AMFException {lmessage Too many object references.}}}
+        {throw {AMFException {lmessage Too many references in '{value {this-function}}'.}}}
     }
   }
 
@@ -39,7 +39,7 @@
     {if found? then
         {return ret}
      else
-        {throw {AMFException {lmessage Object for reference {value index} not found.}}}
+        {throw {AMFException {lmessage Reference for index {value index} in '{value {this-function}}' not found.}}}
     }
   }
 
@@ -75,7 +75,7 @@
     {if self.cached-strings.size < max-int29 then
         {self.cached-strings.append str}
      else
-        {throw {AMFException {lmessage Too many string references.}}}
+        {throw {AMFException {lmessage Too many references in '{value {this-function}}'.}}}
     }
   }
 
@@ -84,7 +84,7 @@
     {if found? then
         {return ret}
      else
-        {throw {AMFException {lmessage String for reference {value index} not found.}}}
+        {throw {AMFException {lmessage Reference for index {value index} in '{value {this-function}}' not found.}}}
     }
   }
 
@@ -103,7 +103,7 @@
     {if self.cached-objects.size < max-int29 then
         {self.cached-objects.append obj}
      else
-        {throw {AMFException {lmessage Too many object references.}}}
+        {throw {AMFException {lmessage Too many references in '{value {this-function}}'.}}}
     }
   }
 
@@ -112,7 +112,7 @@
     {if found? then
         {return ret}
      else
-        {throw {AMFException {lmessage Object for reference {value index} not found.}}}
+        {throw {AMFException {lmessage Reference for index {value index} in '{value {this-function}}' not found.}}}
     }
   }
 
@@ -129,7 +129,7 @@
     {if self.cached-traits.size < 0x7FFFFFF then
         {self.cached-traits.append trait}
      else
-        {throw {AMFException {lmessage Too many trait references.}}}
+        {throw {AMFException {lmessage Too many references in '{value {this-function}}'.}}}
     }
   }
   
@@ -138,7 +138,7 @@
     {if found? then
         {return ret}
      else
-        {throw {AMFException {lmessage Trait for reference {value index} not found.}}}
+        {throw {AMFException {lmessage Reference for index {value index} in '{value {this-function}}' not found.}}}
     }
   }
 
