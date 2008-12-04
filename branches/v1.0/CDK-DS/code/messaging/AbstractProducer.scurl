@@ -120,12 +120,12 @@
     {self.internal-fault err, message}
   }
 
-  {method protected {internal-fault
-                        err:ErrorMessage,
-                        message:IMessage,
-                        route-to-store?:bool = true,
-                        ignore-disconnect-barrier?:bool = false
-                    }:void
+  {method private {internal-fault
+                      err:ErrorMessage,
+                      message:IMessage,
+                      route-to-store?:bool = true,
+                      ignore-disconnect-barrier?:bool = false
+                  }:void
     {if self.disconnect-barrier? and not ignore-disconnect-barrier? then
         {return}
     }
@@ -141,16 +141,11 @@
                     set new-err.fault-code = "Client.Error.Connect" ||""
                     set new-err.correlation-id = self.connect-message.message-id
                     set new-err.root-cause = err.root-cause
-                    {super.fault new-err, message}
-                 else
-                    {super.fault err, message}
+                    set err = new-err
                 }
 ||--            }
-         else
-            {super.fault err, message}
         }
-     else
-        {super.fault err, message}
     }
+    {super.fault err, message}
   }
 }

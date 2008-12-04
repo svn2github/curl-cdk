@@ -25,11 +25,11 @@
       {construct-super agent, imessage, channel = channel}
     }
 
-  {method public {channel-disconnect-handler e:ChannelEvent}:void
+  {method protected {channel-disconnect-handler e:ChannelEvent}:void
     || This implementation intentionally left blank.
   }
 
-  {method public {channel-fault-handler e:ChannelFaultEvent}:void
+  {method protected {channel-fault-handler e:ChannelFaultEvent}:void
     || This implementation intentionally left blank.
   }
 

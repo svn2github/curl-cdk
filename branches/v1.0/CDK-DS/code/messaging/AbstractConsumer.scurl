@@ -306,7 +306,7 @@
     }
   }
 
-  {method public {resubscribe event:TimerEvent}:void
+  {method protected {resubscribe event:TimerEvent}:void
     || TODO:
     {if self.current-attempt > self.resubscribe-attempts then
         {self.stop-resubscribe-timer}
@@ -372,7 +372,7 @@
     }
   }
 
-  {method public {channel-disconnect-handler event:ChannelEvent}:void
+  {method protected {channel-disconnect-handler event:ChannelEvent}:void
     set self.subscribed? = false
     {super.channel-disconnect-handler event}
     {if self.should-be-subscribed? and not event.rejected? then
@@ -380,7 +380,7 @@
     }
   }
 
-  {method public {channel-fault-handler event:ChannelFaultEvent}:void
+  {method protected {channel-fault-handler event:ChannelFaultEvent}:void
     {if not event.channel.connected? then
         set self.subscribed? = false
     }

@@ -39,6 +39,27 @@
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
 
+  {doc-next
+    {purpose
+        Create a {docref MessageAgent} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+  }
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
@@ -62,6 +83,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        The destination at the {param endpoint} for all messages being sent.
+    }
+  }
   {getter public {destination}:String
     {return self._destination}
   }
@@ -95,6 +121,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Is this object connected to a server.
+    }
+  }
   {getter public {connected?}:bool
     {return self._connected?}
   }
@@ -130,11 +161,19 @@
     }
   }
 
+  {doc-next
+    {purpose
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+  }
   {getter public {channel-set}:#ChannelSet
     {if self._channel-set == null then
         {if-non-null endpoint = self._endpoint then
             set self.channel-set =
-                {ChannelSet channel = {AMFChannel id = self.destination, uri = endpoint}}
+                {ChannelSet
+                    channel = {AMFChannel id = self.destination, uri = endpoint}
+                }
         }
     }
     {return self._channel-set}
@@ -145,6 +184,14 @@
     set self.channel-set-mode = MessageAgent.MANUALLY_ASSIGNED_CHANNELSET
   }
 
+  {doc-next
+    {purpose
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {param channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+  }
   {getter public {endpoint}:#Url
     {return self._endpoint}
   }
@@ -392,7 +439,7 @@
     }
   }
 
-  {method public {internal-set-channel-set channel-set:#ChannelSet}:void
+  {method protected {internal-set-channel-set channel-set:#ChannelSet}:void
     {if self._channel-set != channel-set then
         {if-non-null old-channel-set = self._channel-set then
             {old-channel-set.disconnect self}

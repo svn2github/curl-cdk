@@ -61,7 +61,7 @@
     set self.disconnected? = true
   }
 
-  {method public {channel-disconnect-handler e:ChannelEvent}:void
+  {method protected {channel-disconnect-handler e:ChannelEvent}:void
     {self.disconnect}
     def err = {new ErrorMessage}
     set err.correlation-id = self.message.message-id
@@ -71,7 +71,7 @@
     {self.agent.fault err, self.message}
   }
 
-  {method public {channel-fault-handler e:ChannelFaultEvent}:void
+  {method protected {channel-fault-handler e:ChannelFaultEvent}:void
     {self.disconnect}
     def err = {ErrorMessage}
     set err.fault-code = e.fault-code

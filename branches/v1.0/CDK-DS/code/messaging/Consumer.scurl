@@ -110,7 +110,7 @@
     }
   }
 
-  {method public {internal-send
+  {method protected {internal-send
                      message:IMessage,
                      wait-for-client-id?:bool = true
                  }:void
