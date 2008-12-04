@@ -154,7 +154,7 @@
                 traits
              else
                 {error
-                    {message Expected DataObjectTraits for {value type}.traits
+                    {lmessage Expected DataObjectTraits for {value type}.traits
                         but found {value class-traits}}}}
          else null}}
 }
@@ -256,7 +256,7 @@
                             p.num-args == 0
                          else false}}}}
     {if cs.size == 0 then
-        {error {message Type {value type} does not have a no-arg constructor or factory.}}}
+        {error {lmessage Type {value type} does not have a no-arg constructor or factory.}}}
     
     let factory-name:String = ""
     {for c in cs do
@@ -338,13 +338,13 @@
                 }
              else
                 {output
-                    {message Unexpected reader property: '{value type}.{value m}'}}
+                    {lmessage Unexpected reader property: '{value type}.{value m}'}}
                 {expand-template
                     {do
                         def val = {in.read-one}
                         {if-debuggable 
                             def msg =
-                                {message Ignoring property
+                                {lmessage Ignoring property
                                     '{value ?{Literal type}}.{value ?{Literal m}}':
                                     {value val}}
                             {output msg}}}
