@@ -76,7 +76,8 @@
             create-missing-parents? = true,
             error-if-exists? = false}
         {with-local-file-lock file do
-            {copy loc, file}}
+            {copy loc, file,
+                error-if-exists? = false}}
     }
     {return file}
 }
