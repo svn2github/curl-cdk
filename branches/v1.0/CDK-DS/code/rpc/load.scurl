@@ -17,11 +17,17 @@
 {curl 6.0 package}
 
 {package COM.CURL.CDK.RPC,
-    version = "0.1",
+    version = "1.0",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
     resource-directory = "../resources/",
     default-locale = "en"
+}
+
+{doc
+    type = package,
+    COM.CURL.CDK.RPC
+    {purpose This package provides remoting for AMF services.}
 }
 
 {import * from CURL.GUI.STANDARD}

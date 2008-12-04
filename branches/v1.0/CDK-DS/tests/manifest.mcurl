@@ -16,7 +16,7 @@
 
 {curl 6.0 manifest}
 {manifest COM.CURL.CDK.DATA-SERVICES-SUPPORT,
-    version = "0.1"}
+    version = "1.0"}
 
 || libraries
 || --------------------

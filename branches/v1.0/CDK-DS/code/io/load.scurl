@@ -17,11 +17,17 @@
 {curl 6.0 package}
 
 {package COM.CURL.CDK.IO,
-    version = "0.1",
+    version = "1.0",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
     resource-directory = "../resources/",
     default-locale = "en"
+}
+
+{doc
+    type = package,
+    COM.CURL.CDK.IO
+    {purpose This package supports AMF serialization format.}
 }
 
 {include

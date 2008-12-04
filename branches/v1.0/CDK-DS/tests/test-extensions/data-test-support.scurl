@@ -17,7 +17,7 @@
 {curl 6.0 package}
 
 {package COM.CURL.CDK.DATA-TEST-SUPPORT,
-    version = "0.1",
+    version = "1.0",
     {compiler-directives
         careful? = true
     }

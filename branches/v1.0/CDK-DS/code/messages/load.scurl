@@ -17,11 +17,17 @@
 {curl 6.0 package}
 
 {package COM.CURL.CDK.MESSAGES,
-    version = "0.1",
+    version = "1.0",
     {compiler-directives careful? = true},
     translations-file = "messages.xml",
     resource-directory = "../resources/",
     default-locale = "en"
+}
+
+{doc
+    type = package,
+    COM.CURL.CDK.MESSAGES
+    {purpose This package defines messages used for AMF services.}
 }
 
 {import * from COM.CURL.CDK.IO}
@@ -35,16 +41,11 @@
     "AsyncMessageExt.scurl",
     "CommandMessage.scurl",
     "CommandMessageExt.scurl",
-||--    "DataMessage.scurl",
     "ErrorMessage.scurl",
     "HttpRequestMessage.scurl",
     "IMessage.scurl",
     "RemotingMessage.scurl"
 }
-
-||--{def public IMessageHeaders =
-||--    {HashTable-of String, any}
-||--}
 
 {def public IMessageHeaders =
     StandardDataObject
