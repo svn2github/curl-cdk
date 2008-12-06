@@ -68,7 +68,7 @@
     {if responder-exists? then
         {self.pending-requests.remove id, error-if-missing? = false}
         {responder.fault
-            {MessageFaultEvent message = err}
+            {MessageFaultEvent message = err, root-cause = message}
         }
     }
   }

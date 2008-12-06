@@ -14,7 +14,18 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+  {purpose
+    {docref Event} enqueued when a successful answer from an invoke
+    type message has arrived.
+  }
+}
 {define-class public ResultEvent {inherits AbstractEvent}
+  {doc-next
+    {purpose
+        Result from answering message to an invoke type message.
+    }
+  }
   field public constant result:any
 ||==  field public constant headers:any
 

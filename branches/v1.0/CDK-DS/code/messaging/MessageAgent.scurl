@@ -544,7 +544,7 @@
         }
     }
     {self.enqueue-event
-        {MessageFaultEvent message = error-message}
+        {MessageFaultEvent message = error-message, root-cause = msg}
     }
     || Handle server session expiration.
     || setting 401 to extended-data only happens

@@ -14,9 +14,15 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+  {purpose
+    {docref Event} for when an {docref ErrorMessage} is received.
+  }
+}
 {define-class public MessageFaultEvent {inherits Event}
   field public constant message:#ErrorMessage
   field public constant root-cause:#Object
+
 
   {constructor public {default
                           message:#ErrorMessage = null,
