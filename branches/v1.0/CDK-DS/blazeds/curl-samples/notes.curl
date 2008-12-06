@@ -24,26 +24,6 @@
 
 {heading level = 3, Samples}
 {paragraph
-    {itemize {underline HttpService}
-        {item
-            The CDK-DS' HttpService is not functional, so I'm using conventional
-            Curl techniques for now. I'd like to see the HttpService and
-            WebService objects start working, as a step toward unifying the
-            Curl data access APIs.
-        }
-    }
-    {itemize {underline WebService}
-        {item
-            The CDK-DS' WebService is not implemented, so I'm using conventional
-            WSDK techniques for now. I'd like to see the HttpService and
-            WebService objects start working, as a step toward unifying the
-            Curl data access APIs.
-        }
-        {item
-            Requires privilege to access data from
-            http://www.livecycledata.org/services/ProductWS
-        }
-    }
     {itemize {underline RemoteObject}
         {item
             Requires specification of both the destination and endpoint, unlike

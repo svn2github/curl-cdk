@@ -33,10 +33,6 @@
 {component package COM.CURL.CDK.SAMPLES-SUPPORT,
     location = "load.scurl"
 }
-{component package COM.CURL.WSDL.ProductWS,
-    location = "testdrive-webservice/ProductWS.scurl"
-}
-
 
 || StyleSheet
 {component file CDK-DS-SAMPLES-STYLE-SHEET,
