@@ -32,11 +32,8 @@
             }
         {channel.add-event-handler {non-null self.connect-event-handler}}
         set self.disconnect-event-handler =
-            {on e:ChannelEvent do
-                {switch e.type
-                 case ChannelEvent.DISCONNECT do
-                    {self.channel-disconnect-handler e}
-                }
+            {on e:ChannelDisconnectEvent do
+                {self.channel-disconnect-handler e}
             }
         {channel.add-event-handler {non-null self.disconnect-event-handler}}
     }
@@ -61,7 +58,7 @@
     set self.disconnected? = true
   }
 
-  {method protected {channel-disconnect-handler e:ChannelEvent}:void
+  {method protected {channel-disconnect-handler e:ChannelDisconnectEvent}:void
     {self.disconnect}
     def err = {new ErrorMessage}
     set err.correlation-id = self.message.message-id

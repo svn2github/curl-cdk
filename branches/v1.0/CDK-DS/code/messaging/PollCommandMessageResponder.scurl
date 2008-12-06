@@ -40,10 +40,7 @@
                           {type-switch message
                            case item:IMessage do
                               {channel.enqueue-event
-                                  {new MessageEvent,
-                                      MessageEvent.MESSAGE,
-                                      message = item
-                                  }
+                                  {MessageEvent message = item}
                               }
                            else
                               || TODO: The Flex code seems to imply that we'll
@@ -97,8 +94,7 @@
                       ""
                   }
               def fault-event =
-                  {new ChannelFaultEvent,
-                      ChannelFaultEvent.FAULT,
+                  {ChannelFaultEvent
                       channel = polling-channel,
                       code = "Channel.Polling.Error", ||""
                       level = "error", ||""

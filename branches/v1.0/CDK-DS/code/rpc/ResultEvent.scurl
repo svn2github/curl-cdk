@@ -16,24 +16,21 @@
 
 {define-class public ResultEvent {inherits AbstractEvent}
   field public constant result:any
-  field public constant headers:any
+||==  field public constant headers:any
 
-  let public constant RESULT:String = "result" ||""
 
   {constructor public {default
-                          type:String,
                           message:#IMessage = null,
                           token:#AsyncToken = null,
-                          result:any = null,
-                          headers:any = null
+                          result:any = null
+||==                          headers:any = null
                       }
     {construct-super
-        type,
         message = message,
         token = token
     }
     set self.result = result
-    set self.headers = headers
+||--    set self.headers = headers
   }
 
   {method public {call-token-responders}:void

@@ -54,7 +54,6 @@
      else
         def err-msg = {ErrorMessage}
         def cfe = {ChannelFaultEvent
-                      ChannelFaultEvent.FAULT,
                       channel = self.channel,
                       code = "Channel.Authentication.Error", ||""
                       level = "warn", ||""

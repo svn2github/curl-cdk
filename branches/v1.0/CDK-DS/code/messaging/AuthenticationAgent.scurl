@@ -17,7 +17,7 @@
 {define-class public AuthenticationAgent {inherits MessageAgent}
 
   field private _state:int
-  field private responders:{Array-of AuthenticationResultResponder}
+  field private constant responders:{Array-of AuthenticationResultResponder}
 
   let public constant LOGGED_OUT_STATE:int = 0
   let public constant LOGGING_IN_STATE:int = 1

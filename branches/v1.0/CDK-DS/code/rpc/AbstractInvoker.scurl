@@ -21,7 +21,7 @@
   field protected fault-handler:{proc-type {x:any}:void} =
       {uninitialized-value-for-type {proc-type {x:any}:void}}
   field protected result:any
-  field protected response-headers:#{Array-of any}
+||--  field protected response-headers:#{Array-of any}
 ||--  field protected make-objects-bindable?:bool = true
   || Note, this really just keeps track of id's still in use.
   field protected active-calls:ActiveCalls
@@ -82,7 +82,6 @@
         }
         {self.dispatch-rpc-event
             {InvokeEvent
-                InvokeEvent.INVOKE,
                 token = token,
                 message = message
             }
@@ -91,7 +90,6 @@
         {after 0s do
             {self.dispatch-rpc-event
                 {FaultEvent
-                    FaultEvent.FAULT,
                     fault = 
                         {Fault
                             "Invoke failed", ||""
@@ -109,7 +107,6 @@
         {after 0s do
             {self.dispatch-rpc-event
                 {FaultEvent
-                    FaultEvent.FAULT,
                     fault = {Fault "Invoke failed", e.message}, ||""
                     token = token,
                     message = message
@@ -133,11 +130,10 @@
                             ||       {new flash.events.EventBINDING_RESULT}
                             def result-event =
                                 {ResultEvent
-                                    ResultEvent.RESULT,
                                     result = self.result,
                                     token = token,
-                                    message = event.message,
-                                    headers = self.response-headers
+                                    message = event.message
+||--                                    headers = self.response-headers
                                 }
                             {self.dispatch-rpc-event result-event}
                         }
@@ -151,11 +147,7 @@
         {proc {info:any}:void
             {type-switch info
              case event:MessageFaultEvent do
-                def message-event =
-                    {new MessageEvent,
-                        MessageEvent.MESSAGE,
-                        message = event.message
-                    }
+                def message-event = {MessageEvent message = event.message}
                 def token = {self.pre-handle message-event}
                 {if token == null and
                     not ((event.message asa AsyncMessage).correlation-id == null or
@@ -179,10 +171,9 @@
                                 fault-detail = event.fault-detail
                             }
                 def fault-event = {FaultEvent
-                                      FaultEvent.FAULT,
                                       fault = fault,
                                       token = token,
-                                      headers = self.response-headers,
+||--                                      headers = self.response-headers,
                                       message = event.message
                                   }
                 {self.dispatch-rpc-event fault-event}

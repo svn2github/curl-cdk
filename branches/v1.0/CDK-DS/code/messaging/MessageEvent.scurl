@@ -15,18 +15,12 @@
 ||| limitations under the License.
 
 {define-class public MessageEvent {inherits Event}
-  field public constant type:String
   field public constant message:#IMessage
 
-  let public constant MESSAGE:String = "message" ||""
-  let public constant RESULT:String = "result" ||""
-
   {constructor public {default
-                          type:String,
                           message:#IMessage = null
                       }
     {construct-super}
-    set self.type = type
     set self.message = message
   }
 }

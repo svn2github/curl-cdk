@@ -16,24 +16,21 @@
 
 {define-class public FaultEvent {inherits AbstractEvent}
   field public constant fault:#Fault
-  field public constant headers:any
+||--  field public constant headers:#{Array-of any}
 
-  let public constant FAULT:String = "fault" ||""
 
   {constructor public {default
-                          type:String,
                           message:#IMessage = null,
                           token:#AsyncToken = null,
-                          fault:#Fault = null,
-                          headers:any = null
+                          fault:#Fault = null
+||--                          headers:#{Array-of any} = null
                       }
     {construct-super
-        type,
         token = token,
         message = message
     }
     set self.fault = fault
-    set self.headers = headers
+||--    set self.headers = headers
   }
 
   {method public {call-token-responders}:void

@@ -15,16 +15,12 @@
 ||| limitations under the License.
 
 {define-class public AuthenticationFaultEvent
-  {inherits AbstractAuthenticatoinEvent}
-
-  let public constant FAULT:String = "fault" ||""
+  {inherits AuthenticationEvent}
 
   {constructor public {default
-                          type:String,
                           message:#IMessage = null
                       }
     {construct-super
-        type,
         message = message
     }
   }

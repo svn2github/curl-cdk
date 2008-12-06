@@ -18,12 +18,9 @@
   field public constant fault-code:#String
   field public constant fault-detail:#String
   field public constant fault-string:#String
-  field public constant root-cause:any
-
-  let public constant FAULT:String = "channelFault" ||""
+  field public constant root-cause:#Object
 
   {constructor public {default
-                          type:String,
                           channel:#Channel = null,
                           reconnecting?:bool = false,
                           rejected?:bool = false,
@@ -31,10 +28,9 @@
                           code:#String = null,
                           level:#String = null,
                           description:#String = null,
-                          root-cause:any = null
+                          root-cause:#Object = null
                       }
     {construct-super
-        type,
         channel = channel,
         reconnecting? = reconnecting?,
         rejected? = rejected?,

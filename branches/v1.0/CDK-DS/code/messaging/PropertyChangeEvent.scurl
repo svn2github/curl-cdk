@@ -20,25 +20,19 @@
 }
 
 {define-class public PropertyChangeEvent {inherits Event}
-
-  field public constant type:String
   field public kind:PropertyChangeEventKind
-  field public property:any
+  field public property:#String
   field public old-value:any
   field public new-value:any
-  field public source:any
-
-  let public constant PROPERTY_CHANGE:String = "propertyChange" ||""
+  field public source:#Object
 
   {constructor public {default
-                          type:String,
                           kind:PropertyChangeEventKind,
-                          property:any = null,
+                          property:#String = null,
                           old-value:any = null,
                           new-value:any = null,
-                          source:any = null
+                          source:#Object = null
                       }
-    set self.type = type
     set self.kind = kind
     set self.old-value = old-value
     set self.new-value = new-value
@@ -46,30 +40,18 @@
   }
 
   {factory public {create-update-event
-                      source:any,
-                      property:any,
+                      source:#Object,
+                      property:#String,
                       old-value:any,
                       new-value:any
                   }:PropertyChangeEvent
     {return
         {PropertyChangeEvent
-            PropertyChangeEvent.PROPERTY_CHANGE,
             PropertyChangeEventKind.update,
             property = property,
             old-value = old-value,
-            new-value = new-value
-        }
-    }
-  }
-
-  {method public {clone}:Event
-    {return
-        {PropertyChangeEvent
-            self.type,
-            self.kind,
-            property = self.property,
-            old-value = self.old-value,
-            new-value = self.new-value
+            new-value = new-value,
+            source = source
         }
     }
   }

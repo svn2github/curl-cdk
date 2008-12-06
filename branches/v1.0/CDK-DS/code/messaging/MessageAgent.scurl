@@ -14,11 +14,26 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+{doc-next
+  {purpose
+    Base class for classes that send and receive messages on a
+    {docref ChannelSet}.
+  }
+}
 {define-class public MessageAgent {inherits EventTarget}
   field private _id:String = {AbstractMessage.create-uid}
   field private _channel-set:#ChannelSet
   field private _endpoint:#Url
-  field public _destination:String = ""
+  field private _destination:String
+  {doc-next
+    {purpose
+        Timeout for a request.
+    }
+    {notes
+        This is sent to the server, but is not implemented on the client
+        side yet.
+    }
+  }
   field public request-timeout:Time = -1s
   field protected _client-id:#String
   field protected _connected?:bool = false
@@ -34,7 +49,7 @@
   field private remote-credentials:#String
   field private remote-credentials-character-encoding:#CharEncoding
   field private channel-set-mode:int = MessageAgent.AUTO_CONFIGURED_CHANNELSET
-  field private pending-connect-event:#ChannelEvent
+  field private pending-connect-event:#ChannelConnectEvent
 
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
@@ -216,7 +231,7 @@
         {if b? then
             {if-non-null credentials then
                 {if credentials != self.credentials then
-                    def err = {new ErrorMessage}
+                    def err = {ErrorMessage}
                     set err.fault-code = "Client.Authentication.Error" ||""
                     set err.fault-string =
                         "Credentials specified do not match those used on underlying connection." ||""
@@ -225,10 +240,7 @@
                             different set of credentials than those used
                             for this agent.}
                     {self.enqueue-event
-                        {new MessageFaultEvent,
-                            MessageFaultEvent.FAULT,
-                            message = err
-                        }
+                        {MessageFaultEvent message = err}
                     }
                 }
             }
@@ -243,8 +255,8 @@
          then
             {self.internal-set-channel-set null}
          else
-            {if-non-null self._channel-set then
-                {self._channel-set.disconnect self}
+            {if-non-null channel-set = self._channel-set then
+                {channel-set.disconnect self}
             }
         }
     }
@@ -460,7 +472,7 @@
     }
   }
 
-  {method protected {channel-connect-handler e:ChannelEvent}:void
+  {method protected {channel-connect-handler e:ChannelConnectEvent}:void
     set self.disconnect-barrier? = false
     {if self.needs-config? then
         set self.pending-connect-event = e
@@ -470,7 +482,7 @@
     }
   }
 
-  {method protected {channel-disconnect-handler e:ChannelEvent}:void
+  {method protected {channel-disconnect-handler e:ChannelDisconnectEvent}:void
     set self.connected? = false
     {if-non-null self.remote-credentials then
         set self.send-remote-credentials? = true
@@ -511,8 +523,7 @@
         }
     }
     {self.enqueue-event
-        {new MessageAckEvent,
-            MessageAckEvent.ACKNOWLEDGE,
+        {MessageAckEvent
             ack = ack-message,
             correlation = msg
         }
@@ -533,10 +544,7 @@
         }
     }
     {self.enqueue-event
-        {new MessageFaultEvent,
-            MessageFaultEvent.FAULT,
-            message = error-message
-        }
+        {MessageFaultEvent message = error-message}
     }
     || Handle server session expiration.
     || setting 401 to extended-data only happens

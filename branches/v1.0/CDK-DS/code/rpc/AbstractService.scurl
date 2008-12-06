@@ -15,7 +15,6 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractService {inherits EventTarget}
-  field protected _request-timeout:Time
   field protected async-request:AsyncRequest
 
   {doc-next
@@ -77,6 +76,15 @@
     set self.async-request.destination = d
   }
 
+  {doc-next
+    {purpose
+        Timeout for a request.
+    }
+    {notes
+        This is sent to the server, but is not implemented on the client
+        side yet.
+    }
+  }
   {getter public {request-timeout}:Time
     {return self.async-request.request-timeout}
   }

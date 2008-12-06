@@ -49,12 +49,7 @@
             {self.pending-requests.get-if-exists id}
         {if responder-exists? then
             {self.pending-requests.remove id, error-if-missing? = false}
-            {responder.result
-                {new MessageEvent,
-                    MessageEvent.RESULT,
-                    message = ack
-                }
-            }
+            {responder.result {MessageEvent message = ack}}
         }
     }
   }
@@ -73,10 +68,7 @@
     {if responder-exists? then
         {self.pending-requests.remove id, error-if-missing? = false}
         {responder.fault
-            {new MessageFaultEvent,
-                MessageFaultEvent.FAULT,
-                message = err
-            }
+            {MessageFaultEvent message = err}
         }
     }
   }

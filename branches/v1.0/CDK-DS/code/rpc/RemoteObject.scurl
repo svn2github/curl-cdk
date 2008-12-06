@@ -80,7 +80,6 @@
 ||--                    {self.document.will-trigger ErrorEvent.ERROR}
 ||--                 then
 ||--                    def ee = {new ErrorEvent,
-||--                                 ErrorEvent.ERROR,
 ||--                                 bubbles? = true,
 ||--                                 cancelable? = true
 ||--                             }
@@ -96,7 +95,6 @@
 ||--                {self.document.will-trigger ErrorEvent.ERROR}
 ||--             then
 ||--                def err = {new ErrorEvent,
-||--                              ErrorEvent.ERROR,
 ||--                              bubbles? = true,
 ||--                              cancelable? = true
 ||--                          }

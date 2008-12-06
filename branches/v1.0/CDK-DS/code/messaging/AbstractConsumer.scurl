@@ -219,10 +219,7 @@
                         {type-switch a
                          case msg:IMessage do
                             {self.message-handler
-                                {new MessageEvent,
-                                    MessageEvent.MESSAGE,
-                                    message = msg
-                                }
+                                {MessageEvent message = msg}
                             }
                         }
                     }
@@ -372,7 +369,7 @@
     }
   }
 
-  {method protected {channel-disconnect-handler event:ChannelEvent}:void
+  {method protected {channel-disconnect-handler event:ChannelDisconnectEvent}:void
     set self.subscribed? = false
     {super.channel-disconnect-handler event}
     {if self.should-be-subscribed? and not event.rejected? then
@@ -412,17 +409,11 @@
         {type-switch message
          case err:ErrorMessage do
             {self.enqueue-event
-                {new MessageFaultEvent,
-                    MessageFaultEvent.FAULT,
-                    message = err
-                }
+                {MessageFaultEvent message = err}
             }
          else
             {self.enqueue-event
-                {new MessageEvent,
-                    MessageEvent.MESSAGE,
-                    message = message
-                }
+                {MessageEvent message = message}
             }
         }
     }

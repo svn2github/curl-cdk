@@ -14,17 +14,31 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AuthenticationEvent {inherits AbstractAuthenticatoinEvent}
-
-  let public constant LOGGED_IN:String = "logged-in" ||""
-  let public constant LOGGED_OUT:String = "logged-out" ||""
-  
+{define-class public abstract AuthenticationEvent {inherits MessageEvent}
   {constructor public {default
-                          type:String,
                           message:#IMessage = null
                       }
     {construct-super
-        type,
+        message = message
+    }
+  }
+}
+{define-class public AuthenticationLoggedInEvent {inherits AuthenticationEvent}
+
+  {constructor public {default
+                          message:#IMessage = null
+                      }
+    {construct-super
+        message = message
+    }
+  }
+}
+{define-class public AuthenticationLoggedOutEvent {inherits AuthenticationEvent}
+
+  {constructor public {default
+                          message:#IMessage = null
+                      }
+    {construct-super
         message = message
     }
   }

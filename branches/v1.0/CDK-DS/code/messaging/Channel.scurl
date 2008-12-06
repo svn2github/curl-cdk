@@ -37,14 +37,16 @@
     set self._uri = uri
 
     {self.add-event-handler
-        {on e:ChannelEvent do
+        {on e:ChannelConnectEvent do
             {for channel-set in self._channel-sets do
-                {switch e.type
-                 case ChannelEvent.CONNECT do
-                    {channel-set.channel-connect-handler e}
-                 case ChannelEvent.DISCONNECT do
-                    {channel-set.channel-disconnect-handler e}
-                }
+                {channel-set.channel-connect-handler e}
+            }
+        }
+    }
+    {self.add-event-handler
+        {on e:ChannelDisconnectEvent do
+            {for channel-set in self._channel-sets do
+                {channel-set.channel-disconnect-handler e}
             }
         }
     }
@@ -199,8 +201,7 @@
     }
     {if self._connected? then
         {channel-set.channel-connect-handler
-            {new ChannelEvent,
-                ChannelEvent.CONNECT,
+            {ChannelConnectEvent
                 channel = self,
                 reconnecting? = false,
                 rejected? = false,
@@ -247,8 +248,7 @@
     }
     {if self.connected? then
         {channel-set.channel-disconnect-handler
-            {ChannelEvent
-                ChannelEvent.DISCONNECT,
+            {ChannelDisconnectEvent
                 channel = self,
                 connected? = self.connected?
             }
@@ -309,8 +309,7 @@
     set self.connected? = true
     || TODO: set self._failover-index = -1
     {self.enqueue-event
-        {new ChannelEvent,
-            ChannelEvent.CONNECT,
+        {ChannelConnectEvent
             channel = self,
             reconnecting? = self.reconnecting?
         }

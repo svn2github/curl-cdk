@@ -28,8 +28,7 @@
   {constructor protected {default}
     set self.channel-set-event-handler =
         {on e:MessageEvent do
-            {switch e.type
-             case MessageEvent.MESSAGE do
+            {if {type-of e} == MessageEvent then
                 {self.message-handler e}
             }
         }

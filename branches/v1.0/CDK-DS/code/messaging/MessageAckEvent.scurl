@@ -17,15 +17,11 @@
 {define-class public MessageAckEvent {inherits MessageEvent}
   field public constant correlation:#IMessage
 
-  let public constant ACKNOWLEDGE:String = "acknowledge" ||""
-
   {constructor public {default
-                          type:String,
                           ack:#AcknowledgeMessage = null,
                           correlation:#IMessage = null
                       }
     {construct-super
-        type,
         message = ack
     }
     set self.correlation = correlation

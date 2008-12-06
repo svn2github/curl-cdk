@@ -93,14 +93,16 @@
     set self.pending-sends = {new {Array-of PendingSend}}
 
     {self.add-event-handler
-        {on e:ChannelEvent do
+        {on e:ChannelConnectEvent do
             {for agent in self._message-agents do
-                {switch e.type
-                 case ChannelEvent.CONNECT do
-                    {agent.channel-connect-handler e}
-                 case ChannelEvent.DISCONNECT do
-                    {agent.channel-disconnect-handler e}
-                }
+                {agent.channel-connect-handler e}
+            }
+        }
+    }
+    {self.add-event-handler
+        {on e:ChannelDisconnectEvent do
+            {for agent in self._message-agents do
+                {agent.channel-disconnect-handler e}
             }
         }
     }
@@ -184,8 +186,7 @@
             {agent.internal-set-channel-set self}
             {if self.connected? then
                 {agent.channel-connect-handler
-                    {new ChannelEvent,
-                        ChannelEvent.CONNECT,
+                    {ChannelConnectEvent
                         channel = self.current-channel,
                         reconnecting? = false,
                         rejected? = false,
@@ -220,8 +221,7 @@
     || Should we really do both of these steps?
     {if self.connected? or self.connecting? then
         {agent.channel-disconnect-handler
-            {ChannelEvent
-                ChannelEvent.DISCONNECT,
+            {ChannelDisconnectEvent
                 channel = self._current-channel,
                 connected? = self.connected?
             }
@@ -370,13 +370,10 @@
     
     {agent.call-result ack}
     {self.enqueue-event
-        {AuthenticationEvent
-            {if login? then
-                AuthenticationEvent.LOGGED_IN
-             else
-                AuthenticationEvent.LOGGED_OUT
-            },
-            message = ack
+        {if login? then
+            {AuthenticationLoggedInEvent message = ack}
+         else
+            {AuthenticationLoggedOutEvent message = ack}
         }
     }
   }
@@ -410,10 +407,7 @@
 
     set agent.state = AuthenticationAgent.SHUTDOWN_STATE
     {self.enqueue-event
-        {AuthenticationFaultEvent
-            AuthenticationFaultEvent.FAULT,
-            message = err
-        }
+        {AuthenticationFaultEvent message = err}
     }
   }
 
@@ -599,7 +593,7 @@
   }
 
   || Called by the current Channel.
-  {method protected {channel-connect-handler e:ChannelEvent}:void
+  {method protected {channel-connect-handler e:ChannelConnectEvent}:void
     set self.connecting? = false
     set self._connected? = true
     {while not self.pending-sends.empty? do
@@ -631,7 +625,7 @@
   }
 
   || Called by the current Channel.
-  {method protected {channel-disconnect-handler e:ChannelEvent}:void
+  {method protected {channel-disconnect-handler e:ChannelDisconnectEvent}:void
 ||--    {dump "TODO: ChannelSet.channel-disconnect-handler"}
     || TODO:
     set self.connecting? = false

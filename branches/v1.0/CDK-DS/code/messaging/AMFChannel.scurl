@@ -150,8 +150,7 @@
 ||--                    {if self.connected? then
 ||--                        {if {info.code.find-string "Call.Failed"} != -1 then
 ||--                            set channel-fault =
-||--                                {new ChannelFaultEvent,
-||--                                    ChannelFaultEvent.FAULT,
+||--                                {ChannelFaultEvent
 ||--                                    channel = self,
 ||--                                    code = "Channel.Call.Failed",
 ||--                                    level = info.level,
@@ -163,8 +162,7 @@
 ||--                        {self.internal-disconnect}
 ||--                     else
 ||--                        set channel-fault =
-||--                            {new ChannelFaultEvent,
-||--                                ChannelFaultEvent.FAULT,
+||--                            {ChannelFaultEvent
 ||--                                channel = self,
 ||--                                code = "Channel.Connect.Failed",
 ||--                                level = info.level,
@@ -187,8 +185,7 @@
 ||--            }
 ||--            {if not handled? then
                 {self.connect-failed
-                    {new ChannelFaultEvent,
-                        ChannelFaultEvent.FAULT,
+                    {ChannelFaultEvent
                         channel = self,
                         code = "Channel.Connect.Failed", ||""
                         level = "error", ||""
@@ -206,7 +203,6 @@
                     {self.result-handler err}
                     {self.enqueue-event
                         {ChannelFaultEvent
-                            ChannelFaultEvent.FAULT,
                             channel = self,
                             code = err.fault-code,
                             level = "warn", ||""
@@ -227,7 +223,6 @@
                     || TODO: Process features advertised by the server endpoint.
                     {self.connect-failed
                         {ChannelFaultEvent
-                            ChannelFaultEvent.FAULT,
                             channel = self,
                             code = "Channel.Ping.Failed", ||""
                             level = "error", ||""

@@ -15,27 +15,51 @@
 ||| limitations under the License.
 
 {define-class public ChannelEvent {inherits Event}
-  field public constant type:String
   field public constant channel:#Channel
   field public reconnecting?:bool
   field public constant rejected?:bool
   field public constant connected?:bool
 
-  let public constant CONNECT:String = "channelConnect" ||""
-  let public constant DISCONNECT:String = "channelDisconnect" ||""
-
   {constructor public {default
-                          type:String,
                           channel:#Channel = null,
                           reconnecting?:bool = false,
                           rejected?:bool = false,
                           connected?:bool = false
                       }
-    set self.type = type
     set self.channel = channel
     set self.reconnecting? = reconnecting?
     set self.rejected? = rejected?
     set self.connected? = connected?
   }
 
+}
+{define-class public ChannelConnectEvent {inherits ChannelEvent}
+  {constructor public {default
+                          channel:#Channel = null,
+                          reconnecting?:bool = false,
+                          rejected?:bool = false,
+                          connected?:bool = false
+                      }
+    {construct-super
+        channel = channel,
+        reconnecting? = reconnecting?,
+        rejected? = rejected?,
+        connected? = connected?
+    }
+  }
+}
+{define-class public ChannelDisconnectEvent {inherits ChannelEvent}
+  {constructor public {default
+                          channel:#Channel = null,
+                          reconnecting?:bool = false,
+                          rejected?:bool = false,
+                          connected?:bool = false
+                      }
+    {construct-super
+        channel = channel,
+        reconnecting? = reconnecting?,
+        rejected? = rejected?,
+        connected? = connected?
+    }
+  }
 }

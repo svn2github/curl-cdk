@@ -18,12 +18,10 @@
   field public constant token:#AsyncToken
 
   {constructor public {default
-                          type:String,
                           message:#IMessage = null,
                           token:#AsyncToken = null
                       }
     {construct-super
-        type,
         message = message
     }
     set self.token = token
