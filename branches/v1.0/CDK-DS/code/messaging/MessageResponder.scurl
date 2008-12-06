@@ -55,7 +55,12 @@
     }
   }
 
-  {method public {start-request-timeout timeout:any}:void
+  {doc-next
+    {purpose
+        Not implemented yet.
+    }
+  }
+  {method protected {start-request-timeout timeout:Time}:void
     || The argument passed in here might come from a message header, so it might
     || not be the Time value we want it to be.
     || TODO: Set up the timeout alarm.

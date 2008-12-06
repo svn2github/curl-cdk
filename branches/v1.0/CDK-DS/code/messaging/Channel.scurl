@@ -29,7 +29,18 @@
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
+  {doc-next
+    {purpose
+        Not implemented yet.
+    }
+  }
   field public connect-timeout:Time = -1s
+
+  {doc-next
+    {purpose
+        Not implemented yet.
+    }
+  }
   field public request-timeout:Time = -1s
 
   {constructor public {default id:#String = null, uri:#Url = null}
@@ -342,7 +353,16 @@
         {message.headers.get-if-exists AbstractMessage.REQUEST_TIMEOUT_HEADER}
     {responder.start-request-timeout
         {if found? then
-            timeout-header
+            {type-switch timeout-header
+             case i:int do
+                i * 1s
+             case d:double do
+                d * 1s
+             case t:Time do
+                t
+             else
+                {error {lmessage Couldn't decode timeout header.}}
+            }
          else
             self.request-timeout
         }
