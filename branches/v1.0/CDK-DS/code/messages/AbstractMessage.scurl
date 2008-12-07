@@ -40,8 +40,11 @@
   let private constant CLIENT_ID_BYTES_FLAG:uint8 = 1
   let private constant MESSAGE_ID_BYTES_FLAG:uint8 = 2
 
-  {constructor public {default}
-    {construct-super}
+  {constructor public {default
+                          body:any = {new {HashTable-of String, any}},
+                          headers:IMessageHeaders = {IMessageHeaders}
+                      }
+    {construct-super body = body, headers = headers}
   }
 
   {define-proc public {create-uid}:String
@@ -143,8 +146,7 @@
                 set self.destination = {deserializer.read-one} asa String
             }
             {if {bit-and flags, AbstractMessage.HEADERS_FLAG} != 0 then
-                def headers = {deserializer.read-one}
-                set self.headers = headers
+                set self.headers = {deserializer.read-one} asa #Object
             }
             {if {bit-and flags, AbstractMessage.MESSAGE_ID_FLAG} != 0 then
                 set self.message-id = {deserializer.read-one} asa String

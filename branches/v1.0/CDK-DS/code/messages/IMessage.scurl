@@ -24,9 +24,12 @@
   field protected _timestamp:double
   field protected _time-to-live:double
 
-  {constructor public {default}
-    set self._body = {new {HashTable-of String, any}}
-    set self._headers = {IMessageHeaders}
+  {constructor public {default
+                          body:any = {new {HashTable-of String, any}},
+                          headers:IMessageHeaders = {IMessageHeaders}
+                      }
+    set self._body = body
+    set self._headers = headers
     set self._message-id = {AbstractMessage.create-uid}
   }
 
@@ -79,7 +82,7 @@
   {getter public {headers}:IMessageHeaders
     {return self._headers}
   }
-  {setter public {headers headers:any}:void
+  {setter public {headers headers:#Object}:void
     {type-switch headers
      case mh:IMessageHeaders do
         {for item key k in mh do

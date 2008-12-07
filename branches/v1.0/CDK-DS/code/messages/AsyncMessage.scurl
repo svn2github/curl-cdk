@@ -48,10 +48,8 @@
                           body:any = null,
                           headers:IMessageHeaders = {IMessageHeaders}
                       }
-    {construct-super}
+    {construct-super body = body, headers = headers}
     set self.correlation-id = ""
-    set self.body = body
-    set self.headers = headers
   }
 
   || A convenience method for deserializing externalizable AsyncMessages.

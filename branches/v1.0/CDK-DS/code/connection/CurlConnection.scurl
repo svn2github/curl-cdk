@@ -15,8 +15,7 @@
 ||| limitations under the License.
 
 {define-class public CurlConnection
-  field public object-encoding:int = CurlConnection.AMF3
-  field public client:any
+  field public constant object-encoding:int
   field protected uri:#Url
   field private constant mapper:AMFObjectAdapters
 
@@ -30,7 +29,11 @@
   || debugging support
   field public log?:bool = false
 
-  {constructor public {default mapper:AMFObjectAdapters = AMFObjectAdapters.standard}
+  {constructor public {default
+                          object-encoding:int = CurlConnection.AMF3,
+                          mapper:AMFObjectAdapters = AMFObjectAdapters.standard
+                      }
+    set self.object-encoding = object-encoding
     set self.mapper = mapper
   }
 
@@ -274,7 +277,8 @@
             target-uri = {if-non-null command then command else "null"}, ||""
             response-uri = "/" & CurlConnection.response-uri-count,
             length = AMF0Serializer.UNKNOWN_CONTENT_LENGTH,
-            args}
+            args
+        }
     {inc CurlConnection.response-uri-count}
     {envelope.add-body amf-body}
 

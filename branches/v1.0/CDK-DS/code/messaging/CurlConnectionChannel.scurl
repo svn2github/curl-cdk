@@ -30,9 +30,11 @@
     {construct-super id = id, uri = uri}
     || TODO: Flex creates a NetConnection object. We need a similar,
     ||       bi-directional connection manager.
-    set self._connection = {CurlConnection mapper = mapper}
-    set self._connection.object-encoding = CurlConnection.AMF3
-    set self._connection.client = self
+    set self._connection =
+        {CurlConnection
+            object-encoding = CurlConnection.AMF3,
+            mapper = mapper
+        }
   }
 
   {getter public {connection}:#CurlConnection
