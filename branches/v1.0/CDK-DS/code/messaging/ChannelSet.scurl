@@ -155,7 +155,7 @@
     {return self._authenticated?}
   }
 
-  {method public {set-authenticated?
+  {method protected {set-authenticated?
                      b?:bool,
                      credentials:#String = null,
                      notify-agents?:bool = true
@@ -167,7 +167,7 @@
             self.auth-agent != null and
             self.auth-agent.state != AuthenticationAgent.LOGGED_OUT_STATE
          then
-            {self.end-logging-out {non-null self.auth-agent}}
+            {self.apply-logged-out-state {non-null self.auth-agent}}
         }
         
         {if notify-agents? then
@@ -362,10 +362,10 @@
     def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
     {if login? then
         || when LOGIN is successful.
-        {self.end-logging-in agent, cmd}
+        {self.apply-logged-in-state agent, cmd}
      else
         || when LOGOUT is successful.
-        {self.end-logging-out agent}
+        {self.apply-logged-out-state agent}
     }
     
     {agent.call-result ack}
@@ -378,7 +378,7 @@
     }
   }
 
-  {method private {end-logging-in
+  {method private {apply-logged-in-state
                       agent:AuthenticationAgent,
                       cmd:CommandMessage
                   }:void
@@ -387,7 +387,7 @@
     set self.current-channel.authenticated? = true
   }
 
-  {method private {end-logging-out
+  {method private {apply-logged-out-state
                       agent:AuthenticationAgent
                   }:void
     set agent.state = AuthenticationAgent.SHUTDOWN_STATE
@@ -573,12 +573,13 @@
     {if not self.connected? and not self.connecting? then
         set self.connecting? = true
         {self.current-channel.connect self}
-        || FIXME: this needs to be removed when appropriate.
+        || Listen for any server pushed messages on the Channel.
         {self.current-channel.add-event-handler self.channel-event-handler}
     }
   }
   {method protected {disconnect-channel}:void
     set self.connecting? = false
+    || Stop listening for server pushed messages on the Channel.
     {self.current-channel.remove-event-handler self.channel-event-handler}
     {self.current-channel.disconnect self}
   }
