@@ -22,10 +22,12 @@
   field private _connected?:bool = false
   field private connecting?:bool = false
   field private owns-wait-guard?:bool = false
-  field private failover-uris:#{Array-of Url}
+  field private failover-index:int
+  field private _failover-uris:{Array-of Url}
   field private _id:#String
   field private _reconnecting?:bool = false
   field private _uri:#Url
+  field private primary-uri:#Url
   field private previously-connected?:bool = false
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
@@ -48,6 +50,9 @@
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
     set self._uri = uri
+    set self.primary-uri = uri
+    set self._failover-uris = {{Array-of Url}}
+    set self.failover-index = -1
 
     {self.add-event-handler
         {on e:ChannelConnectEvent do
@@ -90,6 +95,15 @@
 
   {setter public {id s:#String}:void
     set self._id = s
+  }
+
+  {getter public {failover-uris}:{Array-of Url}
+    {return self._failover-uris}
+  }
+
+  {setter public {failover-uris uris:{Array-of Url}}:void
+    set self._failover-uris = uris
+    set self.failover-index = -1
   }
 
   {getter public {authenticated?}:bool
@@ -318,41 +332,42 @@
   }
 
   {method protected {connect-succeeded}:void
-    {if self.owns-wait-guard? then
-        set self.owns-wait-guard? = false
-        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
-    }
     || TODO: shutdownConnectTimer()
-    set self.connecting? = false
     || TODO: ServerConfig and agent configuration stuff.
     set self.connected? = true
-    || TODO: set self._failover-index = -1
+    set self.failover-index = -1
+
     {self.enqueue-event
         {ChannelConnectEvent
             channel = self,
             reconnecting? = self.reconnecting?
         }
     }
-    set self.reconnecting? = false
+    {self.cleanup-connect}
   }
 
   {method protected {connect-failed event:ChannelFaultEvent}:void
     || TODO: shutdownConnectTimer()
     set self.connected? = false
-    {if not event.rejected? then ||and {self.should-attempt-failover?}
+    {if not event.rejected? and {self.should-attempt-failover?} then
         set self.connecting? = true
-        || TODO: {self.failover}
+        {self.failover} || not implemented yet
      else
-        {if self.owns-wait-guard? then
-            set self.owns-wait-guard? = false
-            set {FlexClient.get-instance}.wait-for-flex-client-id? = false
-        }
-        set self.connecting? = false
+        {self.cleanup-connect}
     }
     {if self.reconnecting? then
         set event.reconnecting? = true
     }
     {self.enqueue-event event}
+  }
+
+  {method private {cleanup-connect}:void
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    set self.connecting? = false
+    set self.reconnecting? = false
   }
 
   {method protected {initialize-request-timeout responder:MessageResponder}:void
@@ -384,12 +399,19 @@
   {method private {should-attempt-failover?}:bool
     {return
         self.should-be-connected? and
-        (self.previously-connected? or
-         (self.failover-uris != null and self.failover-uris.size > 0))
+        (self.previously-connected? or self.failover-uris.size > 0)
     }
   }
 
   {method private {failover}:void
+    || TODO:
+  }
+
+  {method private {reset-to-primary-uri}:void
+    set self.connecting? = false
+    set self.reconnecting? = false
+    set self.failover-index = -1
+    set self.uri = self.primary-uri
   }
 
   {method protected {set-flex-client-id-on-message message:IMessage}:void
