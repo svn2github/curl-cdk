@@ -16,33 +16,92 @@
 
 {curl 6.0 manifest}
 
-{manifest CDK-DS-SAMPLES}
+{manifest COM.CURL.CDK.DATA-SERVICES.BLAZEDS-SAMPLES}
 
 || Libraries
+|| --------------------
+|| CDK-DS is referenced
+|| - replaced with incorporated pcurl by build process
 {delegate-to COM.CURL.CDK.DATA-SERVICES,
-    location = "lib/CDK-DS/manifest.mcurl"
-}
-{delegate-to COM.CURL.WSDK,
-    location = "lib/WSDK/manifest.mcurl"
-}
+    location = "../../code/manifest.mcurl"}
+
+|| STYLED is incorporated
 {delegate-to COM.CURL.GUI.STYLED,
     location = "lib/COM.CURL.GUI.STYLED-6.0-03-pcurl-en/manifest.mcurl"
 }
+{component directory COM.CURL.GUI.STYLED-6._0-03-pcurl-en,
+    location = "lib/COM.CURL.GUI.STYLED-6.0-03-pcurl-en"
+}
 
 || Packages
+|| --------------------
 {component package COM.CURL.CDK.SAMPLES-SUPPORT,
     location = "load.scurl"
 }
 
 || StyleSheet
+|| --------------------
 {component file CDK-DS-SAMPLES-STYLE-SHEET,
     location = "style-sheet.scurl"
 }
 
 || Images
-{component file CURL-LOGO,
-    location = "images/curllogo93x35_(R).gif"
+|| --------------------
+{component directory images1,
+    location = "images"
 }
-{component file BLAZEDS-LOGO,
-    location = "images/blazeds.png"
+||--{component file CURL-LOGO,
+||--    location = "images/curllogo93x35_(R).gif"
+||--}
+||--{component file BLAZEDS-LOGO,
+||--    location = "images/blazeds.png"
+||--}
+
+|| Sample applets
+|| --------------------
+{component directory testdrive-101,
+    location = "testdrive-101"
 }
+
+{component directory testdrive-chat,
+    location = "testdrive-chat"
+}
+
+{component directory testdrive-datapush,
+    location = "testdrive-datapush"
+}
+
+{component directory testdrive-remoteobject,
+    location = "testdrive-remoteobject"
+}
+
+{component directory testdrive-update,
+    location = "testdrive-update"
+}
+
+|| Help
+|| --------------------
+{component file README.txt,
+    location = "README.txt"
+}
+
+{component file start.curl,
+    location = "start.curl"
+}
+
+{component file testdrive.curl,
+    location = "testdrive.curl"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
