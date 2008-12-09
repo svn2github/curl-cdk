@@ -119,28 +119,18 @@
 {value
     {install-style-sheet {manifest-url "file", "CDK-DS-SAMPLES-STYLE-SHEET"}}
 
-    let grid-frame:Frame =
-        {new Frame,
+    def grid-frame =
+        {Frame
             style-class = "grid-frame",
             {Fill}
         }
 
     def destination = "product"
     def endpoint = {url "http://localhost:8400/samples/messagebroker/amf"}
-    let srv:RemoteObject =
-        {new RemoteObject,
+    def srv =
+        {RemoteObject
             endpoint,
-            destination
-||--            ,
-||--            channel-set =
-||--                {ChannelSet
-||--                    channel =
-||--                        {AMFChannel
-||--                            id = destination,
-||--                            uri = endpoint
-||--                        }
-||--                }
-        }
+            destination}
     def get-products = {srv.get-operation "getProducts"}
     {get-products.add-event-handler
         {on e:ResultEvent do

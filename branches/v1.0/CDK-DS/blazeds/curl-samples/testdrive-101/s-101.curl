@@ -52,7 +52,9 @@
             endpoint,
             destination,
             {on e:FaultEvent do
-                def msg = e
+                def f = e.fault
+                def msg = {message Fault Code: {value f.fault-code}
+                              '{value f.fault-string}'}
                 {popup-message msg}
             }
         }
@@ -131,13 +133,10 @@
                         style-class = "thumbnail",
                         data-binding-context =
                             {DataObjectDataBindingContext data},
-                        |#TEMP#| user-data = data,
+                        user-data = data,
                         graphic-selectable = {GraphicSelectable},
                         opaque-to-events? = true,
                         {on PointerEnter at g:Graphic do
-||--                            {if-non-null color = g.rollover-color then
-||--                                set g.background = color
-||--                            }
                             {if-non-null bg = catalog-panel.rollover-background
                              then
                                 set g.background = bg

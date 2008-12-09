@@ -40,12 +40,12 @@
 || testdrive-datapush sample (aka Publish/Subscribe Data Push Use Case).
 {value
     {install-style-sheet {manifest-url "file", "CDK-DS-SAMPLES-STYLE-SHEET"}}
-    def tf = {new TextField, style-class = "datapush"}
+    def tf = {TextField style-class = "datapush"}
     def base = {url "http://localhost:8400/samples/"}
     def endpoint = {base.merge "messagebroker/amfpolling"}
-    let destination:String = "feed"
-    let consumer:Consumer =
-        {new Consumer,
+    def destination = "feed"
+    def consumer =
+        {Consumer
             endpoint = endpoint,
             destination = destination,
             {on e:MessageEvent do

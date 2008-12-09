@@ -118,10 +118,10 @@
   {getter public {product}:#Product
     {if-non-null r = self.current-record then
         def qty-in-stock = r["qty-in-stock"] asa int
-        let price:double = {self.price-tf.value.to-double}
+        def price = {self.price-tf.value.to-double}
         def product-id = r["product-id"] asa int
         {return
-            {new Product,
+            {Product
                 self.category-tf.value,
                 price,
                 self.description-ta.value,

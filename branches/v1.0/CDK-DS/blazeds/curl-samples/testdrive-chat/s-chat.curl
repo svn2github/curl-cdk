@@ -47,36 +47,23 @@
     def endpoint = {base.merge "messagebroker/amfpolling"}
     def destination = "chat"
 
-||--    def channel-id = "my-polling-amf"
-||--    def channel-set =
-||--        {ChannelSet
-||--            channel =
-||--                {AMFChannel
-||--                    id = destination,
-||--                    uri = endpoint}
-||--        }
-
     || messaging
     def producer =
         {Producer 
             endpoint = endpoint,
             destination = destination
-||--            ,
-||--            channel-set = channel-set
         }
     def consumer =
         {Consumer 
             endpoint = endpoint,
             destination = destination
-||--            ,
-||--            channel-set = channel-set
         }
 
     || display
-    def string-data-model = {new StringDataModel, ""}
-    def buf = {new StringBuf}
+    def string-data-model = {StringDataModel ""}
+    def buf = {StringBuf}
     def transcript =
-        {new TextArea,
+        {TextArea
             style-class = "chat-transcript",
             data-model = string-data-model
         }
@@ -147,7 +134,7 @@
                 style-class = "chat",
                 title = {message Chat},
                 content =
-                    {new Frame,
+                    {Frame
                         style-class = "chat-transcript",
                         transcript
                     },

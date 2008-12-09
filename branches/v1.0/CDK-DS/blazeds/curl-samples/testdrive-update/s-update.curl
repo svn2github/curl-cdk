@@ -99,21 +99,19 @@
     {return rg}
 }
 {def fields =
-    {new RecordFields,
-        {new RecordField, "category", domain = any, caption = "category"},
-        {new RecordField, "description", domain = String,
-            caption = "description"},
-        {new RecordField, "image", domain = String, nullable? = true,
-            caption = "image"},
-        {new RecordField, "name", domain = String, caption = "name"},
-        {new RecordField, "price", domain = double, caption = "price"},
-        {new RecordField, "product-id", domain = int, caption = "productId"},
-        {new RecordField, "qty-in-stock", domain = int,
-            caption = "qtyInStock"}
+    {RecordFields
+        {RecordField "category", domain = any, caption = "category"},
+        {RecordField "description", domain = String, caption = "description"},
+        {RecordField "image", domain = String, caption = "image",
+            nullable? = true},
+        {RecordField "name", domain = String, caption = "name"},
+        {RecordField "price", domain = double, caption = "price"},
+        {RecordField "product-id", domain = int, caption = "productId"},
+        {RecordField "qty-in-stock", domain = int, caption = "qtyInStock"}
     }
 }
 {define-proc {present-result items:ArrayCollection, rg:RecordGrid}:void
-    def rs = {new {RecordSet-for Product}, fields = fields}
+    def rs = {{RecordSet-for Product} fields = fields}
     {for item in items do
         {rs.append item}
     }
@@ -138,21 +136,23 @@
             endpoint,
             destination,
             {on e:FaultEvent do
-                def msg = e
+                def f = e.fault
+                def msg = {message Fault Code: {value f.fault-code}
+                              '{value f.fault-string}'}
                 {popup-message msg}
             }
         }
     def get-products = {service.get-operation "getProducts"}
     def update = {service.get-operation "update"}
 
-    let rg:RecordGrid = {build-record-grid}
-    let grid-frame:Frame =
-        {new Frame,
+    def rg = {build-record-grid}
+    def grid-frame =
+        {Frame
             style-class = "grid-frame",
             rg
         }
 
-    def product-form = {new ProductForm}
+    def product-form = {ProductForm}
 
     def main =
         {HBox
