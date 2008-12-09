@@ -26,28 +26,24 @@
     CDK Data Services Overview
 }
 {paragraph
-    With Curl Data Kit (CDK) library Data Services packages,
+    With Curl Data Kit library Data Services (CDK-DS) packages,
     you can use remoting and messaging to interact with
     servers supporting AMF protocols.
 
+    The CDK-DS implements all the remoting and web messaging services
+    that are supported by the open source BlazeDS server,
+    including remote procedure calls (RPC) and publish/subscribe messaging.
+
     {itemize
-
-        {item {bold data object}
-            
-            The {docref COM.CURL.CDK.DATA-OBJECT} package
-            provides a flexible representation for data records.
-
-            This allows data centric Curl applications to
-            work in a uniform way with data obtained from data services.
-        }
 
         {item {bold remote procedure calls}
             
             The {docref COM.CURL.CDK.RPC} package
-            provides a {docref RemoteObject} adapter for invocation
-            remote methods available from AMF service providers.
+            provides a {docref RemoteObject} adapter
+            for invocation of remote methods.
 
-            This allows data centric Curl applications to TODO XXX.
+            This allows Curl applications to invoke
+            remote methods available from AMF service providers.
         }
 
         {item {bold messaging}
@@ -58,6 +54,15 @@
 
             This allows Curl applications to participate in
             Publish / Subscribe message exchange.
+        }
+
+        {item {bold data object}
+            
+            The {docref COM.CURL.CDK.DATA-OBJECT} package
+            provides a flexible representation for data records.
+
+            This allows data centric Curl applications to
+            work in a uniform way with data obtained from data services.
         }
 
         {item {bold CDK Roadmap}
@@ -71,23 +76,17 @@
 }
 
 {heading level=2,
-    What's New in CDK-DS 0.9
+    What's New in CDK-DS 1.0
 }
 
 {paragraph
     This CDK-DS Initial Release is for use with Curl API Version 6.0.
 
-    CDK-DS Initial Release packages are marked as version 0.9.
+    CDK-DS Initial Release packages are marked as version 1.0.
 }
 
 {paragraph
-    This is a preview of the first CDK-DS Release.
-
-    {preliminary
-        This preview contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.
-    }
+    This is a the first CDK-DS Release.
 }
 
 || ====================
