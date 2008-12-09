@@ -14,6 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
+|| TODO: move to CDU
+{include "zip-support.scurl"}
+
 {value
     def name = "COM.CURL.CDK.DATA-SERVICES"
     def version = "1.0"
@@ -33,7 +36,6 @@
             "deploy-source",
             "src/code"
         },
-        || -- samples (copy),
         || -- support (copy)
         {DeploySpec
             "tests/project.cprj",
@@ -47,18 +49,14 @@
             "deploy",
             "src/lib/CDU"
         },
-||--        || incorporate STYLED library 
-||--        || --------------------
-||--        {DeployCopy
-||--            "lib/COM.CURL.GUI.STYLED-6.0-pcurl-en",
-||--            "src/lib/COM.CURL.GUI.STYLED-6.0-pcurl-en"
-||--        },
         || -- build scripts (copy)
         {DeployAction
             caption = {lmessage copy 'build' scripts},
             {proc {self:DeployAction,
                    source-root:Url,
                    target-root:Url}:void
+                || NOTE: rename for distribution tree
+                || -- from 'build' to 'tools'
 ||--            def target = {target-root.concat "src/build"}
                 def target = {target-root.concat "src/tools"}
                 {create-Directory target,
@@ -67,7 +65,13 @@
                     {StringArray
                         "deploy.curl",
                         "deploy-batch.curl",
-                        "deploy-specs.scurl"}
+                        "deploy-specs.scurl",
+                        || ~~~~~~~~~~ \\
+                        || TODO: remove these when in CDU
+                        "zip-support.scurl",
+                        "7z.exe"
+                        || ~~~~~~~~~~ //
+                    }
                 {for file in files do
                     {copy 
                         {source-root.concat "build/" & file},
@@ -97,6 +101,27 @@
             "docs-install/" & dirname
         },
 
+        || SAMPLES distribution
+        || ====================
+        || project itself
+        {DeploySpec
+            "blazeds/curl-samples/project.cprj",
+            "deploy",
+            "blazeds-curl-samples"
+        },
+        || incorporate pcurled library
+        {DeployAction
+            caption = {lmessage copy LIB},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                {copy 
+                    {target-root.concat "deploy/" & dirname},
+                    {target-root.concat "blazeds-curl-samples/lib/" & dirname},
+                    error-if-exists? = true,
+                    recurse? = true}
+            }},
+
         || final steps
         || ====================
         
@@ -109,6 +134,18 @@
                    target-root:Url}:void
                 {clean-svn-directories target-root}
             }},
+        
+        || zip samples
+        || --------------------
+        {DeployAction
+            caption = {lmessage zip samples},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                def dir = {target-root.concat "blazeds-curl-samples"}
+                def loc = {create-zip-archive dir}
+            }},
+        
         || BOILERPLATE material {copy)
         || -------------------- 
         {DeployAction
@@ -124,10 +161,10 @@
                     {source-root.concat "NOTICE"},
                     {target-root.concat "NOTICE"},
                     error-if-exists? = false} 
-||--                {copy 
-||--                    {source-root.concat "README.txt"},
-||--                    {target-root.concat "README.txt"},
-||--                    error-if-exists? = false} 
+                {copy 
+                    {source-root.concat "README.txt"},
+                    {target-root.concat "README.txt"},
+                    error-if-exists? = false} 
             }}
     }
 }
