@@ -16,6 +16,8 @@
 
 {import * from COM.CURL.CDK.DATA-OBJECT}
 {import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
+|| NOTE: until CDU host-available? is fixed
+{include "../CDU-support.scurl"}
 
 || Url of BlazeDS
 || -- do not terminate this by '/'

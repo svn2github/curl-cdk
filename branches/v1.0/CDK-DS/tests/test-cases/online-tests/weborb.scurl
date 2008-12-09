@@ -17,6 +17,8 @@
 {import * from COM.CURL.CDK.DATA-OBJECT}
 {import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
 {import * from COM.CURL.CDK.MESSAGING}
+|| NOTE: until CDU host-available? is fixed
+{include "../CDU-support.scurl"}
 
 || Url of WebORB
 || -- do not terminate this by '/'
