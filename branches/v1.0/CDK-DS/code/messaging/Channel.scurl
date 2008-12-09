@@ -26,9 +26,11 @@
   field private _id:#String
   field private _reconnecting?:bool = false
   field private _uri:#Url
+  field private previously-connected?:bool = false
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
+  field protected-get private-set should-be-connected?:bool = false
   {doc-next
     {purpose
         Not implemented yet.
@@ -124,6 +126,9 @@
 
   {setter protected {connected? b?:bool}:void
     {if self._connected? != b? then
+        {if self._connected? then
+            set self.previously-connected? = true
+        }
         set self._connected? = b?
         || TODO: Fire a PropertyChangeEvent
         {if not b? then
@@ -210,6 +215,8 @@
     {if {self._channel-sets.find channel-set} < 0 then
         {self._channel-sets.append channel-set}
     }
+
+    set self.should-be-connected? = true
     {if self._connected? then
         {channel-set.channel-connect-handler
             {ChannelConnectEvent
@@ -266,6 +273,7 @@
         }
     }
     {if self.channel-sets.empty? then
+        set self.should-be-connected? = false
         {if self.connected? then
             {self.internal-disconnect}
         }
@@ -372,6 +380,17 @@
 ||--  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
 ||--    || TODO:
 ||--  }
+
+  {method private {should-attempt-failover?}:bool
+    {return
+        self.should-be-connected? and
+        (self.previously-connected? or
+         (self.failover-uris != null and self.failover-uris.size > 0))
+    }
+  }
+
+  {method private {failover}:void
+  }
 
   {method protected {set-flex-client-id-on-message message:IMessage}:void
     set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
