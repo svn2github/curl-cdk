@@ -49,6 +49,10 @@
     || --------------------
     {TestSuite.import {url "answers-from-servers.scurl"}},
 
+    || Samples for distribution
+    || --------------------
+    {TestSuite.import {url "blazeds-samples.scurl"}},
+
     || Online tests
     || --------------------
     {TestSuite.import {url "online-tests/blazeds.scurl"}},
