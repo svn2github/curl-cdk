@@ -26,6 +26,7 @@
   field private connecting?:bool = false
   field private clustered?:bool = false
   field private _configured?:bool = false
+  field private should-be-connected?:bool = false
   || TODO: Implement a setter that checks configured? then removes existing
   ||       channels and adds new channels.
   field private channels:{Array-of #Channel}
@@ -182,6 +183,7 @@
   {method public {connect agent:#MessageAgent}:void
     {if-non-null agent then
         {if {self._message-agents.find agent} == -1 then
+            set self.should-be-connected? = true
             {self._message-agents.append agent}
             {agent.internal-set-channel-set self}
             {if self.connected? then
@@ -206,8 +208,11 @@
             {self._message-agents.remove agent-index}
             {self.disconnect-agent-helper agent}
         }
-        {if self._message-agents.size == 0 and self.connected? then
-            {self.disconnect-channel}
+        {if self._message-agents.size == 0 then
+            set  self.should-be-connected? = false
+            {if self.connected? then
+                {self.disconnect-channel}
+            }
         }
 ||--        {if agent.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET then
 ||--            {agent.internal-set-channel-set null}
@@ -638,12 +643,41 @@
 ||--    {dump e.fault-string}
 ||--    {dump e.fault-detail}
 ||--    {dump "TODO: ChannelSet.channel-fault-handler"}
-    || TODO: What should we be doing here?
-    {if self.current-channel == e.channel then
-        set self.connecting? = false
-        set self._connected? = false
-        || FIXME: What do we need to do to let hunting continue?
-        set self._current-channel = null
+||--    || TODO: What should we be doing here?
+||--    {if self.current-channel == e.channel then
+||--        set self.connecting? = false
+||--        set self._connected? = false
+||--        || FIXME: What do we need to do to let hunting continue?
+||--        set self._current-channel = null
+||--    }
+
+    set self.connecting? = false
+    set self._connected? = false
+
+    {if self.should-be-connected? and
+        not e.reconnecting? and
+        not e.rejected?
+     then
+        {if {self.hunt} then
+            set e.reconnecting? = true
+            {self.enqueue-event e}
+            {if self.current-channel isa CurlConnectionChannel then
+                || Insert slight delay for CurlConnectionChannel
+                || to shut down and clean up in preparation for next connect.
+                {after 0s do
+                    {self.connect-channel}}
+             else
+                {self.connect-channel}
+            }
+            
+         else
+            {self.enqueue-event e}
+            || TODO: fault pending messages
+        }
+
+     else
+        {self.enqueue-event e}
+        || TODO: fault pending messages
     }
   }
 }
