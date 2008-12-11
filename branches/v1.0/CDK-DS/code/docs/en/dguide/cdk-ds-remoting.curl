@@ -129,16 +129,16 @@
     by the traits adapter, so that, for example,
     {ctext product-id} becomes {ctext productId}.
 
-    Use {docref AMFOjectAdapters.register-class} register an adapter.
+    Use {docref AMFObjectAdapters.register-class} register an adapter.
     The traits can be specified as a class variable {ctext traits},
     or by keyword argument.
 
-    Use {docref AMFOjectAdapters.register-package} to
+    Use {docref AMFObjectAdapters.register-package} to
     register all classes with a {ctext traits} class variable
     in a package.
 
     By default, AMF serialization and deserialization
-    uses adapters defined by {docref AMFOjectAdapters.standard}.
+    uses adapters defined by {docref AMFObjectAdapters.standard}.
     If it is necessary to use particular adapters for some
     {ctext RemoteObject} instance, it can be supplied
     explicitly using the {ctext mapper} keyword

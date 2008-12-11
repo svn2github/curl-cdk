@@ -136,10 +136,10 @@
 {heading level=2,    
     CDK-DS Sample Applications
 }
-{def samples-loc = {url "../../../../build/DEPLOYED/"}}
+{def samples-loc = {url "samples/"}}
 {def samples-zip-loc = {samples-loc.merge "blazeds-curl-samples.zip"}}
-{def samples-readme-loc = {samples-loc.merge  "blazeds-curl-samples/README.txt"}}
-{def samples-project-loc = {samples-loc.merge  "blazeds-curl-samples/project.cprj"}}
+{def samples-readme-loc = {samples-loc.merge  "blazeds/curl-samples/README.txt"}}
+{def samples-project-loc = {samples-loc.merge  "blazeds/curl-samples/project.cprj"}}
 
 {paragraph
     The sample applications referenced in this developers guide
