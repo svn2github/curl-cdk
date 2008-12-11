@@ -21,6 +21,9 @@
 {include "../utils/guide-header.scurl"}
 {include "../utils/support.scurl"}
 
+{def samples-loc =
+    {url "samples/blazeds/curl-samples/"}
+}
 {chapter
     index= {HeadingIndex primary-key="CDK Data Services Remoting"},
     CDK Data Services Remoting
@@ -66,11 +69,8 @@
     The {bold Product Service} sample illustrates these techniques.
 }
 {x-code-ref title = {message Remote Object},
-    {url "../../../../samples/t-remote-object.curl"}
+    {samples-loc.merge "testdrive-remoteobject/s-remoteobject.curl"}
 }
-||--{x-code-ref title = {message Remote Object},
-||--    {url "../../../../samples/t-get-product.curl"}
-||--}
 {paragraph
     Communication with the server is asynchronous,
     so that the application can remain active

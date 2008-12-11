@@ -21,6 +21,10 @@
 {include "../utils/guide-header.scurl"}
 {include "../utils/support.scurl"}
 
+{def samples-loc =
+    {url "samples/blazeds/curl-samples/"}
+}
+
 {chapter
     index= {HeadingIndex primary-key="CDK Data Services Messaging"},
     CDK Data Services Messaging
@@ -73,7 +77,7 @@
 }    
 
 {x-code-ref title = {message Collaboration Sample},
-    {url "../../../../samples/t-chat.curl"}
+    {samples-loc.merge "testdrive-chat/s-chat.curl"}
 }
 
 || ====================

@@ -23,7 +23,7 @@
 || CDK-DS is referenced
 || - replaced with incorporated pcurl by build process
 {delegate-to COM.CURL.CDK.DATA-SERVICES,
-    location = "../../code/manifest.mcurl"}
+    location = "../../../../../../manifest.mcurl"}
 
 || STYLED is incorporated
 {delegate-to COM.CURL.GUI.STYLED,
