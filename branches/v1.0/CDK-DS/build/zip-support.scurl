@@ -34,8 +34,9 @@
                     {fn loc => {local-file-exists? loc}}}
             {if locs.empty? then
                 {error {lmessage create-zip-archive: no executable found}}
-             else locs[0]}
-         else
+             else
+                locs[0]}
+          else
             {error {lmessage create-zip-archive: only defined for windows platform}}}
     
     {if not {local-directory-exists? directory} then
@@ -48,9 +49,14 @@
     
     def zip-command-pattern =
         "%s a -r -tzip %s %s"
+    let zip-exec-filename:String = {non-null zip-exec-loc.local-filename}
+    || guaard against spaces in directory name
+    {if {zip-exec-filename.find ' '} >= 0 then
+        set zip-exec-filename =
+            {format |""%s""|, zip-exec-filename}}
     def zip-command =
         {format zip-command-pattern,
-            zip-exec-loc.local-filename,
+            zip-exec-filename,
             zip-archive-name,
             zip-directory-name}
 
