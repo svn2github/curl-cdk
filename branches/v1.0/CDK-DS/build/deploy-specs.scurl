@@ -104,7 +104,8 @@
         || ====================
         || project itself
         {DeploySpec
-            "blazeds/curl-samples/project.cprj",
+||--            "blazeds/curl-samples/project.cprj",
+            "code/docs/en/dguide/samples/blazeds/curl-samples/project.cprj",
             "deploy",
             "blazeds-curl-samples"
         },
@@ -143,6 +144,17 @@
                    target-root:Url}:void
                 def dir = {target-root.concat "blazeds-curl-samples"}
                 def loc = {create-zip-archive dir}
+            }},
+        {DeployAction
+            caption = {lmessage zip samples dguide copy},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                def zipname = "blazeds-curl-samples.zip"
+                {copy 
+                    {target-root.concat zipname},
+                    {target-root.concat "docs-install/"& dirname & "/docs/en/dguide/samples/" & zipname},
+                    error-if-exists? = false}
             }},
         
         || BOILERPLATE material {copy)
