@@ -67,9 +67,8 @@
                         "deploy-batch.curl",
                         "deploy-specs.scurl",
                         || ~~~~~~~~~~ \\
-                        || TODO: remove these when in CDU
-                        "zip-support.scurl",
-                        "7z.exe"
+                        || TODO: remove this when in CDU
+                        "zip-support.scurl"
                         || ~~~~~~~~~~ //
                     }
                 {for file in files do
