@@ -28,15 +28,17 @@
 {paragraph
     With Curl Data Kit library Data Services (CDK-DS) packages,
     you can use remoting and messaging to interact with
-    servers supporting AMF protocols.
+    servers supporting the AMF data transfer protocol.
+}
+{summary
 
     The CDK-DS implements all the remoting and web messaging services
     that are supported by the open source BlazeDS server,
     including remote procedure calls (RPC) and publish/subscribe messaging.
-
     {itemize
 
-        {item {bold remote procedure calls}
+||--        {item {link href = {url "cdk-ds-remoting.curl"}, {bold Remoting}}
+        {item {bold Remoting}
             
             The {docref COM.CURL.CDK.RPC} package
             provides a {docref RemoteObject} adapter
@@ -46,7 +48,8 @@
             remote methods available from AMF service providers.
         }
 
-        {item {bold messaging}
+||--        {item {link href = {url "cdk-ds-messaging.curl"}, {bold Messaging}}
+        {item {bold Messaging}
             
             The {docref COM.CURL.CDK.MESSAGING} package
             provides a {docref Producer} and {docref Consumer} adapters
@@ -56,7 +59,8 @@
             Publish / Subscribe message exchange.
         }
 
-        {item {bold data object}
+||--        {item  {link href = {url "cdk-ds-data-object.curl"}, {bold Data Object}}
+        {item  {bold Data Object}
             
             The {docref COM.CURL.CDK.DATA-OBJECT} package
             provides a flexible representation for data records.
@@ -64,14 +68,12 @@
             This allows data centric Curl applications to
             work in a uniform way with data obtained from data services.
         }
-
-        {item {bold CDK Roadmap}
-            Additional functionality is planned for future releases.
-        }
     }
-
-    CDK development takes place at the Open Source
-    {link href = {url "http://curl-cdk.wiki.sourceforge.net/"}, Curl Data Kit Project}.
+}
+{paragraph
+    CDK-DS development takes place at the Open Source
+    {link href = {url "http://curl-cdk.wiki.sourceforge.net/"},
+    Curl Data Kit Project}.
     
 }
 
@@ -90,71 +92,75 @@
 }
 
 || ====================
-{heading level=2,
-    Data Object
+{heading level=2,    
+    destination-name = "amf-protocol",
+    AMF Protocol 
 }
+
 {paragraph
-    TODO ...
-}
-{itemize
-    {item
-        participate in Curl DATA-ACCESS architecture as Record in RecordSet
-    }
-    {item
-        provides change management services
-    }
-    {item
-        data record adapter for strongly types structures
-    }
-    {item
-        efficient data exchange with AMF service providers
-    }
+    Action Message Format (AMF) is a compact binary data transfer format used
+    originally for serializing ActionScript object graphs.
+
+    The AMF protocol specification is open source, described by these documents:
+    {itemize
+        {item
+            {link href = {url "http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf"},
+            AMF 3 Specification}
+        }
+        {item
+            {link href = {url "http://download.macromedia.com/pub/labs/amf/amf0_spec_121207.pdf"},
+            AMF 0 Specification}
+        }}
+
+    It is now supported on a wide range of server platforms, including
+    {itemize
+        {item
+            {link href = {url "http://opensource.adobe.com/wiki/display/blazeds/Overview"},
+            BlazeDS}
+        }
+        {item
+            {link href = {url "http://www.adobe.com/products/livecycle/dataservices/"},
+            LiveCycle Data Services}
+        }
+        {item
+            {link href = {url "http://www.themidnightcoders.com/products.html"},
+            WebORB}
+        }
+        {item
+            {link href = {url "http://framework.zend.com/manual/en/zend.amf.html"},
+            Zend Framework}
+        }}
 }
 
 || ====================
-{heading level=2,
-    AMF Service Providers
+{heading level=2,    
+    CDK-DS Sample Applications
 }
-{paragraph
-    TODO ...
-}
-{itemize
-    {item
-        BlazeDS
-    }
-    {item
-        LiveCycle Data Services
-    }
-    {item
-        WebORB
-    }
-    {item
-        Zend Framework
-    }
-}
+{def samples-loc = {url "../../../../build/DEPLOYED/"}}
+{def samples-zip-loc = {samples-loc.merge "blazeds-curl-samples.zip"}}
+{def samples-readme-loc = {samples-loc.merge  "blazeds-curl-samples/README.txt"}}
+{def samples-project-loc = {samples-loc.merge  "blazeds-curl-samples/project.cprj"}}
 
-|| ====================
-{heading level=2,
-    Remote Procedure Calls
-}
 {paragraph
-    TODO ...
-}
+    The sample applications referenced in this developers guide
+    work with testdrive services provided with
+    {link href = {url "http://opensource.adobe.com/wiki/display/blazeds/Release+Builds"},
+    BlazeDS Turnkey distribution} version {monospace 3.2.0978}.
 
-|| ====================
-{heading level=2,
-    Messaging
-}
-{paragraph
-    TODO ...
-}
+    These examples are supplied as an archive file (.zip) in
+    {link href = samples-zip-loc, {value samples-zip-loc.filename}}
 
-|| ====================
-{heading level=2,
-    {italic Miscellaneous Examples} || ### TODO: reorganize
-}
-{x-example-ref title = "Data Binding 1",
-    {url "examples/data-binding.curl"}
+    See {link href = samples-readme-loc, {value samples-readme-loc.filename}}
+    for information of setting up BlazeDS Turnkey installation with these Curl samples.
+
+    Note that samples that access service use localhost as the hostname, and 8400 as the port.
+    || TODO: checking
+
+    Source code for the samples is collected in a Curl project,
+    that can be loaded into the IDE:  
+    {link href = {curl-edit-url samples-project-loc}, {value samples-project-loc.filename}}
+ 
+    || TODO: Note that files under this directory can be deleted or modified when you reinstall or upgrade Curl.
 }
 
 || ====================

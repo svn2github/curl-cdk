@@ -22,6 +22,18 @@
         {url "cdk-ds-overview.curl"}
     },
     {node
+        |"CDK Data Services Remoting"|,
+        {url "cdk-ds-remoting.curl"}
+    },
+    {node
+        |"CDK Data Services Messaging"|,
+        {url "cdk-ds-messaging.curl"}
+    },
+    {node
+        |"CDK Data Services Data Object"|,
+        {url "cdk-ds-data-object.curl"}
+    },
+    {node
         |"CDK Data Services Worked Examples"|,
         null, ||{url "cdk-examples.curl"},
         
