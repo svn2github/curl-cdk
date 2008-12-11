@@ -16,17 +16,27 @@
 
 {import * from CURL.RUNTIME.HOST-PROCESS}
 
-{def zip-exec-loc =
-    {platform-switch
-     case "win32" do
-        {url "7z.exe"}
-     else
-        {error {lmessage zip-exec-loc: only defined for windows platform}}}
+{def zip-exec-locs =
+    {UrlArray
+        {url "7z.exe"},
+        {abs-url "file:///C:/Program Files/7-Zip/7z.exe"}}
 }
 
 {define-proc public {create-zip-archive
                         directory:Url
                     }:Url
+
+    def zip-exec-loc =
+        {platform-switch
+         case "win32" do
+            def locs =
+                {zip-exec-locs.filter-clone
+                    {fn loc => {local-file-exists? loc}}}
+            {if locs.empty? then
+                {error {lmessage create-zip-archive: no executable found}}
+             else locs[0]}
+         else
+            {error {lmessage create-zip-archive: only defined for windows platform}}}
     
     {if not {local-directory-exists? directory} then
         {error {lmessage create-zip-archive:
