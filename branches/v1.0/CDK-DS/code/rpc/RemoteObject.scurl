@@ -48,7 +48,7 @@
         for all messages sent and received through this object.  If events
         for just a single request are desired, add the {docref EventHandler}
         to the {docref Operation} returned by
-        {docref AbstractServive.get-operation} on this object.
+        {docref AbstractService.get-operation} on this object.
     }
   }
   {constructor public {default
