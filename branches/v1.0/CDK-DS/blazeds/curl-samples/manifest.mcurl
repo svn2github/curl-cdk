@@ -47,15 +47,15 @@
 
 || Images
 || --------------------
-{component directory images1,
+{component directory images,
     location = "images"
 }
-||--{component file CURL-LOGO,
-||--    location = "images/curllogo93x35_(R).gif"
-||--}
-||--{component file BLAZEDS-LOGO,
-||--    location = "images/blazeds.png"
-||--}
+{component file CURL-LOGO,
+    location = "images/curllogo93x35_(R).gif"
+}
+{component file BLAZEDS-LOGO,
+    location = "images/blazeds.png"
+}
 
 || Sample applets
 || --------------------
@@ -77,6 +77,12 @@
 
 {component directory testdrive-update,
     location = "testdrive-update"
+}
+
+|| Sample project
+|| --------------------
+{component file project.cprj,
+    location = "project.cprj"
 }
 
 || Help

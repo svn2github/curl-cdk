@@ -125,13 +125,13 @@
             {Fill}
         }
 
-    def destination = "product"
     def endpoint = {url "http://localhost:8400/samples/messagebroker/amf"}
-    def srv =
+    def destination = "product"
+    def service =
         {RemoteObject
             endpoint,
             destination}
-    def get-products = {srv.get-operation "getProducts"}
+    def get-products = {service.get-operation "getProducts"}
     {get-products.add-event-handler
         {on e:ResultEvent do
             {grid-frame.add

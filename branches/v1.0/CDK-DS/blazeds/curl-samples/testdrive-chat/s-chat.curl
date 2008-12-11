@@ -48,13 +48,13 @@
     def destination = "chat"
 
     || messaging
-    def producer =
-        {Producer 
+    def consumer =
+        {Consumer 
             endpoint = endpoint,
             destination = destination
         }
-    def consumer =
-        {Consumer 
+    def producer =
+        {Producer 
             endpoint = endpoint,
             destination = destination
         }
@@ -70,11 +70,12 @@
     || text control
     def input = {TextField style-class = "chat"}
     || send button
-    def send = {CommandButton
-                   label = "Send",
-                   style-class = "chat",
-                   rollover-color = "#0b333c"
-               }
+    def send =
+        {CommandButton
+            label = "Send",
+            style-class = "chat",
+            rollover-color = "#0b333c"
+        }
 
     || coordination
     {consumer.add-event-handler
