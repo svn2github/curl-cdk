@@ -22,9 +22,9 @@ This directory contains the 1.0 release of the Curl Data Kit Data
 Services (CDK-DS)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
-applications in Curl. With Curl Data Kit (CDK) library Data Services
+applications in Curl.  With Curl Data Kit Data Services (CDK-DS)
 packages, you can use remoting and messaging to interact with servers
-supporting AMF protocols.
+that support the AMF data transfer protocol.
 
 To install the CDK-DS, unzip the distribution onto your machine.
 
@@ -58,6 +58,17 @@ and preprocessed library.
 - COM.CURL.CDK-DATA-SERVICES.1.0/manifest.mcurl
 			CDK-DS library doc definition
 
+Samples
+--------------------
+
+The CDK-DS contains samples ready for use with the
+BlazeDS Turnkey Distribution 3.2.0.3978
+
+- blazeds-curl-samples	CDK-DS samples directory
+- blazeds-curl-samples.zip	and zip archive
+- blazeds-curl-samples/README.txt
+  			installation instructions
+
 Source Code
 --------------------
 
@@ -83,3 +94,27 @@ CDK-DS 1.0 CHANGES
 --------------------
 
 This is the initial release.
+ 
+RELEASE NOTES
+====================
+
+The following functionality is not in this release
+
+- None of the timeouts are fully implemented, including
+-- AbstractServer.request-timeout
+-- MessageAgent.request-timeout
+-- Channel.connect-timeout
+-- Channel.request-timeout
+
+- Fallover to alternate uris in a Channel or to a different Channel 
+  in a ChannelSet when a server is down or unreachable is not fully
+  implemented.
+
+- Resubscribing when a server reboots is not fully implemented by
+  Consumer.
+
+- RTMPChannel, HttpChannel, StreamingHttpChannel, and WebService (SOAP
+  based Service) are not implemented.
+
+- ServerConfig is not implemented.
+
