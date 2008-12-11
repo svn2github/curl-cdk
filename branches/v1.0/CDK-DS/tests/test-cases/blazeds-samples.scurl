@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 {value
-    def home = {url "../../blazeds/curl-samples"}
+    def home = {url "../../code/docs/en/dguide/samples/blazeds/curl-samples"}
     {TestSuite "BlazeDS Samples",
         
         
