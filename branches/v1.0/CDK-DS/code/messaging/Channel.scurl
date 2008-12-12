@@ -331,6 +331,10 @@
     }
   }
 
+  {method protected {send-cluster-request responder:MessageResponder}:void
+    {self.internal-send responder}
+  }
+
   {method protected {connect-succeeded}:void
     || TODO: shutdownConnectTimer()
     || TODO: ServerConfig and agent configuration stuff.
@@ -405,6 +409,16 @@
 
   {method private {failover}:void
     || TODO:
+    {inc self.failover-index}
+    {if self.failover-index < self.failover-uris.size then
+        set self.reconnecting? = true
+        set self.uri = self.failover-uris[self.failover-index]
+        {after 0s do
+            {self.internal-connect}
+        }
+     else
+        {self.reset-to-primary-uri}
+    }
   }
 
   {method private {reset-to-primary-uri}:void
