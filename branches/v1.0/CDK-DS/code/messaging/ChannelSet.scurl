@@ -58,7 +58,7 @@
   }
   {constructor public {default
 ||--                          channel-ids:#{Array-of #String} = null,
-                          clustered-with-load-balancing?:bool = false
+                          clustered-with-load-balancing?:bool = false,
                           channel:#Channel = null,
                           channels:#{Array-of #Channel} = null
                       }
