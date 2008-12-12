@@ -36,7 +36,6 @@
 {import * from COM.CURL.CDK.MESSAGES}
 {import * from COM.CURL.CDK.AMF}
 {import * from COM.CURL.CDK.CONNECTION}
-{import * from COM.CURL.CDK.DATA-OBJECT}
 
 {include
     "AbstractConsumer.scurl",

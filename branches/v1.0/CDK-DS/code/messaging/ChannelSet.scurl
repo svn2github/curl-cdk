@@ -24,7 +24,9 @@
   field private _authenticated?:bool = false
   field private _connected?:bool = false
   field private connecting?:bool = false
-  field private clustered?:bool = false
+  field private clustered?:bool
+  field private _channel-failover-uris:{HashTable-of String, {Array-of Url}}
+  field private has-requested-cluster-endpoints?:bool = false
   field private _configured?:bool = false
   field private should-be-connected?:bool = false
   || TODO: Implement a setter that checks configured? then removes existing
@@ -55,8 +57,8 @@
     }
   }
   {constructor public {default
-||--                          channel-ids:#{Array-of #String} = null
-||--                          , clustered-with-load-balancing?:bool = false
+||--                          channel-ids:#{Array-of #String} = null,
+                          clustered-with-load-balancing?:bool = false
                           channel:#Channel = null,
                           channels:#{Array-of #Channel} = null
                       }
@@ -89,9 +91,11 @@
 ||--     else
         set self._configured? = self.channels.empty?
 ||--    }
+    set self.clustered? = clustered-with-load-balancing?
     set self._message-agents = {new {Array-of MessageAgent}}
     set self.pending-messages = {new {Set-of IMessage}}
     set self.pending-sends = {new {Array-of PendingSend}}
+    set self._channel-failover-uris = {new {HashTable-of String, {Array-of Url}}}
 
     {self.add-event-handler
         {on e:ChannelConnectEvent do
@@ -147,6 +151,28 @@
 ||--  {setter public {current-channel channel:#Channel}:void
 ||--    set self._current-channel = channel
 ||--  }
+
+  {getter protected {channel-failover-uris}:{HashTable-of String, {Array-of Url}}
+    {return self._channel-failover-uris}
+  }
+
+  {setter protected {channel-failover-uris
+                        val:{HashTable-of String, {Array-of Url}}
+                    }:void
+    set self._channel-failover-uris = val
+    {for ch:#Channel in self.channels do
+        {if-non-null ch then
+            {if-non-null id = ch.id then
+                {if {self.channel-failover-uris.key-exists? id} then
+                    set self.current-channel.failover-uris =
+                        self.channel-failover-uris[id]
+                }
+            }
+         else
+            {break}
+        }
+    }
+  }
 
   {getter public {message-agents}:{Array-of MessageAgent}
     {return self._message-agents}
@@ -447,11 +473,21 @@
   }
   
   {method public {send agent:MessageAgent, message:IMessage}:void
-    {if self.connected? then
+    {if self.current-channel != null and self.connected? then
         || TODO: Clustering?
-        {if-non-null self.current-channel then
-            {self.current-channel.send agent, message}
+        {if not self.has-requested-cluster-endpoints? and self.clustered? then
+            def cmd = {CommandMessage}
+            {if agent isa AuthenticationAgent then
+
+             else
+                set cmd.destination = agent.destination
+            }
+            set cmd.operation = CommandMessage.CLUSTER_REQUEST_OPERATION
+            {self.current-channel.send-cluster-request
+                {ClusterMessageResponder cmd, self}}
+            set self.has-requested-cluster-endpoints? = true
         }
+        {self.current-channel.send agent, message}
      else
         {if not {self.pending-messages.member? message} then
             {self.pending-messages.insert message}
@@ -711,4 +747,40 @@
         {out.write-one-string credentials}}
     {return
         {base64-encode bytes}}
+}
+
+
+{define-class ClusterMessageResponder {inherits MessageResponder}
+
+  field private channel-set:ChannelSet
+
+  {constructor {default
+                   msg:IMessage,
+                   channel-set:ChannelSet
+               }
+    {construct-super null, msg}
+    set self.channel-set = channel-set
+  }
+
+  {method protected {init-handlers}:void
+    set self.result-handler =
+        {proc {msg:IMessage}:void
+            {if-non-null body = msg.body then
+                {type-switch body
+                 case ea:Array do
+                    def failover-uris = {{HashTable-of String, {Array-of Url}}}
+                    {for e in ea do
+                        def channel = e asa DataObject
+                        {for e-uri key id in channel do
+                            {if not {failover-uris.key-exists? id} then
+                                set failover-uris[id] = {{Array-of Url}}
+                            }
+                            {failover-uris[id].append {url e-uri asa String}}
+                        }
+                    }
+                    set self.channel-set.channel-failover-uris = failover-uris
+                }
+            }
+        }
+  }
 }
