@@ -1,0 +1,82 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDU.CURL-UNIT}
+{import * from COM.CURL.CDU.CURL-UNIT-UI}
+
+|| ===== \\
+{import * from CURL.IDE.COVERAGE}
+{import COM.CURL.CDK.AMF}
+{import COM.CURL.CDK.CONNECTION}
+{import COM.CURL.CDK.DATA-OBJECT}
+{import COM.CURL.CDK.IO}
+{import COM.CURL.CDK.MESSAGES}
+{import COM.CURL.CDK.MESSAGING}
+{import COM.CURL.CDK.RECORDSET-FOR}
+{import COM.CURL.CDK.RPC}
+{def start-coverage =
+    {CommandButton
+        label = "Start Coverage",
+        {on Action do
+            {coverage-enable}
+            {coverage-instrument
+                COM.CURL.CDK.AMF,
+                COM.CURL.CDK.CONNECTION,
+                COM.CURL.CDK.DATA-OBJECT,
+                COM.CURL.CDK.IO,
+                COM.CURL.CDK.MESSAGES,
+                COM.CURL.CDK.MESSAGING,
+                COM.CURL.CDK.RECORDSET-FOR,
+                COM.CURL.CDK.RPC
+            }
+            {coverage-start}
+        }}
+}
+{def stop-coverage =
+    {CommandButton
+        label = "Stop Coverage",
+        {on Action do
+            {coverage-stop}
+            {coverage-view {coverage-results}}
+        }}
+} 
+|| ===== //
+
+{document-style PlainDocument}
+{set-document-properties hstretch? = true, vstretch? = true}
+
+{value
+    def target = {RecordSetTestTarget}
+    set TestTarget.current = target
+    def applet-loc = {get-the-applet}.url
+    def qloc =
+        {if applet-loc.query.empty? then 
+            {url "test-cases/test-cases.scurl"}
+         else
+            {applet-loc.merge {applet-loc.query.tail 1}}}
+
+    def suite = {TestSuite.import qloc}
+    {VBox
+        {HBox
+            start-coverage,
+            stop-coverage,
+            {Fill}},
+        {test-ui suite}}
+}

@@ -1,0 +1,65 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{TestSuite "main",
+    
+    || Prelude
+    || --------------------
+    || test context info
+    || TODO: move to CDU
+    {TestSuite.import {url "context.scurl"}},
+    
+    || Version info
+    {test-case "CDK.DATA-SERVICES version",
+        {TestCondition.succeed message = 
+            {if-non-null version = {get-default-manifest}.meta-data.version
+             then {String version} else "unknown"}}},
+
+    || Packages
+    || --------------------
+    {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES"},
+    {ManifestTestSuite.from-name "COM.CURL.CDK.DATA-SERVICES-SUPPORT"},
+
+    || Developer's Guide
+    || --------------------
+    {TestSuite.import {url "dguide-test-cases.scurl"}},
+    
+    || DataObject
+    || --------------------
+    {TestSuite.import {url "data-object.scurl"}},
+    
+    || Serialization
+    || --------------------
+    {TestSuite.import {url "serialization.scurl"}},
+
+    || Answers from servers
+    || --------------------
+    {TestSuite.import {url "answers-from-servers.scurl"}},
+
+    || Samples for distribution
+    || --------------------
+    {TestSuite.import {url "blazeds-samples.scurl"}},
+
+    || Online tests
+    || --------------------
+    {TestSuite.import {url "online-tests/blazeds.scurl"}},
+    {TestSuite.import {url "online-tests/weborb.scurl"}},
+    
+    || Postlude
+    || --------------------
+    {test-case "Curl version",
+        {TestCondition.succeed message = curl-version}}
+}

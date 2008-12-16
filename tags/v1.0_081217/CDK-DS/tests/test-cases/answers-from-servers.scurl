@@ -1,0 +1,91 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.AMF}
+{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
+
+{define-proc {test-answer-from-server dir:LocalDirectory}:TestSuite
+    def files = {{Array-of Test}}
+    def dirs = {{Array-of Test}}
+    {for e key name in dir do
+        {type-switch e
+         case d:LocalDirectory do
+            {if d.url.filename != ".svn" then
+                {dirs.append {test-answer-from-server d}}
+            }
+
+         case f:File do
+            {files.append
+                {test-case name,
+                    def deserializer = {AMF0Deserializer {read-open-byte f.url}}
+                    let ok?:bool = true
+                    let msg:String = ""
+                    {try
+                        def ret = {deserializer.deserialize}
+                        {if not ret.bodies.empty? then
+                            set msg =
+                                {message
+                                    return '{value {type-of ret.bodies[0].data}}'
+                                }
+                        }
+                     catch ex:Exception do
+                        set ok? = false
+                        set msg = ex.message
+                    }
+                    {if ok? then
+                        {TestCondition.succeed message = msg}
+                     else
+                        {TestCondition.fail message = msg}
+                    }
+                }
+            }
+        }
+    }
+
+    def suite = {TestSuite dir.url.basename}
+    def add2suite = {proc {array:{Array-of Test}}:void
+                        {array.sort
+                            comparison-proc =
+                                {proc {x:Test, y:Test}:bool
+                                    {return {String-leq? x.name, y.name}}
+                                }}
+                        {for t in array do {suite.add t}}
+                    }
+    {add2suite dirs}
+    {add2suite files}
+
+    {return suite}
+}
+
+|| responses from servers
+|| -----------------------
+{value
+    def data-dir = {manifest-url "directory", "test-data"}
+    def name = "Answers_from_Servers"
+    def dir = {{data-dir.concat name}.instantiate-Directory}
+    {type-switch dir
+     case ld:LocalDirectory do
+        {test-answer-from-server ld}
+     else
+        {TestSuite name,
+            {SimpleTestCase {lmessage WARNING},
+                {proc {}:void
+                    {error
+                        {lmessage
+                            HttpDirectory not supported. }}
+                }}}
+    }
+}

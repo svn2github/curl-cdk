@@ -1,0 +1,186 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0 applet}
+{applet manifest = "../tests/manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from COM.CURL.CDK.AMF}
+{import * from COM.CURL.CDK.MESSAGES}
+
+{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
+
+{import * from CURL.LANGUAGE.SOURCE}
+
+|| test, display helpers
+{include "explorer-support.scurl"}
+
+|| simple REP loop
+|| ====================
+{document-style PlainDocument}
+{value
+    def server-locs =
+        {StringArray
+            "http://localhost:8400/samples/messagebroker/amf",
+            || "http://localhost/SERVER/WEBORB/weborb.php",
+            "http://localhost:8080/examples/flex/remoting/basicinvoke/weborb.wo"
+        }
+    let loc:Url = {abs-url server-locs[0]}
+
+    def reset =
+        {proc {}:(TreeNode, TreeControl)
+            def history =
+                {ConcreteTreeNode node-label = {bold History}}
+            def tm = {TreeModel root = history}
+            def display = {TreeControl data-model = tm}
+            {return history, display}}
+    let (history:TreeNode, display:TreeControl) = {reset}
+
+    || whether to submit to server
+    let send?:bool = false
+    || whether to expand last submission
+    let expand?:bool = true
+    
+    def eval =
+        {proc {x:any, send?:bool = false}:void
+            def make-envelope =
+                {proc {body:AMFBody}:AMFEnvelope
+                    def env = {AMFEnvelope}
+                    {env.add-body body}
+                    {return env}}
+            def request =
+                {type-switch x
+                 case x:String do {decode-envelope {hex-decode x}}
+                 case x:ByteArray do {decode-envelope x}
+                 case x:AMFEnvelope do x
+                 case x:AMFBody do {make-envelope x}
+                 case x:RemotingMessage do
+                    {make-envelope
+                        {AMFBody
+                            target-uri = "null",
+                            response-uri = "/1",
+                            {Array x}}}
+                 case x:CommandMessage do
+                    {make-envelope
+                        {AMFBody
+                            target-uri = "null",
+                            response-uri = "/1",
+                            {Array x}}}
+                 else {error {message Unexpected type: {value x}}}}
+            def response =
+                {if send? then
+                    {try
+                        {submit loc, request}
+                     catch e:Exception do e}
+                 else
+                    null}
+
+            def node =
+                {node-for caption = {format "Entry %d", history.size}, 
+                    {Array request, response}}
+            {history.append node}
+            {if expand? then
+                def last = history.size - 1
+                {display.collapse-node history, 
+                    collapse-descendants? = true}
+                {display.expand-node history}
+                {display.expand-node history[last],
+                    expand-descendants? = true}}
+        }
+    def dwim =
+        {proc {x:String}:any
+            {return
+                {if {x.prefix? "\{"} then
+                    {evaluate x}
+                 else
+                    x}}
+        }
+    def data-input = {TextArea}
+
+    || template
+    {data-input.set-value-with-events
+        {stringify
+{CommandMessage-create
+    operation = CommandMessageCode.CLIENT-PING.value,
+    messageId = "1234",
+    headers =
+        {DataObject
+            DSId = "nil",
+            DSEndpoint = "my-amf"
+        }
+}
+        }}
+    || TODO: history or templates dropdown
+
+    def commands =
+        {VBox
+            {HBox margin = 6px, spacing = 6px,
+                {CommandButton label = "Submit",
+                    tooltip = {text Evaluate expression},
+                    {on Action do
+                        def data = {dwim data-input.value}
+                        {with-busy-cursor
+                            {eval data, send? = send?}}}},
+                {CommandButton label = "Read dat",
+                    tooltip = {text Read bytes from data file},
+                    {on Action do
+                        {if-non-null loc = {choose-file} then
+                            def base = {get-base-url}.parent
+                            def where = {loc.name-relative-to-url base}
+                            def src = 
+                                {expand-template
+                                    {read-bytes-from {url ?{Literal where}}}
+                                }
+                            {data-input.set-value-with-events
+                                {{src.get-text}.to-String}}}}},                
+                {CheckButton label = "Send?",
+                    tooltip = {text Whether to submit to server},
+                    value = send?,
+                    {on ValueFinished at c:CheckButton do            
+                        set send? = c.value}},
+                {CheckButton label = "Expand?",
+                    tooltip = {text Whether to expand last submission},
+                    value = expand?,
+                    {on ValueFinished at c:CheckButton do
+                        set expand? = c.value}},
+                {CommandButton label = "Reset",
+                    tooltip = {text Clear History},
+                    {on Action do
+                        def old-display = display
+                        set (history, display) = {reset}
+                        {old-display.replace-with display}
+                    }},
+                {Fill},
+                {ComboBox width = 3in, vorigin = 70%,
+                    tooltip = {text Server location},
+                    {splice server-locs},
+                    value = loc.name,
+                    {on ValueFinished at c:ComboBox do
+                        set loc = {abs-url c.value}}
+                }},
+            data-input}
+    def results =
+        {ScrollBox hscroll? = false,
+            display}
+    
+    def main = {PanedWindow orientation = "vertical"}
+    {main.add-pane commands}
+    {main.add-pane results}
+    {main.set-pane-sizes {{Array-of double} 20%, 80%}}
+
+    main
+}

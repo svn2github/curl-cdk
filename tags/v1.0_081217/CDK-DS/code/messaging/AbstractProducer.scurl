@@ -1,0 +1,151 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public abstract AbstractProducer {inherits MessageAgent}
+  field public auto-connect?:bool = true
+  field public default-headers:#IMessageHeaders
+  field public reconnect-attempts:int = 0
+  field public reconnect-interval:Time = 0ms
+  field private connect-message:#CommandMessage
+
+  {doc-next
+    {purpose
+        Create an {docref AbstractProducer} with some server information.
+    }
+    {parameter endpoint,
+        The {docref Url} of the server that this object is
+        going to communicate with.  Also if no {docref channel-set} is
+        provided, this will be used to make a {docref ChannelSet} wrapped
+        around a {docref AMFChannel}.
+    }
+    {parameter destination,
+        The destination at the {param endpoint} for all messages being sent.
+    }
+    {parameter channel-set,
+        A {docref ChannelSet} to use to send messages, this will be
+        implicitly created from the {param endpoint} if it is not supplied.
+    }
+    {parameter ...,
+        {docref EventHandler}s to receive events on this object.
+    }
+    {notes
+        The {docref EventHandler}s on this object can receive
+        {docref MessageFaultEvent}s, {docref MessageAckEvent}s,
+        {docref ChannelEvent}s, and {docref ChannelFaultEvent}s.
+    }
+  }
+  {constructor public {default
+                          endpoint:#Url = null,
+                          destination:String = "",
+                          channel-set:#ChannelSet = null,
+                          ...:EventHandler
+                      }
+    {construct-super
+        endpoint = endpoint,
+        destination = destination,
+        channel-set = channel-set,
+        ...
+    }
+    set self.agent-type = "producer" ||""
+  }
+
+  {doc-next
+    {purpose
+        Connect to the endpoint.
+    }
+  }
+  {method public {connect}:void
+    {if not self.connected? then
+        {if self.connect-message == null then
+            set self.connect-message = {new CommandMessage}
+            set self.connect-message.operation =
+                CommandMessage.CLIENT_PING_OPERATION
+            set self.connect-message.client-id = self.client-id
+            set self.connect-message.destination = self.destination
+            {if-non-null msg = self.connect-message then
+                {self.internal-send msg, wait-for-client-id? = false}
+            }
+        }
+    }
+  }
+
+  {method public {disconnect}:void
+    || TODO: StopReconnectTimer
+    {super.disconnect}
+  }
+
+  {doc-next
+    {purpose
+        Send a message to the endpoint.
+    }
+    {parameter message,
+        {docref IMessage} to send.
+    }
+  }
+  {method public {send message:IMessage}:void
+    || TODO: Add default headers?
+    {self.internal-send message}
+  }
+
+  {method protected {acknowledge
+                        ack:AcknowledgeMessage,
+                        message:IMessage
+                    }:void
+    {if self.disconnect-barrier? then {return}}
+
+    {super.acknowledge ack, message}
+
+    {type-switch message
+     case cm:CommandMessage do
+        {if cm.operation ==CommandMessage.CLIENT_PING_OPERATION then
+||--            {self.stop-reconnect-timer}
+        }
+    }
+  }
+
+  {method protected {fault err:ErrorMessage, message:IMessage}:void
+    {self.internal-fault err, message}
+  }
+
+  {method private {internal-fault
+                      err:ErrorMessage,
+                      message:IMessage,
+                      route-to-store?:bool = true,
+                      ignore-disconnect-barrier?:bool = false
+                  }:void
+    {if self.disconnect-barrier? and not ignore-disconnect-barrier? then
+        {return}
+    }
+    {type-switch message
+     case cm:CommandMessage do
+        {if cm.operation == CommandMessage.CLIENT_PING_OPERATION then
+||--            {if self.reconnect-timer == null then
+                {if self.connect-message != null and
+                    err.correlation-id == self.connect-message.message-id
+                 then
+||--                    set self.should-be-connected? = false
+                    def new-err = {new ErrorMessage}
+                    set new-err.fault-code = "Client.Error.Connect" ||""
+                    set new-err.correlation-id = self.connect-message.message-id
+                    set new-err.root-cause = err.root-cause
+                    set err = new-err
+                }
+||--            }
+        }
+    }
+    {super.fault err, message}
+  }
+}

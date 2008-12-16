@@ -1,0 +1,238 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-proc public {encode-envelope
+                        data:AMFEnvelope
+                    }:ByteArray
+    def bytes = {data.serialize}
+    {return bytes}
+}
+{define-proc public {decode-envelope
+                        bytes:ByteArray
+                    }:AMFEnvelope
+    {return
+        {with-open-streams
+            in = {ByteArrayInputStream bytes}
+         do
+            {AMFEnvelope.deserialize in}
+        }}
+}
+{define-proc public {submit
+                 loc:Url,
+                 request:AMFEnvelope
+             }:AMFEnvelope
+    def (bytes, headers) =
+        {submit-bytes loc,
+            {encode-envelope request}}
+    def mime-type = headers.mime-type
+    {return
+        {switch mime-type
+         case "application/x-amf" do
+            {decode-envelope bytes}
+         case "text/html" do
+            def msg =
+                {with-open-streams in =
+                    {TranscodingTextInputStream
+                        {ByteArrayInputStream bytes},
+                        character-encoding = CharEncoding.ascii}
+                 do {in.read-one-string}}
+            {error msg}
+         else {error {lmessage Unexpected MIME type: {value headers.mime-type}}}}
+    }
+}
+{define-proc public {submit-bytes
+                 loc:Url,
+                 bytes:ByteArray
+             }:(ByteArray, HttpResponseHeaders)
+    def file = {loc.instantiate-File} asa HttpFile
+    def request = {AMFHttpRequestData bytes}
+    def (response, headers) =
+        {with-open-streams in =
+            {file.http-read-open-byte
+                request-method = "post",
+                request-data = request} asa HttpByteInputStream
+         do
+            ({in.read}, in.response-headers)
+        }
+    {return response, headers}
+}
+{define-proc public {RemotingMessage-create
+                        destination:#String = null,
+                        messageId:#String = null,
+                        source:#String = null,
+                        operation:#String = null,
+                        body:any = null
+                    }:RemotingMessage
+    || TODO: all properties
+    def msg = {RemotingMessage}
+    {if-non-null destination then
+        set msg.destination = destination}
+    {if-non-null messageId then
+        set msg.message-id = messageId}
+    {if-non-null source then
+        set msg.source = source}
+    {if-non-null operation then
+        set msg.operation = operation}
+    {if-non-null body then
+        set msg.body = body}
+    {return msg}
+}
+{define-proc public {CommandMessage-create
+                        operation:int = 0,
+                        messageId:#String = null,
+                        headers:#IMessageHeaders = null,
+                        body:any = null
+                    }:CommandMessage
+    || TODO: all properties
+    def msg = {CommandMessage}
+    {if-non-null messageId then
+        set msg.message-id = messageId}
+    {if operation != 0 then
+        set msg.operation = operation asa uint}
+    {if-non-null headers then
+        set msg.headers = headers}
+    {if-non-null body then
+        set msg.body = body}
+    {return msg}
+}
+{define-enum public CommandMessageCode
+    CLIENT-PING = 5,
+    CLIENT-SYNC = 4,
+    CLUSTER-REQUEST = 7,
+    LOGIN = 8,
+    LOGOUT = 9,
+    POLL = 2,
+    SESSION-INVALIDATE = 10,
+    SUBSCRIBE = 0,
+    UNKNOWN = 10000,
+    UNSUBSCRIBE = 1
+}
+|| display support
+|| --------------------
+{define-class public ConcreteTreeNode {inherits DefaultTreeNode}
+  field _node-label:any
+  {constructor public {default node-label:any = null, ...}
+    set self._node-label = node-label
+    {construct-super {splice ...}}
+  }
+  {getter public {node-label}:any
+    {return
+        {if-non-null label = self._node-label
+         then label
+         else super.node-label}}
+  }
+}
+{define-proc {node-for
+                 x:any,
+                 caption:#String = null,
+                 seen:Set = {Set}
+             }:TreeNode
+    ||  functions
+    def caption-for =
+        {proc {x:any, caption:#String}:any
+            {return
+                {if-non-null caption then
+                    {message {value caption}: {value x}}
+                 else x}}}
+    def do-array =
+        {proc {xs:any, n:TreeNode}:void
+            {with-compiler-directives allow-any-calls? = true do
+                {for x key k in xs do
+                    {n.append
+                        {do-node x, caption = {String k}}}}}}
+    , do-object =
+        {proc {x:Object, n:TreeNode}:void            
+            {do-array {object-as-data x}, n}}
+    , do-node =
+        {proc {x:any,
+               caption:#String = null
+              }:TreeNode
+            || this node
+            || --------------------
+            def n =
+                {ConcreteTreeNode
+                    node-data = x,
+                    node-label = {caption-for x, caption}}
+            || NOTE: avoid infinite loop using 'seen'
+            || - better - "deeper" cross reference, or by path
+            || - best - LazyTreeNode
+            def seen? =
+                {proc {x:any}:bool
+                    {return {seen.member? x} or
+                        {value {seen.insert x}
+                            false}}}
+            || subordinate nodes
+            || --------------------
+            {type-switch x
+             case x:ByteArray do
+                def xs = {grouped {hex-encode x}, 64}
+                {for x key k in xs do
+                    {n.append {do-node x, caption = {String k}}}}
+             case x:DataObjectTraits do
+                {if not {seen? x} then
+                    {n.append {do-node x.name}}
+                    {n.append {do-node x.members}}
+                 else
+                    {n.append {do-node "SEEN"}}}
+             case xs:DataObject do
+                {if not {seen? x} then
+                    {n.append {do-node xs.traits}}
+                    {for x key k in xs do
+                        {n.append
+                            {do-node x, caption = k}}}
+                 else
+                    {n.append {do-node "SEEN"}}}
+             case x:Exception do
+                || TODO
+             case x:AMFEnvelope do
+                {do-object x, n}
+             case x:AMFBody do
+                {do-object x, n}
+             case x:AMFHeader do
+                {do-object x, n}
+             case x:IMessage do
+                {do-object x, n}
+             case x:Object do
+                def t:ClassType = {type-of x} asa ClassType
+                {if-non-null m = {t.get-method "keys-to-Iterator"} then
+                    {do-array x, n}
+                }
+            }
+            {return n}
+        }
+    {return
+        {do-node x, caption = caption}}
+}
+|| binary formatting
+|| --------------------
+{define-proc package {hex-decode x:StringInterface}:ByteArray
+    || TODO: ignore whitespace
+    let n:int = x.size
+    let bs:ByteArray = {ByteArray efficient-size = n div 2}
+    {for i = 0 below n step 2 do
+        let (b:int, bn:int) = {{SubString x, i, 2}.to-int radix = 16}
+        || reject if malformed
+        {if bn != 2 then
+            {error {lmessage Unexpected format in 'hex-decode'}}}
+        {bs.append b asa byte}}
+    {return bs}
+}
+{define-proc public {grouped x:String, n:int}:StringArray
+    def xs = {StringArray}
+    {for i = 0 below x.size step n do
+        {xs.append {x.substr i, {min n, x.size - i}}}}
+    {return xs}
+}

@@ -1,0 +1,180 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| TODO: move to CDU
+{include "zip-support.scurl"}
+
+{value
+    def name = "COM.CURL.CDK.DATA-SERVICES"
+    def version = "1.0"
+    def dirname = name & "." & version
+    
+    {DeploySpecs
+        caption = {lmessage deploy CDK-DS},
+
+        || SOURCE distribution
+        || ====================
+
+        || duplicate source tree  
+        || --------------------                      
+        || -- code (copy)
+        {DeploySpec
+            "code/project.cprj",
+            "deploy-source",
+            "src/code"
+        },
+        || -- support (copy)
+        {DeploySpec
+            "tests/project.cprj",
+            "deploy",
+            "src/tests"
+        },
+        || incorporate test framework 
+        || --------------------
+        {DeploySpec
+            "lib/CDU/project.cprj",
+            "deploy",
+            "src/lib/CDU"
+        },
+        || -- build scripts (copy)
+        {DeployAction
+            caption = {lmessage copy 'build' scripts},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                || NOTE: rename for distribution tree
+                || -- from 'build' to 'tools'
+||--            def target = {target-root.concat "src/build"}
+                def target = {target-root.concat "src/tools"}
+                {create-Directory target,
+                    error-if-exists? = false}
+                def files =
+                    {StringArray
+                        "deploy.curl",
+                        "deploy-batch.curl",
+                        "deploy-specs.scurl",
+                        || ~~~~~~~~~~ \\
+                        || TODO: remove this when in CDU
+                        "zip-support.scurl"
+                        || ~~~~~~~~~~ //
+                    }
+                {for file in files do
+                    {copy 
+                        {source-root.concat "build/" & file},
+                        {target.concat file},
+                        error-if-exists? = false}}}
+        },
+
+        || LIBRARY distribution
+        || ====================
+        
+        || build library (pcurl)
+        || -------------------- 
+        {DeploySpec
+            "code/project.cprj",
+            "deploy",
+            "deploy/" & dirname
+        },
+
+        || DOCS distribution
+        || ====================
+        
+        || documentation (copy + docs)
+        || --------------------
+        {DeploySpec
+            "code/project.cprj",
+            "deploy-docs",
+            "docs-install/" & dirname
+        },
+
+        || SAMPLES distribution
+        || ====================
+        || project itself
+        {DeploySpec
+            "code/docs/en/dguide/samples/blazeds/curl-samples/project.cprj",
+            "deploy",
+            "blazeds-curl-samples"
+        },
+        || incorporate pcurled library
+        {DeployAction
+            caption = {lmessage copy LIB},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                {copy 
+                    {target-root.concat "deploy/" & dirname},
+                    {target-root.concat "blazeds-curl-samples/lib/" & dirname},
+                    error-if-exists? = true,
+                    recurse? = true}
+            }},
+
+        || final steps
+        || ====================
+        
+        || clean source control directories
+        || --------------------
+        {DeployAction
+            caption = {lmessage clean .svn},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                {clean-svn-directories target-root}
+            }},
+        
+        || zip samples
+        || --------------------
+        {DeployAction
+            caption = {lmessage zip samples},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                def dir = {target-root.concat "blazeds-curl-samples"}
+                def loc = {create-zip-archive dir}
+            }},
+        {DeployAction
+            caption = {lmessage zip samples dguide copy},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                def zipname = "blazeds-curl-samples.zip"
+                {copy 
+                    {target-root.concat zipname},
+                    {target-root.concat "docs-install/"& dirname & "/docs/en/dguide/samples/" & zipname},
+                    error-if-exists? = false}
+            }},
+        
+        || BOILERPLATE material {copy)
+        || -------------------- 
+        {DeployAction
+            caption = {lmessage copy BOILERPLATE},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                {copy 
+                    {source-root.concat "LICENSE"},
+                    {target-root.concat "LICENSE"},
+                    error-if-exists? = false}
+                {copy 
+                    {source-root.concat "NOTICE"},
+                    {target-root.concat "NOTICE"},
+                    error-if-exists? = false} 
+                {copy 
+                    {source-root.concat "README.txt"},
+                    {target-root.concat "README.txt"},
+                    error-if-exists? = false} 
+            }}
+    }
+}
