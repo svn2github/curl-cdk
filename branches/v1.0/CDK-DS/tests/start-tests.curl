@@ -20,24 +20,31 @@
 }
 {import * from COM.CURL.CDU.CURL-UNIT}
 {import * from COM.CURL.CDU.CURL-UNIT-UI}
-||--{import * from COM.CURL.CDK.DATA-TEST-SUPPORT}
 
 || ===== \\
 {import * from CURL.IDE.COVERAGE}
-{import COM.CURL.CDK.DATA-OBJECT}
-{import COM.CURL.CDK.RECORDSET-FOR}
 {import COM.CURL.CDK.AMF}
+{import COM.CURL.CDK.CONNECTION}
+{import COM.CURL.CDK.DATA-OBJECT}
 {import COM.CURL.CDK.IO}
+{import COM.CURL.CDK.MESSAGES}
+{import COM.CURL.CDK.MESSAGING}
+{import COM.CURL.CDK.RECORDSET-FOR}
+{import COM.CURL.CDK.RPC}
 {def start-coverage =
     {CommandButton
         label = "Start Coverage",
         {on Action do
             {coverage-enable}
             {coverage-instrument
-                COM.CURL.CDK.DATA-OBJECT,
-                COM.CURL.CDK.RECORDSET-FOR,
                 COM.CURL.CDK.AMF,
-                COM.CURL.CDK.IO
+                COM.CURL.CDK.CONNECTION,
+                COM.CURL.CDK.DATA-OBJECT,
+                COM.CURL.CDK.IO,
+                COM.CURL.CDK.MESSAGES,
+                COM.CURL.CDK.MESSAGING,
+                COM.CURL.CDK.RECORDSET-FOR,
+                COM.CURL.CDK.RPC
             }
             {coverage-start}
         }}
