@@ -104,7 +104,6 @@
         || ====================
         || project itself
         {DeploySpec
-||--            "blazeds/curl-samples/project.cprj",
             "code/docs/en/dguide/samples/blazeds/curl-samples/project.cprj",
             "deploy",
             "blazeds-curl-samples"

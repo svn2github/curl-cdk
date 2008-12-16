@@ -33,7 +33,7 @@ unzipped into the
 [installdir]/tomcat/webapps/
 
 directory and will create a directory structure underneath a directory named
-curl-samples.
+blazeds-curl-samples.
 
 
 CONFIGURATION
@@ -63,7 +63,7 @@ configuration.
 
     or
 
-        [installdir]/tomcat/webapps/curl-samples
+        [installdir]/tomcat/webapps/blazeds-curl-samples
 
     directory. A curl-license-5.dat file for use with http://localhost urls can
     be found in your Curl installation. For example, if you installed the Curl
@@ -93,7 +93,7 @@ instructed by the BlazeDS documentation. The default setup for BlazeDS uses port
 8400, so you can start the CDK-DS samples by opening a browser and going to the
 following url:
 
-http://localhost:8400/curl-samples/start.curl
+http://localhost:8400/blazeds-curl-samples/start.curl
 
 The start file repeats some of these instructions, and provides some additional
 information. It also directs you to the Curl Test Drive page, which contains
