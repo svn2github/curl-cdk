@@ -43,8 +43,8 @@
             id = destination,
             uri = endpoint}
     def channel-set = {ChannelSet channel = channel}
-    set channel.connection.object-encoding = CurlConnection.AMF3
-    set consumer.channel-set = channel-set
+    || Can't set object-encoding yet.
+||--    set channel.connection.object-encoding = CurlConnection.AMF3
 
     || messaging
     def consumer =
