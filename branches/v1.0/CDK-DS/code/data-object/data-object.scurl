@@ -27,12 +27,6 @@
         When the object is modified, its original state is preserved,
         so that changes can be confirmed by {docref-abbr DataObject.commit} 
         or rejected by {docref-abbr DataObject.revert}.
-
-        {itemize
-            {item {docref StandardDataObject}}
-            {item {docref OpenDataObject}}
-            {item {docref SealedDataObject}}
-        }
     }
     {expected-events
         {event DataObjectChanged, indicates that the object has been modified.}
@@ -722,9 +716,9 @@
   {method public {revert}:void
     || NOTE: change propagation is damped by 'changed?' checks above
     {if-non-null original = self.original-data then
-        {original.copy-into
-            self.data, 0, 0, original.size
-        }
+        {for key k in self do
+            def i = {self.index-for k}
+            set self[k] = original[i]}
         || now its the same
         set self.original-data = null}
   }
