@@ -19,6 +19,13 @@
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ" asa CharClass ||""
 }
 
+{doc-next ||=== AMFObjectAdapter
+    {purpose
+        Describes transformation between {docref DataObjectTraits} and a {docref ClassType}.}
+    {details
+        Used by {docref AMFChannel} for serializing and deserializing {docref DataIbject}s
+        to and from native data types.}
+}
 {define-class public AMFObjectAdapter
   field public constant type:ClassType
   field public constant traits:DataObjectTraits
@@ -40,12 +47,25 @@
   }
 }
 
+{doc-next ||=== AMFObjectAdapters
+    {purpose
+        Describes transformations between {docref DataObjectTraits} and a {docref ClassType}.}
+    {details
+        Used by {docref AMFChannel} for serializing and deserializing {docref DataIbject}s
+        to and from native data types.}
+}
 {define-class public AMFObjectAdapters
   field constant traits-for-class:{HashTable-of ClassType, DataObjectTraits}
   field constant adapters-by-name:{HashTable-of String, AMFObjectAdapter}
   field constant readers-by-traits:{HashTable-of DataObjectTraits,
                                      {proc-type {Object, AMF3Deserializer}:void}}
   
+  {doc-next ||=== AMFObjectAdapters.default
+    {purpose
+        Create an {docref AMFObjectAdapters} object.}
+    {parameter default-mappings?, specifies whether to register internal AMF mappings
+        (using {docref-abbr AMFObjectAdapters.register-defaults}).}
+  }
   {constructor public {default
                           default-mappings?:bool = true
                       }
@@ -108,6 +128,14 @@
          else ({uninitialized-value-for-type {proc-type {Object, AMF3Serializer}:void}}, false)
         }}
   }
+  {doc-next ||=== AMFObjectAdapters.register-class
+    {purpose
+        Register mappings for specified class.}
+    {parameter type, the Curl class}
+    {parameter traits, the corresponding AMF traits.
+        The default is obtains from the class variable {ctext {metavar type}.traits},
+        or, if that is not defined, is derived from public properties of the class.}
+  }
   {method public {register-class
                      type:ClassType,
                      traits:DataObjectTraits = {traits-for type}
@@ -116,6 +144,13 @@
     set self.traits-for-class[type] = traits
     set self.adapters-by-name[name] =
         {AMFObjectAdapter type, traits = traits}
+  }
+  {doc-next ||=== AMFObjectAdapters.register-package
+    {purpose
+        Register mappings for specified package.}
+    {parameter package, the Curl package.
+        All classes which define class variable {ctext {metavar type}.traits}
+        will be registered.}
   }
   {method public {register-package
                      package:Package
@@ -126,6 +161,23 @@
             {if-non-null traits = {class-traits-for type} then
                 {self.register-class type, traits = traits}
             }}}
+  }
+  {doc-next ||=== AMFObjectAdapters.register-defaults
+    {purpose
+        Register mappings for AMF implemantation.}
+    {details
+        This registers mappings for
+        {itemize
+            {item {docref AcknowledgeMessage}}
+            {item {docref AcknowledgeMessageExt}}
+            {item {docref AsyncMessage}}
+            {item {docref AsyncMessageExt}}
+            {item {docref CommandMessage}}
+            {item {docref CommandMessageExt}}
+            {item {docref ErrorMessage}}
+            {item {docref RemotingMessage}}
+            {item {docref ArrayCollection}}
+        }}
   }
   {method public {register-defaults}:void
 
@@ -138,9 +190,19 @@
     || COM.CURL.CDK.MESSAGES.AsyncMessage
     || - ISmallMessage
     || COM.CURL.CDK.MESSAGES.AcknowledgeMessageExt
+    || COM.CURL.CDK.MESSAGES.AsyncMessageExt
+    || COM.CURL.CDK.MESSAGES.CommandMessageExt
     
     || COM.CURL.CDK.AMF -- this-package
     {self.register-class ArrayCollection}
+  }
+  {doc-next ||=== AMFObjectAdapters.standard
+    {purpose
+        Describes standard transformations between {docref DataObjectTraits} and a {docref ClassType}.}
+    {details
+        This is the default mapper used by {docref AMFChannel}
+        for serializing and deserializing {docref DataIbject}s
+        to and from native data types.}
   }
   def public standard = {AMFObjectAdapters}
 }
