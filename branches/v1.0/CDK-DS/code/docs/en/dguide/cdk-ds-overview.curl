@@ -1,4 +1,4 @@
- ||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -37,7 +37,6 @@
     including remote procedure calls (RPC) and publish/subscribe messaging.
     {itemize
 
-||--        {item {link href = {url "cdk-ds-remoting.curl"}, {bold Remoting}}
         {item {bold Remoting}
             
             The {docref COM.CURL.CDK.RPC} package
@@ -48,7 +47,6 @@
             remote methods available from AMF service providers.
         }
 
-||--        {item {link href = {url "cdk-ds-messaging.curl"}, {bold Messaging}}
         {item {bold Messaging}
             
             The {docref COM.CURL.CDK.MESSAGING} package
@@ -59,7 +57,6 @@
             Publish / Subscribe message exchange.
         }
 
-||--        {item  {link href = {url "cdk-ds-data-object.curl"}, {bold Data Object}}
         {item  {bold Data Object}
             
             The {docref COM.CURL.CDK.DATA-OBJECT} package
@@ -85,10 +82,22 @@
     This CDK-DS Initial Release is for use with Curl API Version 6.0.
 
     CDK-DS Initial Release packages are marked as version 1.0.
+
+    {itemize
+        {item 
+            {link href = {url "cdk-ds-remoting.curl"}, 
+            Remoting}}
+        {item 
+            {link href = {url "cdk-ds-messaging.curl"}, 
+            Messaging}}
+        {item 
+            {link href = {url "cdk-ds-data-object.curl"}, 
+            Data Object}}
+    }
 }
 
 {paragraph
-    This is a the first CDK-DS Release.
+    This is the first CDK-DS Release.
 }
 
 || ====================
@@ -133,7 +142,8 @@
 }
 
 || ====================
-{heading level=2,    
+{heading level=2,
+    destination-name = "samples",
     CDK-DS Sample Applications
 }
 {def samples-loc = {url "samples/"}}

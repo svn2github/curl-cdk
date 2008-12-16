@@ -72,11 +72,21 @@
             datatype, depending on the requirements of the messaging application.
             Messages usually are {docref DataObject} instances.}
     }
-    
-    The {bold Collaboration} sample illustrates these techniques.
-}    
+}
+{paragraph    
+    The {bold Data Push} and {bold Collaboration}
+    samples illustrate these techniques.
+
+    Editable source code is available in the
+    {link href = {url "cdk-ds-overview.curl#samples-project"}, sample applications}.
+}
+{x-code-ref title = {message Data Push Sample},
+    background = "beige",
+    {samples-loc.merge "testdrive-datapush/s-datapush.curl"}
+}
 
 {x-code-ref title = {message Collaboration Sample},
+    background = "beige",
     {samples-loc.merge "testdrive-chat/s-chat.curl"}
 }
 

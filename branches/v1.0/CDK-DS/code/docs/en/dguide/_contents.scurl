@@ -38,9 +38,31 @@
         null, ||{url "cdk-examples.curl"},
         
         {node
-            |"Data Binding 1"|,
-            {url "generic-example.curl?examples/data-binding.curl"}
+            |"Data Object"|,
+            {url "generic-example.curl?examples/data-object.curl"}},
+        {node
+            |"Data Object Traits"|,
+            {url "generic-example.curl?examples/data-object-traits.curl"}},
+        {node
+            |"Data Object Data Binding Context"|,
+            {url "generic-example.curl?examples/data-object-data-binding-context.curl"}},
+        {node
+            |"Data Object Record Set"|,
+            {url "generic-example.curl?examples/data-object-recordset.curl"}},
+        {node
+            |"Data Object Adapters"|,
+            {url "generic-example.curl?examples/data-object-mapping.curl"}}
+    },
+    {node
+        |"CDK Data Services Samples"|,
+        null, ||{url "cdk-samples.curl"},
+        
+        {node 
+            |"BlazeDS Samples Overview"|,
+            {url "samples/blazeds/curl-samples/start.curl"}},
+        {node 
+            |"BlazeDS Samples Test Drive"|,
+            {url "samples/blazeds/curl-samples/testdrive.curl"}}
         }
-    }
 }
 

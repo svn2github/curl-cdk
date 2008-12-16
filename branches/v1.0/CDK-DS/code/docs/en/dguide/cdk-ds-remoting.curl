@@ -65,10 +65,15 @@
         {item Invoke the operation,
             by supplying the arguments  to {docref Operation.send}}
     }
-    
-    The {bold Product Service} sample illustrates these techniques.
+}
+{paragraph
+    The {bold Remote Object} sample illustrates these techniques.
+
+    Editable source code is available in the
+    {link href = {url "cdk-ds-overview.curl#samples-project"}, sample applications}.
 }
 {x-code-ref title = {message Remote Object},
+    background = "beige",
     {samples-loc.merge "testdrive-remoteobject/s-remoteobject.curl"}
 }
 {paragraph
@@ -118,18 +123,18 @@
     represented by {docref DataObject} instances.  
     These are characterized by their {docref DataObjectTraits}.
 
-    It is possible to map named {ctext DataObject} types
+    It is possible to map named {ctext DataObject}s
     to a Curl {docref Class},
     by registering an adapter that specifes the
     {docref DataObjectTraits} corresponding to that class.
 
     Note that Curl variable naming conventions differ from
-    those of {ctext Java} and {ctext ACtionScript}.
+    those of {ctext Java} and {ctext ActionScript}.
     Class member variables are converted accordingly
     by the traits adapter, so that, for example,
     {ctext product-id} becomes {ctext productId}.
 
-    Use {docref AMFObjectAdapters.register-class} register an adapter.
+    Use {docref AMFObjectAdapters.register-class} to register an adapter.
     The traits can be specified as a class variable {ctext traits},
     or by keyword argument.
 
@@ -143,14 +148,22 @@
     {ctext RemoteObject} instance, it can be supplied
     explicitly using the {ctext mapper} keyword
     when constructing an {docref AMFChannel}.   
-
-
-    || TODO: need examples, docstrings
-
 }
-|| TODO:
-|| - refer to AMF details, with link to AMF spec
+{x-example-ref title = "DataObject adapters",
+    {url "examples/data-object-mapping.curl"}
+}
+{paragraph
+    The {bold Update} sample illustrates these techniques.
 
+    Editable source code is available in the
+    {link href = {url "cdk-ds-overview.curl#samples-project"}, sample applications}.
+}
+{x-code-ref title = {message Update},
+    background = "beige",
+    {samples-loc.merge "testdrive-update/s-update.curl"}
+}
+
+|| TODO:
 || - awaiting an asynchronous response
 || -- sequencing operations
 || - need to know thw available services and operations
