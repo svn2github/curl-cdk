@@ -110,9 +110,6 @@ The following functionality is not in this release
   in a ChannelSet when a server is down or unreachable is not fully
   implemented.
 
-- Resubscribing when a server reboots is not fully implemented by
-  Consumer.
-
 - RTMPChannel, HttpChannel, StreamingHttpChannel, and WebService (SOAP
   based Service) are not implemented.
 

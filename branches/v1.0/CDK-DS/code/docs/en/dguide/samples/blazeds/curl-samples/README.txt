@@ -57,7 +57,7 @@ configuration.
           <mime-type>text/vnd.curl.dcurl</mime-type>
         </mime-mapping>
 
-  * Deploy a curl-license-5.dat file to either the
+  * Deploy a Pro curl-license-5.dat file to either the
 
         [installdir]/tomcat/webapps/ROOT
 
@@ -65,16 +65,20 @@ configuration.
 
         [installdir]/tomcat/webapps/blazeds-curl-samples
 
-    directory. A curl-license-5.dat file for use with http://localhost urls can
+    directory. 
+
+    A curl-license-5.dat file for use with http://localhost urls can
     be found in your Curl installation. For example, if you installed the Curl
     IDE on Windows in the location C:\Program Files\Curl Corporation\ then you
     can find a license file in the
 
     C:\Program Files\Curl Corporation\Surge\7\ide\etc\localhost
 
-    directory. If you installed a Pro IDE then look in
+    directory, and a Pro licence file in the
 
     C:\Program Files\Curl Corporation\Surge\7\ide\etc\localhost-pro
+
+    directory.
 
   * Create and deploy a curl-access.txt file in the
 
