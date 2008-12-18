@@ -23,6 +23,7 @@
   field protected should-be-subscribed?:bool = false
   field protected subscribe-message:#CommandMessage
   field protected _timestamp:double = -1
+  field protected _max-frequency:Frequency = 0(1/s)
 
   {doc-next
     {purpose
@@ -93,6 +94,14 @@
     }
   }
 
+  {doc-next
+    {purpose
+        How many attempts should this object make to try to resubscribe.
+    }
+    {notes
+        {ctext -1} means attempt forever.
+    }
+  }
   {getter public {resubscribe-attempts}:int
     {return self._resubscribe-attempts}
   }
@@ -107,6 +116,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        How long this object should wait between attempts to resubscribe.
+    }
+  }
   {getter public {resubscribe-interval}:Time
     {return self._resubscribe-interval}
   }
@@ -127,6 +141,11 @@
     }
   }
 
+  {doc-next
+    {purpose
+        Has this object been able to tell the server what it wants to subscribe to.
+    }
+  }
   {getter public {subscribed?}:bool
     {return self._subscribed?}
   }
@@ -174,7 +193,7 @@
     }
   }
 
-  {method public {acknowledge ack:AcknowledgeMessage, message:IMessage}:void
+  {method protected {acknowledge ack:AcknowledgeMessage, message:IMessage}:void
     {if self.disconnect-barrier? then
         {return}
     }
@@ -241,7 +260,7 @@
     {super.disconnect}
   }
 
-  {method public {fault err:ErrorMessage, message:IMessage}:void
+  {method protected {fault err:ErrorMessage, message:IMessage}:void
     {if self.disconnect-barrier? then
         {return}
     }
@@ -259,15 +278,25 @@
     }
   }
 
-  {method public {receive timestamp:double = 0}:void
+  {doc-next
+    {doc-next
+        Force a poll request to be sent now.
+    }
+  }
+  {method public {receive}:void
     {if-non-null self.client-id then
-        def message = {new CommandMessage}
+        def message = {CommandMessage}
         set message.operation = CommandMessage.POLL_OPERATION
         set message.destination = self.destination
         {self.internal-send message}
     }
   }
 
+  {doc-next
+    {purpose
+        Force an attempt to subscribe right now, unless already properly subscribed.
+    }
+  }
   {method public {subscribe client-id:#String = null}:void
     def reset-client-id? =
         client-id != null and self.client-id != client-id
@@ -304,13 +333,14 @@
   }
 
   {method protected {resubscribe event:TimerEvent}:void
-    || TODO:
-    {if self.current-attempt > self.resubscribe-attempts then
+    {if self.resubscribe-attempts != -1 and
+        self.current-attempt > self.resubscribe-attempts
+     then
         {self.stop-resubscribe-timer}
         set self.should-be-subscribed? = false
         def err = {ErrorMessage}
         set err.fault-code = "Client.Error.Subscribe" ||""
-        set err.fault-string = "Consumer subscribe error" ||""
+        set err.fault-string = {lmessage Consumer subscribe error}
         set err.fault-detail = {lmessage Failed to subscribe}
         {if-non-null subscribe-message = self.subscribe-message then
             set err.correlation-id = subscribe-message.message-id
@@ -322,21 +352,22 @@
     }
   }
 
-  {method protected {build-subscribe-message
-                        preserve-durable?:bool = false
-                    }:CommandMessage
-    def command-message = {new CommandMessage}
+  {method protected {build-subscribe-message}:CommandMessage
+    def command-message = {CommandMessage}
     set command-message.operation = CommandMessage.SUBSCRIBE_OPERATION
     set command-message.client-id = self.client-id
     set command-message.destination = self.destination
-    || FIXME: what about MAX_FREQUENCY_HEADER?
+    {if self.max-frequency > 0(1/s) then
+        set command-message.headers[CommandMessage.MAX_FREQUENCY_HEADER] = 
+            (self.max-frequency * 1s) asa int
+    }
     {return command-message}
   }
 
   {method protected {build-unsubscribe-message
                         preserve-durable?:bool = false
                     }:CommandMessage
-    def command-message = {new CommandMessage}
+    def command-message = {CommandMessage}
     set command-message.operation = CommandMessage.UNSUBSCRIBE_OPERATION
     set command-message.client-id = self.client-id
     set command-message.destination = self.destination
@@ -355,7 +386,8 @@
                     interval = self.resubscribe-interval,
                     {on e:TimerEvent do
                         {self.resubscribe e}
-                    }
+                    },
+                    delay = 1ms
                 }
             set self.current-attempt = 0
         }
@@ -417,5 +449,22 @@
             }
         }
     }
+  }
+
+  {doc-next
+    {purpose
+        Maximum frequency of messages that that the {docref Consumer} wants to receive.
+    }
+    {notes
+        A server may or may not understand this.
+
+        A value of 0 means that the {docref Consumer} has no preference for the message rate.
+    }
+  }
+  {getter public {max-frequency}:Frequency
+    {return self._max-frequency}
+  }
+  {setter public {max-frequency mf:Frequency}:void
+    set self._max-frequency = mf
   }
 }

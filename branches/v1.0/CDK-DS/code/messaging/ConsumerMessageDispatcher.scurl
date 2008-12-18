@@ -70,15 +70,18 @@
         {self.consumers.remove consumer.client-id, error-if-missing? = true}
     }
     def channel-set = consumer.channel-set
-    def (ref-count, exists?) =
+    let (ref-count:int, exists?:bool) =
         {self.channel-set-ref-counts.get-if-exists channel-set}
     {if exists? then
-        set self.channel-set-ref-counts[channel-set] = ref-count - 1
+        {dec ref-count}
         {if ref-count == 0 then
+            {self.channel-set-ref-counts.remove channel-set}
             {channel-set.remove-event-handler self.channel-set-event-handler}
             {self.consumer-duplicate-message-barrier.remove
                 consumer.id, error-if-missing? = false
             }
+         else
+            set self.channel-set-ref-counts[channel-set] = ref-count
         }
     }
   }

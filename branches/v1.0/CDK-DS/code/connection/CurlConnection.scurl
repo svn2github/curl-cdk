@@ -49,7 +49,7 @@
                        }:ErrorMessage
     def err = {new ErrorMessage}
     set err.fault-code = "Client.Ping.Failed" ||""
-    set err.fault-string = "error" ||""
+    set err.fault-string = {lmessage Ping failed}
     set err.fault-detail = ex.message
     set err.root-cause = amf-body
     {return err}
@@ -57,7 +57,7 @@
   {define-proc private {make-canceled-error-message}:ErrorMessage
     def err = {new ErrorMessage}
     set err.fault-code = "Client.Ping.Canceled" ||""
-    set err.fault-string = "warn" ||""
+    set err.fault-string = {lmessage Ping canceled}
     {return err}
   }
 
@@ -258,9 +258,9 @@
      case cmd:CommandMessage do
         {responder.result cmd}
      else
-        def err = {new ErrorMessage}
-        set err.fault-code = {lmessage Unable to find a message.}
-        set err.fault-string = "warn" ||""
+        def err = {ErrorMessage}
+        set err.fault-code = "Channel.Call.Failed" ||""
+        set err.fault-string = {lmessage Unable to find a message}
         set err.extended-data = bodies
         {responder.status err}
     }

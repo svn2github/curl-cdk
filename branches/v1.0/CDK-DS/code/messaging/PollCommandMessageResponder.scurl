@@ -101,6 +101,7 @@
                       description = details,
                       root-cause = msg
                   }
+              {polling-channel.enqueue-event fault-event}
               {type-switch msg
                case err:ErrorMessage do
                   {if err.fault-code == "Server.PollNotSupported" then ||""

@@ -43,13 +43,13 @@
     }
   }
 
-  {method public {call-result msg:IMessage}:void
+  {method protected {call-result msg:IMessage}:void
     {for r in self.responders do
         {r.result msg}
     }
   }
 
-  {method public {call-status msg:IMessage}:void
+  {method protected {call-status msg:IMessage}:void
     {for r in self.responders do
         {r.status msg}
     }
@@ -59,7 +59,7 @@
     {self.responders.append responder}
   }
 
-  {method public {acknowledge ack-msg:AcknowledgeMessage, msg:IMessage}:void
+  {method protected {acknowledge ack-msg:AcknowledgeMessage, msg:IMessage}:void
     {if self.state == AuthenticationAgent.SHUTDOWN_STATE then
         {return}
     }
@@ -76,7 +76,7 @@
     }
   }
 
-  {method public {fault err-msg:ErrorMessage, msg:IMessage}:void
+  {method protected {fault err-msg:ErrorMessage, msg:IMessage}:void
     {if self.state == AuthenticationAgent.SHUTDOWN_STATE then
         {return}
     }

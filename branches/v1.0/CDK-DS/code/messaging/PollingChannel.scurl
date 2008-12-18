@@ -152,7 +152,7 @@
         {if {self.alarm-running?} then
             {self._alarm.cancel}
         }
-        def command-message = {new CommandMessage}
+        def command-message = {CommandMessage}
         set command-message.operation = CommandMessage.POLL_OPERATION
         {try
             {self.internal-send
@@ -191,7 +191,7 @@
     }
     {super.send agent, message}
     {if piggy-back? then
-        def msg = {new CommandMessage}
+        def msg = {CommandMessage}
         set msg.operation = CommandMessage.POLL_OPERATION
         {try
             {self.internal-send

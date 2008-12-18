@@ -307,8 +307,7 @@
 
     || FIXME: why not allow any character-encoding?
     || Use legacy charset if not utf8
-    {if character-encoding != null and character-encoding != CharEncoding.utf8
-     then
+    {if character-encoding != CharEncoding.utf8 then
         set character-encoding = null
     }
     def creds = {encode-credentials username, password, character-encoding}
@@ -615,13 +614,17 @@
         set self.connecting? = true
         {self.current-channel.connect self}
         || Listen for any server pushed messages on the Channel.
-        {self.current-channel.add-event-handler self.channel-event-handler}
+        {if not {self.current-channel.event-handler-present? self.channel-event-handler} then
+            {self.current-channel.add-event-handler self.channel-event-handler}
+        }
     }
   }
   {method protected {disconnect-channel}:void
     set self.connecting? = false
     || Stop listening for server pushed messages on the Channel.
-    {self.current-channel.remove-event-handler self.channel-event-handler}
+    {if {self.current-channel.event-handler-present? self.channel-event-handler} then
+        {self.current-channel.remove-event-handler self.channel-event-handler}
+    }
     {self.current-channel.disconnect self}
   }
 

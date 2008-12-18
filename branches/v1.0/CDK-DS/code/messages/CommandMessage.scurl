@@ -49,6 +49,7 @@
   let public constant PRESERVE_DURABLE_HEADER:String = "DSPreserveDurable"
   let public constant NO_OP_POLL_HEADER:String = "DSNoOpPoll"
   let public constant POLL_WAIT_HEADER:String = "DSPollWait"
+  let public constant MAX_FREQUENCY_HEADER:String = "DSMaxFrequency"
   ||""))
 
   let public constant SUBSCRIBE_OPERATION:uint = 0

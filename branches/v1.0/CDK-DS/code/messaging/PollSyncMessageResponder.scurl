@@ -49,7 +49,7 @@
                  else
                     def err = {new ErrorMessage}
                     set err.fault-code = "Server.Acknowledge.Failed" ||""
-                    set err.fault-string = "Acknowledge Failed" ||""
+                    set err.fault-string = {lmessage Acknowledge Failed}
                     set err.fault-detail =
                         {lmessage {value am.correlation-id} != 
                             {value self.message.message-id}}
@@ -59,7 +59,7 @@
              else
                 def err = {new ErrorMessage}
                 set err.fault-code = "Server.Acknowledge.Failed" ||""
-                set err.fault-string = "Acknowledge Failed" ||""
+                set err.fault-string = {lmessage Acknowledge Failed}
                 set err.fault-detail = {lmessage No details available}
                 set err.correlation-id = self.message.message-id
                 {self.agent.fault err, self.message}
