@@ -355,7 +355,7 @@
     set self.connected? = false
     {if not event.rejected? and {self.should-attempt-failover?} then
         set self.connecting? = true
-        {self.failover} || not implemented yet
+        {self.failover}
      else
         {self.cleanup-connect}
     }
@@ -409,6 +409,15 @@
 
   {method private {failover}:void
     || TODO:
+    {if self.previously-connected? then
+        set self.previously-connected? = false
+        set self.reconnecting? = true
+        {after 0s do
+            {self.internal-connect}
+        }
+        {return}
+    }
+    
     {inc self.failover-index}
     {if self.failover-index < self.failover-uris.size then
         set self.reconnecting? = true

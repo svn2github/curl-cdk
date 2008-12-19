@@ -309,11 +309,16 @@
         Logout from the server.
     }
   }
-  {method public {logout}:void
+  {method public {logout force?:bool = false}:#AuthenticationAgent
     set self.credentials = null
     {if-non-null channel-set = self.channel-set then
-        {channel-set.logout agent = self}
+        {return {channel-set.logout
+                    agent = self,
+                    force? = force?
+                }
+        }
     }
+    {return null}
   }
 
   {method public {set-credentials

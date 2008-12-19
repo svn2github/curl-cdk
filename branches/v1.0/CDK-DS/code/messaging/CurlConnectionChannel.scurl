@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 {define-class public CurlConnectionChannel {inherits PollingChannel}
-  field private _connection:#CurlConnection
+  field private _connection:CurlConnection
 
   field public status-handler:{proc-type {net-status-event:Event}:void} =
     {proc {event:Event}:void
@@ -37,7 +37,7 @@
         }
   }
 
-  {getter public {connection}:#CurlConnection
+  {getter public {connection}:CurlConnection
     {return self._connection}
   }
 
@@ -50,6 +50,12 @@
     {if-non-null u = self.uri then
         {self._connection.connect u}
     }
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    {super.internal-disconnect rejected? = rejected?}
+    || TODO: shut-down-net-connection
+||--    {self.disconnect-succeeded rejected? = rejected?}
   }
 
   {method protected {internal-send message-responder:MessageResponder}:void

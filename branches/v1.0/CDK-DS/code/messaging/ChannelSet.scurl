@@ -359,12 +359,17 @@
         Logout from the server.
     }
   }
-  {method public {logout agent:#MessageAgent = null}:void
-    {if agent != null and self.auth-agent == null then
+  {method public {logout
+                     agent:#MessageAgent = null,
+                     force?:bool = false
+                 }:#AuthenticationAgent
+    {if (not force?) and
+        (agent != null and self.auth-agent == null) then
         set self.credentials = null
         {for ch in self.channels do
             {if-non-null ch then
                 {ch.logout agent = agent}}}
+        {return null}
      else
         {if self.auth-agent != null and
             (self.auth-agent.state == AuthenticationAgent.LOGGING_IN_STATE or
@@ -381,6 +386,7 @@
             set self.auth-agent = {AuthenticationAgent self}}
         set self.auth-agent.state = AuthenticationAgent.LOGGING_OUT_STATE
         {self.send {non-null self.auth-agent}, cmd}
+        {return self.auth-agent}
     }
   }
 
@@ -389,6 +395,8 @@
                         cmd:CommandMessage,
                         ack:AcknowledgeMessage
                     }:void
+    {agent.call-result ack}
+
     def login? = (cmd.operation == CommandMessage.LOGIN_OPERATION)
     {if login? then
         || when LOGIN is successful.
@@ -398,7 +406,7 @@
         {self.apply-logged-out-state agent}
     }
     
-    {agent.call-result ack}
+||--    {agent.call-result ack}
     {self.enqueue-event
         {if login? then
             {AuthenticationLoggedInEvent message = ack}
@@ -473,11 +481,12 @@
   
   {method public {send agent:MessageAgent, message:IMessage}:void
     {if self.current-channel != null and self.connected? then
-        || TODO: Clustering?
+        || TODO: Filter out any commands to trigger connection establishment?
+
         {if not self.has-requested-cluster-endpoints? and self.clustered? then
             def cmd = {CommandMessage}
             {if agent isa AuthenticationAgent then
-
+                || TODO: initial-destination-id
              else
                 set cmd.destination = agent.destination
             }
@@ -486,6 +495,7 @@
                 {ClusterMessageResponder cmd, self}}
             set self.has-requested-cluster-endpoints? = true
         }
+
         {self.current-channel.send agent, message}
      else
         {if not {self.pending-messages.member? message} then
@@ -556,6 +566,16 @@
         }
      else
         set self._current-channel = self.channels[self.current-channel-index]
+    }
+
+    {if-non-null current-channel = self.current-channel then
+        {if-non-null id = current-channel.id then
+            def (failover-uris, found?) =
+                {self.channel-failover-uris.get-if-exists id}
+            {if found? then
+                set current-channel.failover-uris = failover-uris
+            }
+        }
     }
     {return true}
   }

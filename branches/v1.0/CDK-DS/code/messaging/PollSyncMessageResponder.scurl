@@ -18,7 +18,7 @@
   {inherits CurlConnectionMessageResponder}
 
     {constructor public {default
-                            agent:#MessageAgent,
+                            agent:MessageAgent,
                             imessage:IMessage,
                             channel:CurlConnectionChannel
                         }

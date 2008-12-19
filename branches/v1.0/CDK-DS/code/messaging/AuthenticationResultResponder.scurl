@@ -17,8 +17,10 @@
 {define-class public AuthenticationResultResponder {inherits ConnectionResponder}
 
   {constructor public {default
-                          result-proc:{proc-type {msg:IMessage}:void} = {fn => },
-                          status-proc:{proc-type {msg:IMessage}:void} = {fn => }
+                          result-proc:{proc-type {msg:IMessage}:void} =
+                              {proc {msg:IMessage}:void},
+                          status-proc:{proc-type {msg:IMessage}:void} =
+                              {proc {msg:IMessage}:void}
                       }
     {construct-super result-proc, status-proc}
   }

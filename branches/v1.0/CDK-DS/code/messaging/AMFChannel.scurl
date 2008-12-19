@@ -81,11 +81,7 @@
             self.result-handler,
             self.fault-handler
         }
-    {if-non-null self.connection then
-        {self.connection.call command = null, responder = responder, message}
-     else
-        || TODO:
-    }
+    {self.connection.call command = null, responder = responder, message}
   }
 
   {method protected {internal-disconnect rejected?:bool = false}:void
