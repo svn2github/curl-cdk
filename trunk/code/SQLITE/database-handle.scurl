@@ -379,14 +379,16 @@
             }
         }
      case SQLiteOperation.PRAGMA do
+        || <database.>journal_size_limit, <database.>journal_mode 
+        || are probably safe, but seem scary.
         {switch data1
          case "auto_vacuum", "page_size", "case_sensitive_like", ||""
             "count_changes", "encoding", "fullsync", ||""
             "incremental_vacuum", "legacy_file_format", ||""
-            "short_column_names", "synchronous",  ||""
+            "full_column_names", "short_column_names", "synchronous",  ||""
             "database_list", "foreign_key_list",  ||""
             "index_info", "index_list", "table_info", ||""
-            "integrity_check" ||""
+            "integrity_check", "quick_check", "temp_store" ||""
          do
             || Those are allowed.
          else
@@ -395,6 +397,8 @@
                         data1, "locking_mode"} or ||""
                     {SQLiteDatabaseHandle.match-pragma-with-name?
                         data1, "freelist_count"} or ||""
+                    {SQLiteDatabaseHandle.match-pragma-with-name?
+                        data1, "page_count"} or ||""
                     {SQLiteDatabaseHandle.match-pragma-with-name?
                         data1, "user_version"} or ||""
                     ({SQLiteDatabaseHandle.match-pragma-with-name?
