@@ -29,6 +29,8 @@
   field private has-requested-cluster-endpoints?:bool = false
   field private _configured?:bool = false
   field private should-be-connected?:bool = false
+  field private should-hunt?:bool = true
+  field private hunting?:bool = false
   || TODO: Implement a setter that checks configured? then removes existing
   ||       channels and adds new channels.
   field private channels:{Array-of #Channel}
@@ -262,10 +264,8 @@
             def ps = self.pending-sends[i]
             {if ps.agent == agent then
                 {self.pending-sends.remove i}
-                {if-non-null message = ps.message then
-                    {self.pending-messages.remove
-                        message, error-if-missing? = false
-                    }
+                {self.pending-messages.remove
+                    ps.message, error-if-missing? = false
                 }
             }
         }
@@ -532,9 +532,9 @@
         set self.current-channel-index = -1
         {return false}
     }
-||--    {if self.current-channel-index > 0 then
-||--        set self.hunting? = true
-||--    }
+    {if self.current-channel-index > 0 then
+        set self.hunting? = true
+    }
     {if self.configured? then
         {if-non-null channel = self.channels[self.current-channel-index] then
             set self._current-channel = channel
@@ -621,6 +621,7 @@
         {self.channels.remove channel-index}
         {if channel == self.current-channel then
             {if self.connected? then
+                set self.should-hunt? = false
                 {self.disconnect-channel}
             }
             set self._current-channel = null
@@ -663,10 +664,9 @@
     set self._connected? = true
     {while not self.pending-sends.empty? do
         def ps = self.pending-sends[0]
-        {if-non-null m = ps.message then
-            {self.pending-messages.remove m, error-if-missing? = false}
-        }
-        {type-switch ps.message
+        def ps-msg = ps.message
+        {self.pending-messages.remove ps-msg, error-if-missing? = false}
+        {type-switch ps-msg
          case cm:CommandMessage do
             {if not ps.agent.config-requested? and
                 ps.agent.needs-config? and
@@ -676,14 +676,15 @@
                 set ps.agent.config-requested? = true
             }
         }
-        {if-non-null a = ps.agent then
-            {if-non-null m = ps.message then
-                {self.send a, m}
-            }
-        }
+        {self.send ps.agent, ps-msg}
         {self.pending-sends.remove 0}
     }
-    || TODO: Handle hunt
+
+    {if self.hunting? then
+        set e.reconnecting? = true
+        set self.hunting? = false
+    }
+    
     || TODO: Refire, but why?
     {self.enqueue-event e}
     || TODO: Fire PropertyChangeEvent
@@ -695,21 +696,35 @@
     || TODO:
     set self.connecting? = false
     set self._connected? = false
+
+    {if self.should-be-connected? and
+        not e.reconnecting? and
+        not e.rejected?
+     then
+        {if self.should-hunt? and {self.hunt} then
+            set e.reconnecting? = true
+            {self.enqueue-event e}
+            {if self.current-channel isa CurlConnectionChannel then
+                {after 0s do
+                    {self.connect-channel}}
+             else
+                {self.connect-channel}
+            }
+         else
+            {self.enqueue-event e}
+            {self.fault-pending-sends e}
+        }
+     else
+        {self.enqueue-event e}
+        {if e.rejected? then
+            {self.fault-pending-sends e}
+        }
+    }
+
+    set self.should-hunt? = true
   }
 
   {method protected {channel-fault-handler e:ChannelFaultEvent}:void
-||--    {dump e.fault-code}
-||--    {dump e.fault-string}
-||--    {dump e.fault-detail}
-||--    {dump "TODO: ChannelSet.channel-fault-handler"}
-||--    || TODO: What should we be doing here?
-||--    {if self.current-channel == e.channel then
-||--        set self.connecting? = false
-||--        set self._connected? = false
-||--        || FIXME: What do we need to do to let hunting continue?
-||--        set self._current-channel = null
-||--    }
-
     set self.connecting? = false
     set self._connected? = false
 
@@ -731,12 +746,41 @@
             
          else
             {self.enqueue-event e}
-            || TODO: fault pending messages
+            {self.fault-pending-sends e}
         }
 
      else
         {self.enqueue-event e}
-        || TODO: fault pending messages
+        {self.fault-pending-sends e}
+    }
+  }
+
+  {method protected {fault-pending-sends e:ChannelEvent}:void
+    {while (not self.pending-sends.empty?) do
+        def ps = self.pending-sends[0]
+        def ps-msg = ps.message
+        {self.pending-sends.remove 0}
+        {self.pending-messages.remove ps-msg}
+
+        def err-msg = {ErrorMessage}
+        set err-msg.correlation-id = ps-msg.message-id
+        set err-msg.headers[ErrorMessage.RETRYABLE_HINT_HEADER] = true
+        set err-msg.fault-code = "Client.Error.MessageSend"
+        set err-msg.fault-string = {lmessage messaging send failed}||
+
+        {type-switch e
+         case f-event:ChannelFaultEvent do
+            set err-msg.fault-detail =
+                f-event.fault-code & " " & f-event.fault-string & " " & f-event.fault-detail
+            {if f-event.fault-code == "Channel.Authentication.Error" then
+                set err-msg.fault-code = f-event.fault-code
+            }
+         else
+            set err-msg.fault-detail =
+                {lmessage messaging cannot connect to destination} ||
+        }
+        set err-msg.root-cause = e
+        {ps.agent.fault err-msg, ps-msg}
     }
   }
 }
