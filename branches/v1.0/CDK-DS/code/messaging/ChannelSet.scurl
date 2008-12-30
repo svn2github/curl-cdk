@@ -130,6 +130,19 @@
     {return self._connected?}
   }
 
+  {setter protected {connected? val:bool}:void
+    {if self._connected? != val then
+        || TODO: Fire PropertyChangeEvent
+        set self._connected? = val
+        {self.set-authenticated?
+            (val and self.current-channel != null and
+             self.current-channel.authenticated?),
+            credentials = self.credentials,
+            notify-agents? = false
+        }
+    }
+  }
+
 ||--  {getter public {channel-ids}:#{Array-of #String}
 ||--    {if-non-null self._channel-ids then
 ||--        {return self._channel-ids}
@@ -661,7 +674,7 @@
   || Called by the current Channel.
   {method protected {channel-connect-handler e:ChannelConnectEvent}:void
     set self.connecting? = false
-    set self._connected? = true
+    set self.connected? = true
     {while not self.pending-sends.empty? do
         def ps = self.pending-sends[0]
         def ps-msg = ps.message
@@ -692,10 +705,8 @@
 
   || Called by the current Channel.
   {method protected {channel-disconnect-handler e:ChannelDisconnectEvent}:void
-||--    {dump "TODO: ChannelSet.channel-disconnect-handler"}
-    || TODO:
     set self.connecting? = false
-    set self._connected? = false
+    set self.connected? = false
 
     {if self.should-be-connected? and
         not e.reconnecting? and
@@ -725,33 +736,38 @@
   }
 
   {method protected {channel-fault-handler e:ChannelFaultEvent}:void
-    set self.connecting? = false
-    set self._connected? = false
+    {if e.channel.connected? then
+        {self.enqueue-event e}
+     else
+        set self.connecting? = false
+        set self.connected? = false
 
-    {if self.should-be-connected? and
-        not e.reconnecting? and
-        not e.rejected?
-     then
-        {if {self.hunt} then
-            set e.reconnecting? = true
-            {self.enqueue-event e}
-            {if self.current-channel isa CurlConnectionChannel then
-                || Insert slight delay for CurlConnectionChannel
-                || to shut down and clean up in preparation for next connect.
-                {after 0s do
-                    {self.connect-channel}}
+        {if self.should-be-connected? and
+            not e.reconnecting? and
+            not e.rejected?
+         then
+            {if {self.hunt} then
+                set e.reconnecting? = true
+                {self.enqueue-event e}
+                {if self.current-channel isa CurlConnectionChannel then
+                    || Insert slight delay for CurlConnectionChannel
+                    || to shut down and clean up in preparation for next connect.
+                    {after 0s do
+                        {self.connect-channel}}
+                 else
+                    {self.connect-channel}
+                }
+                
              else
-                {self.connect-channel}
+                {self.enqueue-event e}
+                {self.fault-pending-sends e}
             }
-            
+
          else
             {self.enqueue-event e}
-            {self.fault-pending-sends e}
+            {if e.rejected? then
+                {self.fault-pending-sends e}}
         }
-
-     else
-        {self.enqueue-event e}
-        {self.fault-pending-sends e}
     }
   }
 
