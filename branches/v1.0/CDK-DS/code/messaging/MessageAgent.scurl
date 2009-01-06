@@ -42,13 +42,13 @@
   field protected config-requested?:bool = false
   field protected ignore-fault?:bool = false
   field protected agent-type:#String
+  field protected channel-set-mode:int = MessageAgent.AUTO_CONFIGURED_CHANNELSET
   field private _authenticated?:bool = false
   field private send-remote-credentials?:bool = false
   field protected credentials:#String
   field private credentials-character-encoding:#CharEncoding
   field private remote-credentials:#String
   field private remote-credentials-character-encoding:#CharEncoding
-  field private channel-set-mode:int = MessageAgent.AUTO_CONFIGURED_CHANNELSET
   field private pending-connect-event:#ChannelConnectEvent
 
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0

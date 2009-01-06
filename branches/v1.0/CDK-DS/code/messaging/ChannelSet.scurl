@@ -31,9 +31,7 @@
   field private should-be-connected?:bool = false
   field private should-hunt?:bool = true
   field private hunting?:bool = false
-  || TODO: Implement a setter that checks configured? then removes existing
-  ||       channels and adds new channels.
-  field private channels:{Array-of #Channel}
+  field private _channels:{Array-of Channel}
 ||--  field private _channel-ids:#{Array-of #String}
   field private _current-channel:#Channel
   field private current-channel-index:int = -1
@@ -62,7 +60,7 @@
 ||--                          channel-ids:#{Array-of #String} = null,
                           clustered-with-load-balancing?:bool = false,
                           channel:#Channel = null,
-                          channels:#{Array-of #Channel} = null
+                          channels:#{Array-of Channel} = null
                       }
     {construct-super}
     {if channel != null and channels != null then
@@ -72,27 +70,18 @@
         {on e:MessageEvent do
             {self.message-handler e}
         }
-    set self.channels = {new {Array-of #Channel}}
+    set self._channels = {new {Array-of Channel}}
     {if-non-null channels then
         {for c in channels do
-            {if-non-null c then
-                {self.add-channel c}
-            }
+            {self.add-channel c}
         }
      else
         {if-non-null channel then
             {self.add-channel channel}
         }
     }
-||--    {if-non-null channel-ids then
-||--        set self._channel-ids = channel-ids
-||--        {if-non-null ids = self._channel-ids then
-||--            {self.channels.set-size ids.size, null}
-||--        }
-||--        set self._configured? = true
-||--     else
-        set self._configured? = self.channels.empty?
-||--    }
+
+    set self._configured? = not self.channels.empty?
     set self.clustered? = clustered-with-load-balancing?
     set self._message-agents = {new {Array-of MessageAgent}}
     set self.pending-messages = {new {Set-of IMessage}}
@@ -122,7 +111,7 @@
     }
   }
 
-  {getter public {configured?}:bool
+  {getter protected {configured?}:bool
     {return self._configured?}
   }
 
@@ -132,8 +121,14 @@
 
   {setter protected {connected? val:bool}:void
     {if self._connected? != val then
-        || TODO: Fire PropertyChangeEvent
+        def event = {PropertyChangeEvent.create-update-event
+                        self,
+                        "connected?",
+                        self._connected?,
+                        val
+                    }
         set self._connected? = val
+        {self.enqueue-event event}
         {self.set-authenticated?
             (val and self.current-channel != null and
              self.current-channel.authenticated?),
@@ -159,13 +154,29 @@
 ||--    }
 ||--  }
 
+  {getter public {channels}:{Array-of Channel}
+    {return self._channels}
+  }
+
+  {setter public {channels chs:{Array-of Channel}}:void
+    {if self.configured? then
+        {error {lmessage Cannot add when cofigured.}}
+    }
+
+    def chs-to-remove = {self._channels.clone}
+    {for rc in chs-to-remove do
+        {self.remove-channel rc}
+    }
+    {if not chs.empty? then
+        {for ac in chs do
+            {self.add-channel ac}
+        }
+    }
+  }
+
   {getter public {current-channel}:#Channel
     {return self._current-channel}
   }
-
-||--  {setter public {current-channel channel:#Channel}:void
-||--    set self._current-channel = channel
-||--  }
 
   {getter protected {channel-failover-uris}:{HashTable-of String, {Array-of Url}}
     {return self._channel-failover-uris}
@@ -175,16 +186,11 @@
                         val:{HashTable-of String, {Array-of Url}}
                     }:void
     set self._channel-failover-uris = val
-    {for ch:#Channel in self.channels do
-        {if-non-null ch then
-            {if-non-null id = ch.id then
-                {if {self.channel-failover-uris.key-exists? id} then
-                    set self.current-channel.failover-uris =
-                        self.channel-failover-uris[id]
-                }
-            }
-         else
-            {break}
+    {for ch:Channel in self.channels do
+        {if-non-null id = ch.id then
+            def (uris, found?) =
+                {self.channel-failover-uris.get-if-exists id}
+            set self.current-channel.failover-uris = uris
         }
     }
   }
@@ -203,21 +209,27 @@
                      notify-agents?:bool = true
                  }:void
     {if self._authenticated? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self,
+                        "authenticated?",
+                        self._authenticated?,
+                        b?
+                    }
+        
         set self._authenticated? = b?
-
         {if not b? and
             self.auth-agent != null and
             self.auth-agent.state != AuthenticationAgent.LOGGED_OUT_STATE
          then
             {self.apply-logged-out-state {non-null self.auth-agent}}
         }
-        
         {if notify-agents? then
             {for agent in self.message-agents do
                 {agent.set-authenticated? b?, credentials = credentials}
             }
         }
-        || TODO: Fire a PropertyChangeEvent
+
+        {self.enqueue-event event}
     }
   }
 
@@ -251,13 +263,14 @@
         }
         {if self._message-agents.size == 0 then
             set  self.should-be-connected? = false
+            set self.current-channel-index = -1
             {if self.connected? then
                 {self.disconnect-channel}
             }
         }
-||--        {if agent.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET then
-||--            {agent.internal-set-channel-set null}
-||--        }
+        {if agent.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET then
+            {agent.internal-set-channel-set null}
+        }
      else
         {self.disconnect-all}
     }
@@ -380,8 +393,8 @@
         (agent != null and self.auth-agent == null) then
         set self.credentials = null
         {for ch in self.channels do
-            {if-non-null ch then
-                {ch.logout agent = agent}}}
+            {ch.logout agent = agent}
+        }
         {return null}
      else
         {if self.auth-agent != null and
@@ -523,10 +536,13 @@
             }
             {type-switch self.current-channel
              case ccc:CurlConnectionChannel do
-                || TODO: Flex has a special case for NetConnectionChannels that
-                ||       accounts for some reconnection idyosyncrasies. For now,
-                ||       we're just connecting the channel.
-                {self.connect-channel}
+||--                || TODO: Flex has a special case for NetConnectionChannels that
+||--                ||       accounts for some reconnection idyosyncrasies. For now,
+||--                ||       we're just connecting the channel.
+||--                {self.connect-channel}
+                {after 0s do
+                    {self.connect-channel}
+                }
              case n:Null do
                 {return}
              else
@@ -541,7 +557,9 @@
         {error {lmessage No channel available.}}
     }
     {inc self.current-channel-index}
-    {if self.current-channel-index >= self.channels.size then
+    {if self.current-channel-index >= self.channels.size or
+        self.current-channel-index < 0
+     then
         set self.current-channel-index = -1
         {return false}
     }
@@ -549,9 +567,10 @@
         set self.hunting? = true
     }
     {if self.configured? then
-        {if-non-null channel = self.channels[self.current-channel-index] then
+||--        {if-non-null channel = self.channels[self.current-channel-index] then
+        def channel = self.channels[self.current-channel-index]
             set self._current-channel = channel
-         else
+||--         else
             || TODO: This implementation iterates over the channels, but the
             ||       Flex implementation does it differently. Figure out what's
             ||       different.
@@ -574,9 +593,9 @@
 ||--                    {throw {new Exception, "NoChannelAvailableError"}}
 ||--                }
 ||--             else
-                    {error {lmessage No channel available.}}
+||--                    {error {lmessage No channel available.}}
 ||--            }
-        }
+||--        }
      else
         set self._current-channel = self.channels[self.current-channel-index]
     }
@@ -609,11 +628,15 @@
   }
 
   {method public {add-channel channel:Channel}:void
-    {if {self.channels.find channel} != -1 then
-        {return}
-    }
     {if self.configured? then
         {error {lmessage Cannot add channels when configured.}}
+    }
+    {if self.clustered? and channel.id == null then
+        {error {lmessage Cannot add null id channel when clustered.}}
+    }
+
+    {if {self.channels.find channel} != -1 then
+        {return}
     }
     {self.channels.append channel}
     {if-non-null self.credentials then
@@ -675,6 +698,8 @@
   {method protected {channel-connect-handler e:ChannelConnectEvent}:void
     set self.connecting? = false
     set self.connected? = true
+    set self.current-channel-index = -1
+    
     {while not self.pending-sends.empty? do
         def ps = self.pending-sends[0]
         def ps-msg = ps.message
@@ -700,7 +725,13 @@
     
     || TODO: Refire, but why?
     {self.enqueue-event e}
-    || TODO: Fire PropertyChangeEvent
+    def change-event = {PropertyChangeEvent.create-update-event
+                           self,
+                           "connected?",
+                           false,
+                           true
+                       }
+    {self.enqueue-event change-event}
   }
 
   || Called by the current Channel.
