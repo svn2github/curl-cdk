@@ -16,7 +16,7 @@
 
 {curl 7.0 manifest}
 {manifest COM.CURL.CDK.SUPPORT,
-    version = "0.9.2"}
+    version = "1.1"}
 
 || libraries
 || --------------------
@@ -24,7 +24,12 @@
     location = "../code/manifest.mcurl"}
 
 {delegate-to COM.CURL.CDU,
-    location = "../lib/CDU/manifest.mcurl"}
+||--    || use with adjacent CDU repository
+||--    location = "../../../CDU/trunk/code/manifest.mcurl"
+    || use with svn:externals
+    location = "../lib/CDU/manifest.mcurl"
+}
+
 
 || test infrastructure
 || --------------------

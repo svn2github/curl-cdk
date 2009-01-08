@@ -16,7 +16,7 @@
 
 {value
     def name = "COM.CURL.CDK"
-    def version = "0.9.2"
+    def version = "1.1"
     def dirname = name & "." & version
     
     {DeploySpecs
@@ -101,6 +101,19 @@
             "deploy-docs",
             "docs-install/" & dirname
         },
+        || dguide index
+        || -------------------- 
+        {DeployAction
+            caption = {lmessage Generate DGuide Index},
+            {proc {self:DeployAction,
+                   source-root:Url,
+                   target-root:Url}:void
+                def contents-loc =
+                    {target-root.concat
+                        "docs-install/" & dirname 
+                        & "/docs/en/dguide/_contents.scurl"}
+                {generate-dguide-index contents-loc.parent}
+            }},
 
         || final steps
         || ====================
