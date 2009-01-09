@@ -92,10 +92,6 @@
     {purpose
         Create a {docref SQLConnectedRecordSet} from a table name.
     }
-    {details
-        Parameters other than {param table-name} are the same as
-        {docref SQLConnectedRecordSet.create}.
-    }
     {parameter table-name,
         Name of the SQL table to load.  A SQL query against that table
         will be created.
@@ -226,12 +222,6 @@
     {parameter size-limit, Used to limit the number of records loaded.
         The default value of -1 means there is no limit.
     }
-    {notes
-        Some of the optional parameters must be supplied in order for
-        a {docref SQLConnectedRecordSet} to be modifiable, and only
-        {param strict-types?} is needed if {param request-modifiable?}
-        is {ctext false}.
-    }
     {parameter table-name,
         The name of the table in {param database-name} being loaded
         from by {param query}.  Do not supply if the query will produce
@@ -267,6 +257,12 @@
     {parameter 
         ..., may include {docref EventHandler}s to
         be attached to this recordset.
+    }
+    {notes
+        Some of the optional parameters must be supplied in order for
+        a {docref SQLConnectedRecordSet} to be modifiable, and only
+        {param strict-types?} is needed if {param request-modifiable?}
+        is {ctext false}.
     }
   }
   {constructor public {create

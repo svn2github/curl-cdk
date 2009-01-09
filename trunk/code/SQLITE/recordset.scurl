@@ -104,8 +104,17 @@
         Name of the SQL table to load.  A SQL query against that table
         will be created.
     }
+    {parameter strict-types?,
+        Controls whether the recordset {docref RecordField.domain}s
+        enforce SQLite type {docref-abbr SQLiteVariantDomain.affinity}.
+        With the default, {ctext false}, the {docref Domain.type} is {docref any}.
+    }
     {notes
         This calls {docref SQLiteRecordSet.create}.
+
+        In some cases, Curl GUI objects make decisions based on {docref Domain.type}.
+        (For example, {docref RecordGridColumn} and {docref ChartAxis} recognize numeric types.)
+        Using {ctext strict-types? = true} is useful for such cases.
     }
   }
   {factory public {create-from-table-name
@@ -228,6 +237,11 @@
         This will happen for the {param query}, and for some SQL queries
         used to update the table.
     }
+    {parameter strict-types?,
+        Controls whether the recordset {docref RecordField.domain}s
+        enforce SQLite type {docref-abbr SQLiteVariantDomain.affinity}.
+        With the default, {ctext false}, the {docref Domain.type} is {docref any}.
+    }
     {details
         Parameters match {docref SQLConnection.create-sql-record-set}
         plus {param query-parameters} and {param base-where-clause-parameters}.
@@ -238,6 +252,10 @@
         information must be available, either by the column names in the
         table matching the names of columns in the {param query} or
         by providing {param hidden-primary-key-field} or {param primary-keys}.
+
+        In some cases, Curl GUI objects make decisions based on {docref Domain.type}.
+        (For example, {docref RecordGridColumn} and {docref ChartAxis} recognize numeric types.)
+        Using {ctext strict-types? = true} is useful for such cases.
     }
   }
   {constructor public {create

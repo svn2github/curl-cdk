@@ -269,7 +269,7 @@ CREATE TABLE products (
             {cell {docref null}}}}
 
     The SQLite engine is more flexible about datatypes than the typical database:
-    columns can contain values off different types. This is convenient for cases
+    columns can contain values of different types. This is convenient for cases
     where dynamic data is used.  The engine will convert between datatypes when
     necessary, according to definite rules.  Input values are converted
     according to the "type affinity" of the column, which is based on
@@ -321,7 +321,7 @@ CREATE TABLE products (
     In some cases, Curl GUI objects make decisions based on that type.
     (For example, {docref RecordGrid} and {docref Chart} recognize numeric types.)
     Use the {ctext strict-types?} keyword to control whether
-    the recordset domains enforce type affinity.    
+    the recordset domains enforce type {docref SQLiteVariantDomain.affinity}.    
     
     Some kinds of processing can performed either
     at the level of the database engine (in SQL),

@@ -17,13 +17,41 @@
 {doc-next
     {purpose
         {docref Domain} used by {docref SQLiteRecordSet} for
-        {docref RecordField}s.
-    }
+        {docref RecordField}s.}
+    {details
+        Datatype conversion and validation behavior duplicates that
+        of the {link href = {url "http://www.sqlite.org/datatype3.html"},
+        underlying SQLite engine}.}
 }
 {define-class public SQLiteVariantDomain {inherits Domain}
+  {doc-next
+    {purpose The type affinity declared in the SQLite database.}
+    {notes
+        The SQLite engine is {link href = {url "http://www.sqlite.org/datatype3.html"},
+        more flexible about datatypes} than the typical database:
+        columns can contain values off different types. This is convenient for cases
+        where dynamic data is used.  The engine will convert between datatypes when
+        necessary, according to definite rules.  Input values are converted
+        according to the "type affinity" of the column, which is based on
+        the declared type from the {ctext CREATE TABLE} statement,
+        using rules which match the conventional SQL datatype declarations.}
+  }
   field public-get constant affinity:SQLiteDatatypeAffinity
+  
+  {doc-next
+    {purpose Indicates whether the {docref Domain.type}
+        should enforce the {docref-abbr SQLiteVariantDomain.affinity}}
+  }
   field public-get constant strict?:bool
+  
   field constant _type:Type
+  
+  {doc-next
+    {purpose Create a {ctext SQLiteVariantDomain} object.}
+    {parameter affinity, the {docref-abbr SQLiteVariantDomain.affinity}.}
+    {parameter strict?, whether the {docref Domain.type}
+        should enforce the {ctext affinity}}
+  }
   {constructor public {default 
                           affinity:SQLiteDatatypeAffinity = 
                               SQLiteDatatypeAffinity.NONE,
@@ -37,6 +65,13 @@
          else
             || allow any type, as does SQLite
             any}
+  }
+  
+  {doc-next
+    {purpose Create a {ctext SQLiteVariantDomain} object.}
+    {parameter affinity, the {docref-abbr SQLiteVariantDomain.affinity}.}
+    {parameter strict?, whether the {docref Domain.type}
+        should enforce the {ctext affinity}}
   }
   {factory public {from-affinity
                       affinity:SQLiteDatatypeAffinity,
