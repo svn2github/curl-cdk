@@ -225,3 +225,8 @@
         }
     }
 }
+
+|| NOTE: used for rejecting early beta releases
+{import * from CURL.LANGUAGE.REGEXP}
+{include "curl-version-switch.scurl"}
+
