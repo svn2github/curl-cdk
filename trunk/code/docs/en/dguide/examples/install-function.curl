@@ -27,21 +27,10 @@
     {db.execute "CREATE TABLE words (word TEXT NOT NULL PRIMARY KEY);"}
     {SQLiteStatement.import-csv db, "words", {url "Nouns.txt"}}
 
-    def matchers =
-        {{Memoizer-of String, Matcher}
-            {proc {pattern:String}:Matcher
-                ||{output "new matcher"}
-                {return
-                    {Matcher pattern}}}}
-
     {db.install-function "regexp", 2,
         {proc {pattern:String, string:String}:int
-            || get matcher
-            def m = matchers[pattern]
-            || call matcher
-            def match? = {m.match string} != null
-            || return result
-            {return {if match? then 1 else 0}}
+            {return
+                {regexp-match? pattern, string} asa int}
         }}
 
     def display = 
