@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 0.9.2 for Curl API Version 7.0. 
+CDK Preview Release 1.1 for Curl API Version 7.0. 
 ====================
 
-This directory contains the 0.9.2 preview of the Curl Data Kit (CDK)
+This directory contains the 1.1 preview of the Curl Data Kit (CDK)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
 applications in Curl. It provides support for local SQL databases,
@@ -41,7 +41,7 @@ Deployable Library
 The 'deploy' directory contains a preprocessed library 
 for use in deployed applications.
 
-- COM.CURL.CDK.0.9.2/manifest.mcurl   	CDK library definition
+- COM.CURL.CDK.1.1/manifest.mcurl   	CDK library definition
 
 Documentation
 --------------------
@@ -52,7 +52,7 @@ using the IDE 'Install Documentation' command.
 The directories include both documentation
 and preprocessed library.
 
-- COM.CURL.CDK.0.9.2/manifest.mcurl   	CDK library doc definition
+- COM.CURL.CDK.1.1/manifest.mcurl   	CDK library doc definition
 
 Source Code
 --------------------
@@ -75,17 +75,7 @@ It also includes test suites, and some sample applets.
 CHANGES
 ====================
 
-CDK 0.9.2 CHANGES
---------------------
-
-Curl Release 7 incorporates the SQLite engine 
-(as package CURL.IO.SQLITE-LIBRARY).
-
-- Uses SQLite Engine version 3.6.2
-
-- includes support for encrypted databases
-
-CDK 0.9.1 CHANGES
+CDK 1.1 CHANGES
 --------------------
 
 Curl Release 7 incorporates the SQLite engine 
@@ -95,9 +85,21 @@ This change eliminates the need for privilege to use SQLite, which had
 been necessary in earlier releases, when the SQLite library was
 included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
-CDK 0.9 CHANGES
---------------------
+- Uses SQLite Engine version 3.6.2.
 
+- Includes support for encrypted databases. (This feature can only be
+  used by an applet that has a Curl Pro server license.)
+
+NOTE: This library is not compatible with early Curl Version 7.0 beta
+releases.  The API provided by CURL.IO.SQLITE-LIBRARY changed for the
+"Beta 3" release (labeled as '7.0.0 [beta] kendall-0/50').
+
+CDK 1.0 CHANGES
+--------------------
+This is the first CDK Release.
+}
+This CDK Release is for use with Curl API Version 6.0.
+    
 There have been a few API changes since Version 0.8
 
 - SQLiteRecordSet.fields are created using default values

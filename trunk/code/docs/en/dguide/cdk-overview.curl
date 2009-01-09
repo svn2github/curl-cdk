@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -41,7 +41,9 @@
             This allows data centric Curl applications to take advantage of the
             full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
 
-            SQLite databases are fully integrated with the Curl {docref COM.CURL.DATA-ACCESS} package.
+            SQLite databases are fully integrated with the Curl Data Management
+            architecture defined by the {docref CURL.DATA-ACCESS.BASE}
+            and {docref CURL.DATA-ACCESS.CONNECTED} packages.
         }
 
         {item {bold CDK Roadmap}
@@ -55,56 +57,43 @@
 }
 
 {heading level=2,
-    What's New in CDK 0.9.2
+    What's New in CDK 1.1
 }
 
 {paragraph
-    This CDK Preview Release is for use with Curl API Version 7.0 Beta 2.
+    This CDK Release is for use with Curl API Version 7.0.
 
     Curl Release 7 incorporates the SQLite engine (as {docref CURL.IO.SQLITE-LIBRARY}).
     
     {itemize
+        {item This change eliminates the need for privilege to use SQLite,
+            which had been necessary in earlier releases, when the SQLite library
+            was included in the CDK using {docref CURL.LANGUAGE.DLL-INTERFACE}.}
         {item Uses SQLite Engine version 3.6.2}
-        {item includes support for encrypted databases.
-            
-            This feature can only be used by an applet that has a Curl Pro server license.}
-        }
-    
-    CDK Preview Release packages are marked as version 0.9.2.
-}
-{heading level=2,
-    What was New in CDK 0.9.1
-}
-
-{paragraph
-    This CDK Preview Release was for use with Curl API Version 7.0 Beta 1.
-
-    Curl Release 7 incorporates the SQLite engine (as {docref CURL.IO.SQLITE-LIBRARY}).
-
-    This change eliminates the need for privilege to use SQLite,
-    which had been necessary in earlier releases, when the SQLite library
-    was included in the CDK using {docref CURL.LANGUAGE.DLL-INTERFACE}.
-    
-    CDK Preview Release packages are marked as version 0.9.1.
-}
-{heading level=2,
-    What was New in CDK 0.9
-}
-
-{paragraph
-    This is a preview of the first CDK Release.
-
-    {preliminary
-        This preview contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.
+        {item Includes support for encrypted databases.            
+            {br}{italic This feature can only be used by an applet that has a Curl Pro server license.}}
+        || TODO: bugs fixed, sample improved
     }
+
+    NOTE: This library is not compatible with early Curl API Version 7.0 beta releases.
+    The API provided by {docref CURL.IO.SQLITE-LIBRARY} changed for the "Beta 3" release
+    (labeled as {monospace "7.0.0 [beta] kendall-0/50"}).
+    
+    CDK 1.1 Release packages are marked as version 1.1.
+}
+
+{heading level=2,
+    What was New in CDK 1.0
 }
 
 {paragraph
-    This CDK Preview Release is for use with Curl API Version 6.0.
+    This is the first CDK Release.
+}
+
+{paragraph
+    This CDK Release is for use with Curl API Version 6.0.
     
-    CDK Preview Release packages are marked as version 0.9.
+    CDK Release packages are marked as version 1.0.
     
     {itemize
         {item

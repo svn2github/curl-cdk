@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -46,7 +46,9 @@
     This allows data centric Curl applications to take advantage of the
     full power of the SQL language (joins, indexes, transactions, triggers, constraints, etc).
 
-    SQLite databases are fully integrated with the Curl {docref COM.CURL.DATA-ACCESS} package.
+    SQLite databases are fully integrated with the Curl Data Management
+    architecture defined by the {docref CURL.DATA-ACCESS.BASE}
+    and {docref CURL.DATA-ACCESS.CONNECTED} packages.
     Query results are represented using {docref SQLiteRecordSet} objects,
     so standard Curl techniques for presentation and manipulation of data can be used
     (like {docref RecordView}, {docref RecordGrid}, {docref RecordForm} and {docref DataBinding}).
