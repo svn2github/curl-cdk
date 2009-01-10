@@ -63,6 +63,7 @@
   let public constant SUBSCRIPTION_INVALIDATE_OPERATION:uint = 10
   let public constant MULTI_SUBSCRIBE_OPERATION:uint = 11
   let public constant DISCONNECT_OPERATION:uint = 12
+  let public constant TRIGGER_CONNECT_OPERATION:uint = 13
   let public constant UNKNOWN_OPERATION:uint = 10000
   
   let public constant OPERATION_FLAG:int = 1

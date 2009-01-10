@@ -15,11 +15,15 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractProducer {inherits MessageAgent}
-  field public auto-connect?:bool = true
-  field public default-headers:#IMessageHeaders
-  field public reconnect-attempts:int = 0
-  field public reconnect-interval:Time = 0ms
+  field protected should-be-connected?:bool = false
   field private connect-message:#CommandMessage
+  field private current-attempt:int
+  field private _default-headers:#IMessageHeaders
+  field private _auto-connect?:bool = true
+  field private _reconnect-attempts:int = 0
+  field private _reconnect-interval:Time = 0ms
+  field private reconnect-timer:#Timer
+  || TODO: implement 'priority'
 
   {doc-next
     {purpose
@@ -62,6 +66,83 @@
     set self.agent-type = "producer" ||""
   }
 
+  {getter public {auto-connect?}:bool
+    {return self._auto-connect?}
+  }
+
+  {setter public {auto-connect? val:bool}:void
+    {if self._auto-connect? != val then
+        def event = {PropertyChangeEvent.create-update-event
+                        self,
+                        "auto-connect?",
+                        self._auto-connect?,
+                        val
+                    }
+        set self._auto-connect? = val
+        {self.enqueue-event event}
+    }
+  }
+
+  {getter public {default-headers}:#IMessageHeaders
+    {return self._default-headers}
+  }
+
+  {setter public {default-headers headers:#IMessageHeaders}:void
+    {if self._default-headers != headers then
+        def event = {PropertyChangeEvent.create-update-event
+                        self,
+                        "default-headers",
+                        self._default-headers,
+                        headers
+                    }
+        set self._default-headers = headers
+        {self.enqueue-event event}
+    }
+  }
+
+  {getter public {reconnect-attempts}:int
+    {return self._reconnect-attempts}
+  }
+
+  {setter public {reconnect-attempts val:int}:void
+    {if self._reconnect-attempts != val then
+        {if val == 0 then
+            {self.stop-reconnect-timer}}
+
+        def event = {PropertyChangeEvent.create-update-event
+                        self,
+                        "reconnect-attempts",
+                        self._reconnect-attempts,
+                        val
+                    }
+        set self._reconnect-attempts = val
+        {self.enqueue-event event}
+    }
+  }
+
+  {getter public {reconnect-interval}:Time
+    {return self._reconnect-interval}
+  }
+
+  {setter public {reconnect-interval val:Time}:void
+    {if self._reconnect-interval != val then
+        {if val < 0s then
+            {error {lmessage reconnect-interval cannot take a negative value.}}
+
+         elseif val == 0s then
+            {self.stop-reconnect-timer}
+
+         elseif self.reconnect-timer != null then
+            set self.reconnect-timer.interval = val
+        }
+
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "reconnect-interval", self._reconnect-interval, val}
+        set self._reconnect-interval = val
+        {self.enqueue-event event}
+    }
+  }
+
   {doc-next
     {purpose
         Connect to the endpoint.
@@ -69,21 +150,25 @@
   }
   {method public {connect}:void
     {if not self.connected? then
+        set self.should-be-connected? = true
         {if self.connect-message == null then
-            set self.connect-message = {new CommandMessage}
-            set self.connect-message.operation =
-                CommandMessage.CLIENT_PING_OPERATION
-            set self.connect-message.client-id = self.client-id
-            set self.connect-message.destination = self.destination
-            {if-non-null msg = self.connect-message then
-                {self.internal-send msg, wait-for-client-id? = false}
-            }
+||--            set self.connect-message = {new CommandMessage}
+||--            set self.connect-message.operation =
+||--                CommandMessage.CLIENT_PING_OPERATION
+||--            set self.connect-message.client-id = self.client-id
+||--            set self.connect-message.destination = self.destination
+||--            {if-non-null msg = self.connect-message then
+||--                {self.internal-send msg, wait-for-client-id? = false}
+||--            }
+            set self.connect-message = {self.build-connect-message}
+            {self.internal-send {non-null self.connect-message}}
         }
     }
   }
 
   {method public {disconnect}:void
     || TODO: StopReconnectTimer
+    set self.should-be-connected? = false
     {super.disconnect}
   }
 
@@ -96,8 +181,31 @@
     }
   }
   {method public {send message:IMessage}:void
-    || TODO: Add default headers?
-    {self.internal-send message}
+    {if not self.connected? and self.auto-connect? then
+        set self.should-be-connected? = true
+    }
+    
+    {if-non-null default-headers = self.default-headers then
+        def m-headers = message.headers
+        {for h in {default-headers.keys-to-Iterator} do
+            {if not {m-headers.key-exists? h} then
+                set m-headers[h] = default-headers[h]
+            }
+        }
+    }
+    {if self.connected? or self.auto-connect? then
+        {self.internal-send message}
+     else
+        set self.should-be-connected? = false
+        def err-msg = {ErrorMessage}
+        set err-msg.fault-code = "Client.Error.MessageSend"
+        set err-msg.fault-string = {lmessage Send failed.}
+        set err-msg.fault-detail =
+            {lmessage The producer is not connected and the message cannot be sent.}
+        set err-msg.correlation-id = message.message-id
+        {self.internal-fault err-msg, message,
+            route-to-store? = false, ignore-disconnect-barrier? = true}
+    }       
   }
 
   {method protected {acknowledge
@@ -110,8 +218,8 @@
 
     {type-switch message
      case cm:CommandMessage do
-        {if cm.operation ==CommandMessage.CLIENT_PING_OPERATION then
-||--            {self.stop-reconnect-timer}
+        {if cm.operation ==CommandMessage.TRIGGER_CONNECT_OPERATION then
+            {self.stop-reconnect-timer}
         }
     }
   }
@@ -131,21 +239,101 @@
     }
     {type-switch message
      case cm:CommandMessage do
-        {if cm.operation == CommandMessage.CLIENT_PING_OPERATION then
-||--            {if self.reconnect-timer == null then
+        {if cm.operation == CommandMessage.TRIGGER_CONNECT_OPERATION then
+            {if self.reconnect-timer == null then
                 {if self.connect-message != null and
                     err.correlation-id == self.connect-message.message-id
                  then
-||--                    set self.should-be-connected? = false
+                    set self.should-be-connected? = false
                     def new-err = {new ErrorMessage}
                     set new-err.fault-code = "Client.Error.Connect" ||""
                     set new-err.correlation-id = self.connect-message.message-id
                     set new-err.root-cause = err.root-cause
                     set err = new-err
                 }
-||--            }
+             else
+                {return}
+            }
         }
     }
     {super.fault err, message}
+  }
+
+  {method protected {channel-disconnect-handler e:ChannelDisconnectEvent}:void
+    {super.channel-disconnect-handler e}
+
+    {if self.should-be-connected? and not e.rejected? then
+        {self.start-reconnect-timer}
+    }
+  }
+
+  {method protected {channel-fault-handler e:ChannelFaultEvent}:void
+    {super.channel-fault-handler e}
+
+    {if self.should-be-connected? and
+        not e.rejected? and not e.channel.connected? then
+        {self.start-reconnect-timer}
+    }
+  }
+
+  {method protected {reconnect}:void
+    {if self.reconnect-attempts != -1 and
+        self.current-attempt >= self.reconnect-attempts
+     then
+        {self.stop-reconnect-timer}
+        set self.should-be-connected? = false
+        {self.fault
+            {self.build-connect-error-message},
+            {non-null self.connect-message}
+        }
+        {return}
+    }
+
+    || NOTE: needs null check for reconnect-timer?
+    set self.reconnect-timer.interval = self.reconnect-interval
+    {inc self.current-attempt}
+    {if self.connect-message == null then
+        set self.connect-message = {self.build-connect-message}
+    }
+    {self.internal-send {non-null self.connect-message}}
+  }
+
+  {method protected {start-reconnect-timer}:void
+    {if self.should-be-connected? and self.reconnect-timer == null then
+        {if self.reconnect-attempts != 0 and self.reconnect-interval > 0s then
+            set self.reconnect-timer =
+                {Timer
+                    interval = 1s,
+                    {on TimerEvent do {self.reconnect}}
+                }
+            {self.reconnect-timer.enable delay = 1s}
+            set self.current-attempt = 0
+        }
+    }
+  }
+
+  {method protected {stop-reconnect-timer}:void
+    {if-non-null self.reconnect-timer then
+        {self.reconnect-timer.disable}
+        set self.reconnect-timer = null
+    }
+  }
+
+  {method private {build-connect-error-message}:ErrorMessage
+    def err = {ErrorMessage}
+    set err.fault-code = "Client.Error.Connect"
+    set err.fault-string = {lmessage Producer connect error.}
+    set err.fault-detail =
+        {lmessage The producer was not able to connect to its target destination.}
+    set err.correlation-id = self.connect-message.message-id
+    {return err}
+  }
+
+  {method private {build-connect-message}:CommandMessage
+    def cmd = {CommandMessage}
+    set cmd.operation = CommandMessage.TRIGGER_CONNECT_OPERATION
+    set cmd.client-id = self.client-id
+    set cmd.destination = self.destination
+    {return cmd}
   }
 }

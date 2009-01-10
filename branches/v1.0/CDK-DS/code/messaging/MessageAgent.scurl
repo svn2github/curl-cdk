@@ -50,6 +50,7 @@
   field private remote-credentials:#String
   field private remote-credentials-character-encoding:#CharEncoding
   field private pending-connect-event:#ChannelConnectEvent
+  field private client-id-wait-queue:#{Array-of IMessage}
 
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
@@ -130,9 +131,11 @@
 
   {setter protected {client-id id:#String}:void
     {if self.client-id != id then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "client-id", self._client-id, id}
         set self._client-id = id
-        || TODO: {self.flush-client-id-wait-queue}
-        || TODO: Fire a PropertyChangeEvent
+        {self.flush-client-id-wait-queue}
+        {self.enqueue-event event}
     }
   }
 
@@ -250,7 +253,11 @@
 
   {method public {disconnect}:void
     {if not self.disconnect-barrier? then
-        set self.disconnect-barrier? = true
+        set self.client-id-wait-queue = null
+
+        {if self.connected? then
+            set self.disconnect-barrier? = true}
+
         {if self.channel-set-mode == MessageAgent.AUTO_CONFIGURED_CHANNELSET
          then
             {self.internal-set-channel-set null}
@@ -376,6 +383,25 @@
     {self.internal-send message}
   }
 
+  {method protected {flush-client-id-wait-queue}:void
+    {if-non-null queue = self.client-id-wait-queue then
+        def dispatch-msg = {proc {}:void
+                               {self.internal-send queue[0]}
+                               {queue.remove 0}
+                           }
+        {if-non-null self.client-id then
+            {while not queue.empty? do
+                {dispatch-msg}
+            }
+        }
+        {if not queue.empty? then
+            {dispatch-msg}
+         else
+            set self.client-id-wait-queue = null
+        }
+    }
+  }
+
   {method protected {internal-send
                         message:IMessage,
                         wait-for-client-id?:bool = false
@@ -385,6 +411,12 @@
         (self.client-id == null)
      then
         || TODO: Implement message queueing behavior.
+        {if self.client-id-wait-queue == null then
+            set self.client-id-wait-queue = {{Array-of IMessage}}
+         else
+            {self.client-id-wait-queue.append message}
+            {return}
+        }
     }
     {if message.client-id == null then
         set message.client-id = self.client-id
@@ -394,13 +426,17 @@
             self.request-timeout
     }
     {if self.send-remote-credentials? then
-        set message.headers[AbstractMessage.REMOTE_CREDENTIALS_HEADER] =
-            self.remote-credentials
-        {if-non-null rcce = self.remote-credentials-character-encoding then
-            set message.headers[AbstractMessage.REMOTE_CREDENTIALS_CHARSET_HEADER] =
-                {char-encoding-to-http-charset rcce}
+        {if not (message isa CommandMessage and
+                 (message asa CommandMessage).operation == CommandMessage.TRIGGER_CONNECT_OPERATION)
+         then
+            set message.headers[AbstractMessage.REMOTE_CREDENTIALS_HEADER] =
+                self.remote-credentials
+            {if-non-null rcce = self.remote-credentials-character-encoding then
+                set message.headers[AbstractMessage.REMOTE_CREDENTIALS_CHARSET_HEADER] =
+                    {char-encoding-to-http-charset rcce}
+            }
+            set self.send-remote-credentials? = false
         }
-        set self.send-remote-credentials? = false
     }
     {if-non-null self.channel-set then
         {if not self.connected? and
@@ -524,7 +560,7 @@
         {if-non-null id = ack-message.client-id then
             set self.client-id = id
          else
-            || TODO: {self.flush-client-id-wait-queue}
+            {self.flush-client-id-wait-queue}
         }
     }
     {self.enqueue-event
@@ -545,7 +581,7 @@
         {if-non-null id = error-message.client-id then
             set self.client-id = id
          else
-            || TODO: {self.flush-client-id-wait-queue}
+            {self.flush-client-id-wait-queue}
         }
     }
     {self.enqueue-event
