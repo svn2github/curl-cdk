@@ -14,29 +14,31 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0 manifest}
-{manifest COM.CURL.CDK.DB-EXPLORER}
+{curl 7.0 applet}
 
-{delegate-to COM.CURL.CDK,
-    location = "../../code/manifest.mcurl"
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
 }
-{component package COM.CURL.CDK.DB-EXPLORER,
-    location = "load.scurl",
-    version = "0.9"
-}
-{component file start.curl,
-    location = "start.curl"
-}
-{component file start.dcurl,
-    location = "start.dcurl"
-}
-{component file DBX-STYLE-SHEET,
-    location = "stylesheet.scurl"
-}
-{component file project.cprj,
-    location = "project.cprj"
-}
+{import * from COM.CURL.CDK.SQLITE}
+{import * from COM.CURL.CDK.DB-EXPLORER}
 
+||--{install-style-sheet
+||--    {StyleSheet
+||--        {get-default-style-sheet},
+||--        {manifest-url "file", "DBX-STYLE-SHEET"}
+||--    }
+||--}
 
-
-
+{View
+    title = "Curl Database Explorer",
+    hstretch? = true,
+    vstretch? = true,
+    {DBExplorer
+        width = 12in, height = 8in,
+        {SQLiteDatabase null}
+    },
+    visibility = "normal", 
+    {on WindowClose do
+        {exit}
+    }
+}

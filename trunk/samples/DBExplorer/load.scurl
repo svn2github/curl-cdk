@@ -16,12 +16,12 @@
 
 {curl 7.0 package}
 {package COM.CURL.CDK.DB-EXPLORER,
-    version = "0.9.1",
+    version = "0.8",
     {compiler-directives careful? = true}
 }
 {import * from CURL.GUI.STANDARD}
+{import request-local-data-permission from CURL.ENGINE.APPLET}
 {import * from COM.CURL.CDK.SQLITE}
 
-{include
-    "display.scurl"
-}
+{include "display.scurl"}
+{include "history.scurl"}
