@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -22,12 +22,12 @@
 {import * from COM.CURL.CDK.SQLITE}
 {import * from COM.CURL.CDK.DB-EXPLORER}
 
-||--{install-style-sheet
-||--    {StyleSheet
-||--        {get-default-style-sheet},
-||--        {manifest-url "file", "DBX-STYLE-SHEET"}
-||--    }
-||--}
+{install-style-sheet
+    {StyleSheet
+        {get-default-style-sheet},
+        {manifest-url "file", "DBX-STYLE-SHEET"}
+    }
+}
 
 {View
     title = "Curl Database Explorer",

@@ -14,16 +14,14 @@
         name = "deploy",
         target-url-name = "c:\\curl\\DB-EXPLORER",
         {package-transform "COM.CURL.CDK.DB-EXPLORER\u0000package\u0000load.scurl", copy? = true},
-        {resource-transform "stylesheet.scurl\u0000file\u0000stylesheet.scurl", copy? = true},
-        {resource-transform "DB-STYLE-SHEET\u0000file\u0000stylesheet.scurl", copy? = true},
-        {assembly-transform "COM.CURL.CDK", use-path? = true},
         {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {resource-transform "start.curl\u0000file\u0000start.curl", copy? = true},
         {resource-transform "start.dcurl\u0000file\u0000start.dcurl", copy? = true},
+        {resource-transform "stylesheet.scurl\u0000file\u0000stylesheet.scurl", copy? = true},
         {resource-transform "start.curl\u0000resource\u0000start.curl", copy? = true},
-        {assembly-transform "COM.CURL.GUI.STYLED", use-path? = true},
-        {package-transform "COM.CURL.CDK.DB-DISPLAY\u0000package\u0000load.scurl", copy? = true},
+        {assembly-transform "COM.CURL.CDK", use-path? = true},
         {resource-transform "DBX-STYLE-SHEET\u0000file\u0000stylesheet.scurl", copy? = true}
     },
-    {file-setting "start.curl", start-file? = true}
+    {file-setting "start.dcurl", start-file? = true},
+    {file-setting "start.curl"}
 }

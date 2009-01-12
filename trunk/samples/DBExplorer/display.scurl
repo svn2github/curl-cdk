@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -21,9 +21,6 @@
 || - modifiable recordgrid where appropriate
 || - stronger "designer" support
 || -- differentiate DML (select) from DDL (create, etc)
-|| - persistent settings
-|| -- recent databases
-|| -- SQL history
 || - statement with parameters => form
 || - MVC
 || - TabPane-of
@@ -73,22 +70,35 @@
         self.query-panes, menu-pane = {self.create-context-menu-pane}
     }
     || display
-    def title-file = {Frame}
+    def title-file = {Frame style-class = "title-file"}
+    def title-panel =
+        {Frame style-class = "title-bar",
+            hstretch? = true,
+            {spaced-hbox
+                menu-bar,
+                title-file,
+                {Fill width = 2pt}
+            }
+        }
     def status = {Frame style-class = "status"}
-    def status-panel = {Frame style-class = "status-bar", status}
+    def progress = {ProgressBar width = .75in, visible? = false}
+    def status-panel =
+        {Frame style-class = "status-bar",
+            {HBox
+                status,
+                {Fill},
+                progress}
+        }
     def main = {PanedWindow orientation = "horizontal"}
     {main.add-pane self.query-panes}
-    {main.add-pane self.views} || self.schema-frame
+    {main.add-pane self.views}
     {main.set-pane-sizes {{Array-of double} 80%, 20%}}
     {self.add-internal
         {VBox
             hstretch? = true,
-            {Frame
-                background = "#DEF",
-                hstretch? = true,
-                {spaced-hbox menu-bar, title-file, {Fill width = 2pt}}
-            },   
-            main, status-panel
+            title-panel,   
+            main,
+            status-panel
         }
     }
     
@@ -110,8 +120,12 @@
     {self.add-event-handler
         {on e:DBXInfo do
             {status.add replace? = true, e.info}
+            def exception? = e.info isa Exception
+            {if exception? then
+                {self.current-query-display.reset-grid}
+            }
             set status.style-class =
-                {if e.info isa Exception then
+                {if exception? then
                     "status sql-error"
                  else
                     "status"
@@ -129,7 +143,7 @@
         }
     }
     {self.add-event-handler
-        {on DBXSchemaChanged do
+        {on e:DBXSchemaChanged do
             {self.schema-changed}
         }
     }
@@ -321,6 +335,29 @@
   }
 
   {method private {create-menu-bar}:MenuBar
+    || TODO: refresh when there is a change
+    def recent-files = {Array}
+    def recent-file-limit = 4
+    {if-non-null files = {{HistoryManager}.get-databases} then
+        {files.reverse}
+        {for f in files do
+            {if recent-files.size > recent-file-limit then
+                {break}} 
+            def loc = {abs-url f}
+            {if not {local-file-exists? loc} then
+                {continue}}
+            def prefix = loc.stem.name
+            def name = {loc.pathname.tail prefix.size}
+            def index = recent-files.size + 1
+            || TODO: truncate if too long
+            def label = {format "&%d %s", index, name}
+            {recent-files.append
+                {MenuAction label = label,
+                    {on Action do
+                        {self.open-database loc}}}}
+        }
+        {recent-files.insert {menu-separator}, 0}
+    }
     {return
         {MenuBar
             use-look-and-feel? = false,
@@ -341,7 +378,8 @@
                 },
                 {MenuAction label = {lmessage &Copy Query Pane},
                     bound-command = {self.commands.get-command "copy-pane"}
-                }
+                },
+                {splice recent-files}
             },
             {SubMenu label = {lmessage &Run},
                 {MenuAction label = {lmessage &Execute}, key-accel-string = "CTRL+X",
@@ -782,7 +820,7 @@
     {do
         || NOTE: set explicitly, because not affected by stylesheet
         || -- when added to existing display
-        set main.background = "#BBE9F0"
+        set main.background = "#E6F3FA"
         set main.sash-background = "transparent"
     }
     {main.add-pane self.query-panel}
@@ -939,10 +977,9 @@
     def nullable? = not pk? and (array[3] == 0)
     {return
         {spaced-vbox
-            ||background = "#BBE9F0",
             hstretch? = true,
             {Frame halign = "center", {value array[1]}},
-            {Table
+            {Table || TODO: style-class = "tooltip",
                 columns = 2,
                 border-width = 1pt,
                 border-color = "#aaaaff",
@@ -998,7 +1035,7 @@
         {db.sql-column
             "select name from sqlite_master where type='index' order by name"
         }
-    def rooti = {TreeNode node-data = {bold Indexs}}
+    def rooti = {TreeNode node-data = {bold Indexes}}
     {for t in indexs do
         def nt = {SchemaTreeNode t asa String, "index"}
         {rooti.append nt}

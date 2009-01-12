@@ -1,4 +1,4 @@
-||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
 |||
 ||| An OpenCurl project.
 
@@ -15,24 +15,29 @@
 ||| limitations under the License.
 
 {curl 7.0 manifest}
-{manifest COM.CURL.CDK.DB-EXPLORER}
+{manifest COM.CURL.CDK.DB-EXPLORER,
+    version = "1.1"}
 
 {delegate-to COM.CURL.CDK,
     location = "../../code/manifest.mcurl"
 }
+
 {component package COM.CURL.CDK.DB-EXPLORER,
-    location = "load.scurl",
-    version = "0.9"
+    location = "load.scurl"
 }
-{component file start.curl,
-    location = "start.curl"
-}
-{component file start.dcurl,
-    location = "start.dcurl"
-}
+
 {component file DBX-STYLE-SHEET,
     location = "stylesheet.scurl"
 }
+
+{component file start.curl,
+    location = "start.curl"
+}
+
+{component file start.dcurl,
+    location = "start.dcurl"
+}
+
 {component file project.cprj,
     location = "project.cprj"
 }
