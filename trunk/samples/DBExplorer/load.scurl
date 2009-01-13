@@ -20,7 +20,7 @@
     {compiler-directives careful? = true}
 }
 {import * from CURL.GUI.STANDARD}
-{import request-local-data-permission from CURL.ENGINE.APPLET}
+{import * from CURL.ENGINE.APPLET}
 {import * from COM.CURL.CDK.SQLITE}
 
 {include "display.scurl"}

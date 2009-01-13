@@ -108,7 +108,7 @@
                  else
                     "MemoryDB"
                 }
-            || See if there is an entry for the querie's database.
+            || See if there is an entry for the query's database.
             || If not add one.
             let index:int = {self.get-index-for sql-db-name} 
 

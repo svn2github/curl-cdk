@@ -22,6 +22,8 @@
 {import * from COM.CURL.CDK.SQLITE}
 {import * from COM.CURL.CDK.DB-EXPLORER}
 
+{persistent-data "DBExplorer"}
+
 {install-style-sheet
     {StyleSheet
         {get-default-style-sheet},
@@ -29,16 +31,30 @@
     }
 }
 
-{View
+{app-view
     title = "Curl Database Explorer",
     hstretch? = true,
     vstretch? = true,
     {DBExplorer
         width = 12in, height = 8in,
         {SQLiteDatabase null}
-    },
-    visibility = "normal", 
-    {on WindowClose do
-        {exit}
-    }
+    }||,
+||--    visibility = "normal", 
+||--    {on WindowClose do
+||--        {exit}
+||--    }
 }
+
+||--{View
+||--    title = "Curl Database Explorer",
+||--    hstretch? = true,
+||--    vstretch? = true,
+||--    {DBExplorer
+||--        width = 12in, height = 8in,
+||--        {SQLiteDatabase null}
+||--    },
+||--    visibility = "normal", 
+||--    {on WindowClose do
+||--        {exit}
+||--    }
+||--}

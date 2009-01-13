@@ -15,18 +15,10 @@
 ||| limitations under the License.
 
 || TODO
-|| - improve progress treatment
-|| -- update elapsed time
-|| -- popup progress bar after a while
 || - modifiable recordgrid where appropriate
-|| - stronger "designer" support
-|| -- differentiate DML (select) from DDL (create, etc)
+|| - differentiate DML (select) from DDL (create, etc)
 || - statement with parameters => form
-|| - MVC
-|| - TabPane-of
-|| - improve coordination (mediator pattern?)
-|| -- nonlocal-option ?
-|| -- RecordData DBC for state model ?
+|| - order history by timestamp; avoid duplicates
 
 || --------------------
 {define-class public DBExplorer {inherits BaseFrame}
@@ -35,6 +27,8 @@
   field private _database:SQLiteDatabase
   field private _cancel?:bool
   field private _running?:bool
+  field private progress-display:Graphic
+  field private progress-bar:ProgressBar
 
   field private commands:CommandContext
   field private query-panes:TabContainer
@@ -81,13 +75,23 @@
             }
         }
     def status = {Frame style-class = "status"}
-    def progress = {ProgressBar width = .75in, visible? = false}
+    set self.progress-bar =
+        {ProgressBar width = .75in}
+    def cancel-button =
+        {CommandButton label = {bold color = "red", X},
+            tooltip = {lmessage Cancel},
+            bound-command = {self.commands.get-command "cancel"}}
+    set self.progress-display  =
+        {HBox
+            visible? = false,
+            self.progress-bar,
+            cancel-button}
     def status-panel =
         {Frame style-class = "status-bar",
             {HBox
                 status,
                 {Fill},
-                progress}
+                self.progress-display}
         }
     def main = {PanedWindow orientation = "horizontal"}
     {main.add-pane self.query-panes}
@@ -135,6 +139,7 @@
     }
     {self.add-event-handler
         {on e:DBXProgress do
+            {self.note-progress-ongoing}
             {dispatch-events false}
             {if self._cancel? then
                 set self._cancel? = false
@@ -153,6 +158,52 @@
   }
   
   || state
+  || --------------------
+  {getter public {running?}:bool
+    {return self._running?}
+  }
+
+  {setter private {running? val:bool}
+    {if val != self._running? then
+        set self._cancel? = false
+        set self._running? = val
+        {self.refresh-commands}
+    }
+  }
+  
+  || properties
+  || --------------------
+  {getter public {database}:SQLiteDatabase
+    {return self._database}
+  }
+  
+  {setter public {database val:SQLiteDatabase}
+    {if val != self._database then
+        {self._database.close}
+        set self._database = val
+        {self.database-changed}
+    }
+  }
+  
+  {setter {query sql:String}:void
+    {if self.query-panes.tab-panes.size == 0 then
+        {self.add-query-pane}
+    }
+    {if-non-null qd = self.current-query-display then
+        set qd.query = sql
+    }
+  }
+  
+  {getter {query}:String
+      {return
+          {if-non-null qd = self.current-query-display then
+              qd.query
+           else
+              ""
+          }
+      }
+  }
+  
   {getter {current-query-display}:#QueryDisplay
     {if-non-null pane = self.query-panes.current-pane then
         {type-switch pane.content
@@ -162,54 +213,26 @@
     }
     {return null}
   }
-
-  {method private {maybe-populate-history-box}:void
-    def listbox = self.history-lb
-    || If hostory box is not showing then simply return.
-    {if listbox.display-context == null then {return}}
-    {listbox.clear-items}
-    def queries = {{HistoryManager}.get-all-queries}
-    {if-non-null queries then
-        {for q in queries do
-            {listbox.insert q, 0}
-        }
-    }
-
-    def databases = {{HistoryManager}.get-databases}
-    def database-selector = self.database-selector
-    {database-selector.clear-items}
-    {database-selector.append "All databases"}
-    set database-selector.value = "All databases"
-
-    {if-non-null databases then
-        {for db in databases do
-            {database-selector.append db}
-        }
-    }
-  }
   
   || commands
+  || --------------------
   {method {make-commands}:CommandContext
     def cc = {CommandContext}
     {cc.add-command
         {self.make-command "open",
-            {proc {}:void
-                {self.choose-database}
-            },
+            {fn => {self.choose-database}},
             null
         }
     }
     {cc.add-command
         {self.make-command "close",
-            {proc {}:void
-                {self.open-database null}
-            },
+            {fn =>{self.open-database null}},
             null
         }
     }
     {cc.add-command
         {self.make-command "execute",
-            {proc {}:void
+            {fn =>
                 {with-busy-cursor
                     {with self.running? = true do
                         {self.current-query-display.execute}
@@ -217,29 +240,25 @@
                     {self.note-schema-changes}
                 }
             },
-            {proc {}:bool
-                {return
-                    {if-non-null qd = self.current-query-display then
-                        qd.query-model.enabled?
-                     else
-                        false
-                    }
+            {fn =>
+                {if-non-null qd = self.current-query-display then
+                    qd.query-model.enabled?
+                 else
+                    false
                 }
             }
         }
     }
     {cc.add-command
         {self.make-command "show-schema",
-            {proc {}:void
+            {fn =>
                 {with-busy-cursor
-                    {with self.running? = true do
-                        def pane = self.schema-pane 
-                        {if pane.display-context == null then
-                            || Add it.
-                            {self.views.add-pane show? = true, pane}
-                         else
-                            set self.views.current-pane = pane
-                        }
+                    def pane = self.schema-pane 
+                    {if pane.display-context == null then
+                        || Add it.
+                        {self.views.add-pane show? = true, pane}
+                     else
+                        set self.views.current-pane = pane
                     }
                 }
             },
@@ -248,16 +267,14 @@
     }
     {cc.add-command
         {self.make-command "show-history",
-            {proc {}:void
+            {fn =>
                 {with-busy-cursor
-                    {with self.running? = true do
-                        def pane = self.history-pane 
-                        {if pane.display-context == null then
-                            || Add it.
-                            {self.views.add-pane show? = true, pane}
-                         else
-                            set self.views.current-pane = pane
-                        }
+                    def pane = self.history-pane 
+                    {if pane.display-context == null then
+                        || Add it.
+                        {self.views.add-pane show? = true, pane}
+                     else
+                        set self.views.current-pane = pane
                     }
                 }
             },
@@ -266,17 +283,15 @@
     }
     {cc.add-command
         {self.make-command "clear-history",
-            {proc {}:void
+            {fn =>
                 {with-busy-cursor
-                    {with self.running? = true do
-                        def answer =
-                            {popup-question
-                                "Do you want to clear all items in the history database?"
-                            }
-                        {if answer == Dialog.yes then
-                            {{HistoryManager}.delete-all}
-                            {self.maybe-populate-history-box}
+                    def answer =
+                        {popup-question
+                            "Do you want to clear all items in the history database?"
                         }
+                    {if answer == Dialog.yes then
+                        {{HistoryManager}.delete-all}
+                        {self.maybe-populate-history-box}
                     }
                 }
             },
@@ -285,53 +300,59 @@
     }
     {cc.add-command
         {self.make-command "save-query",
-            {proc {}:void
+            {fn =>
                 {with-busy-cursor
-                    {with self.running? = true do
-                        {self.current-query-display.save-query}
-                    }
+                    {self.current-query-display.save-query}
                 }
             },
-            {proc {}:bool
-                {return
-                    {if-non-null qd = self.current-query-display then
-                        qd.query-model.enabled?
-                     else
-                        false
-                    }
+            {fn =>
+                {if-non-null qd = self.current-query-display then
+                    qd.query-model.enabled?
+                 else
+                    false
                 }
             }
         }
     }
     {cc.add-command
         {self.make-command "cancel",
-            {proc {}:void
+            {fn =>
                 set self._cancel? = true
             },
-            {proc {}:bool
-                {return self.running?}
-            }
+            {fn => self.running?}
         }
     }
     {cc.add-command
         {self.make-command "add-pane",
-            {proc {}:void
-                {self.add-query-pane}
-            },
+            {fn => {self.add-query-pane}},
             null
         }
     }
     {cc.add-command
         {self.make-command "copy-pane",
-            {proc {}:void
-                {self.add-query-pane copy? = true}
-            },
-            {proc {}:bool
-                {return self.current-query-display != null}
-            }
+            {fn => {self.add-query-pane copy? = true}},
+            {fn => self.current-query-display != null}
         }
     }
     {return cc}        
+  }
+  
+  {method private {make-command 
+              name:String,
+              execute-proc:{proc-type {}:void},
+              enabled-proc:#{proc-type {}:bool}
+          }:Command
+    {return
+        {SimpleCommand name, 
+            execute-proc = execute-proc,
+            enabled-proc =
+                {if-non-null enabled-proc then
+                    enabled-proc
+                 else
+                    {fn => true}
+                }
+        }
+    }
   }
 
   {method private {create-menu-bar}:MenuBar
@@ -409,7 +430,9 @@
         }
     }
   }
-
+  
+  || GUI construction
+  || --------------------
   {method private {create-query-panes}:TabContainer
     {return
         {TabContainer style-class = "sql",
@@ -447,7 +470,7 @@
             style-class = "sql",
             selection-policy = SelectionPolicy.single,
             list-item-creation-proc =
-                {proc {val:any}:ListItem
+                {fn val =>
                     let item:String = val asa String
                     set item = {item.trim-clone}
                     let lines:StringArray =
@@ -456,13 +479,11 @@
                         {Tooltip
                             {text text-preserve-whitespace? = true, {value item}}
                         }
-                    || Display only the first line. Rest of it should should
-                    || be in the tooltip.
-                    {return
-                        {ListValueItem 
-                            item, 
-                            label = {ClipFrame {value lines[0]}, tooltip = tp}
-                        }
+                    || Display only the first line. 
+                    || Rest of it should should be in the tooltip.
+                    {ListValueItem 
+                        item, 
+                        label = {ClipFrame {value lines[0]}, tooltip = tp}
                     }
                 },
             {on e:Action at lb:ListBox do
@@ -527,6 +548,31 @@
     }
   }
 
+  {method private {maybe-populate-history-box}:void
+    def listbox = self.history-lb
+    || If history box is not showing then simply return.
+    {if listbox.display-context == null then {return}}
+    {listbox.clear-items}
+    def queries = {{HistoryManager}.get-all-queries}
+    {if-non-null queries then
+        {for q in queries do
+            {listbox.insert q, 0}
+        }
+    }
+
+    def databases = {{HistoryManager}.get-databases}
+    def database-selector = self.database-selector
+    {database-selector.clear-items}
+    {database-selector.append "All databases"}
+    set database-selector.value = "All databases"
+
+    {if-non-null databases then
+        {for db in databases do
+            {database-selector.append db}
+        }
+    }
+  }
+
   {method private {create-context-menu-pane}:MenuPane
     {return
         {MenuPane
@@ -542,68 +588,8 @@
     }
   }
   
-  {getter public {running?}:bool
-    {return self._running?}
-  }
-
-  {setter private {running? val:bool}
-    {if val != self._running? then
-        set self._cancel? = false
-        set self._running? = val
-        {self.refresh-commands}
-    }
-  }
-  
-  {method private {make-command 
-              name:String,
-              execute-proc:{proc-type {}:void},
-              enabled-proc:#{proc-type {}:bool}
-          }:Command
-    {return
-        {SimpleCommand name, 
-            execute-proc = execute-proc,
-            enabled-proc =
-                {if-non-null enabled-proc then
-                    enabled-proc
-                 else
-                    {proc {}:bool
-                        {return true}
-                    }
-                }
-        }
-    }
-  }
-  
-  || properties
-  {getter public {database}:SQLiteDatabase
-    {return self._database}
-  }
-  {setter public {database val:SQLiteDatabase}
-    {if val != self._database then
-        {self._database.close}
-        set self._database = val
-        {self.database-changed}
-    }
-  }
-  {setter {query sql:String}:void
-    {if self.query-panes.tab-panes.size == 0 then
-        {self.add-query-pane}
-    }
-    {if-non-null qd = self.current-query-display then
-        set qd.query = sql
-    }
-  }
-  {getter {query}:String
-      {return
-          {if-non-null qd = self.current-query-display then
-              qd.query
-           else
-              ""
-          }
-      }
-  }
-  
   || operations
+  || --------------------
   {method {open-database loc:#Url}:void    
     {try
         set self.database = {SQLiteDatabase error-if-missing? = true, loc}
@@ -669,10 +655,77 @@
   }
   
   || coordination
+  || --------------------
   {method {refresh-commands}:void
     {self.commands.request-update-commands}
   }
   
+  || -- query progress
+  def progress-interval = .2s
+  def progress-instructions-interval = 15 || TODO: suitable value
+  field progress-started:DateTime = {DateTime}
+  field last-progress-report:Time
+  
+  {method {note-progress-start}:void
+    {self.report-progress ""}
+    set self.progress-started = {DateTime}
+    set self.last-progress-report = 0s
+  }
+  
+  {method {note-progress-stop}:void
+    {self.report-progress ""}
+    set self.progress-display.visible? = false
+  }
+  
+  {method {note-progress-ongoing}:void
+    {if self.running? then
+        def elapsed = {self.progress-started.elapsed}
+        {if elapsed - self.last-progress-report > DBExplorer.progress-interval then
+            set self.last-progress-report = elapsed
+            def caption = {String {value elapsed}}
+            {self.report-progress caption}
+            set self.progress-display.visible? = true
+        }
+    }
+  }
+  
+  {method {report-progress caption:String}:void
+    set self.progress-bar.caption = caption
+    set self.progress-bar.indeterminate? = not caption.empty?
+  }
+
+  || -- query history
+  {method public {note-query-executed qm:QueryModel}:void
+    def database-name = qm.database.url.full-filename
+    def sql = qm.sql
+    {if database-name == self.last-database-name and
+        sql == self.last-sql
+     then
+        {return}
+    }
+    def index = {{HistoryManager}.get-index-for database-name} 
+    {{HistoryManager}.add-query qm}
+    || FIXME: See if the Database can inform when data is added or
+    || removed from it. In any case history-lb should not be directly
+    || accessable from here.
+    def history-lb = self.history-lb
+    {if history-lb.display-context != null then
+        def database-selector = self.database-selector
+        {if index == -1 then
+            {database-selector.append database-name}
+        }
+        def selected-db = database-selector.value asa String
+        {if selected-db == "All databases" or
+            selected-db == database-name
+         then
+            {history-lb.insert self.query, 0}
+        }
+    }
+    set self.last-database-name = database-name
+    set self.last-sql = sql
+  }
+
+  || -- new database
   {method {database-changed}:void
     || detect schema changes
     set self.database.authorizer =
@@ -680,20 +733,16 @@
                data1:#String, data2:#String,
                data3:#String, data4:#String
               }:SQLiteAuthorizerReturnCode
-            {if not self._schema-changed? and
-                {DBExplorer.schema-operations.member? operation}
-             then
-                set self._schema-changed? = true
-            }
+            {self.note-database-operation operation}
             {return SQLiteAuthorizerReturnCode.OK}
         }
     || allow interruption
-    def instructions-interval = 100 || TODO: suitable value
-    {self.database.set-progress-handler instructions-interval,
-        {proc {}:bool
+    {self.database.set-progress-handler
+        DBExplorer.progress-instructions-interval,
+        {fn =>
             def e = {DBXProgress}
             {self.handle-event e}
-            {return e.cancel?}
+            e.cancel?
         }
     }
     || refresh GUI
@@ -702,6 +751,7 @@
     {self.handle-event {DBXDatabaseChanged}}
   }
   
+  || -- changed schema
   {method {schema-changed}:void
     set self._schema-changed? = false
     {self.schema-frame.add
@@ -732,6 +782,14 @@
         }
     }
   }
+
+  {method {note-database-operation operation:SQLiteOperation}:void
+    {if not self._schema-changed? and
+        {DBExplorer.schema-operations.member? operation}
+     then
+        set self._schema-changed? = true
+    }
+  }
   
   {method {update-display}:void
     || panes
@@ -740,6 +798,7 @@
   }
   
   || adapters
+  || --------------------
   {method {make-schema-frame}:Graphic
     def tm = {schema-tree-model self.database}
     {return
@@ -753,36 +812,6 @@
             }
         }
     }
-  }
-
-  {method public {note-query-executed qm:QueryModel}:void
-    def database-name = qm.database.url.full-filename
-    def sql = qm.sql
-    {if database-name == self.last-database-name and
-        sql == self.last-sql
-     then
-        {return}
-    }
-    def index = {{HistoryManager}.get-index-for database-name} 
-    {{HistoryManager}.add-query qm}
-    || FIXME: See if the Database can inform when data is added or
-    || removed from it. In any case history-lb should not be directly
-    || accessable from here.
-    def history-lb = self.history-lb
-    {if history-lb.display-context != null then
-        def database-selector = self.database-selector
-        {if index == -1 then
-            {database-selector.append database-name}
-        }
-        def selected-db = database-selector.value asa String
-        {if selected-db == "All databases" or
-            selected-db == database-name
-         then
-            {history-lb.insert self.query, 0}
-        }
-    }
-    set self.last-database-name = database-name
-    set self.last-sql = sql
   }
 }
 
@@ -839,10 +868,12 @@
     def w = {StopWatch}
     {try
         {self.report-status "running query ..."}
+        {self.dbx.note-progress-start}
         {w.start}
         {self.query-model.execute}
         || report success
         {w.stop}
+        {self.dbx.note-progress-stop}
         def rs = {non-null self.query-model.result}
         {self.report-status
             {lmessage selected {value rs.size} rows in {w.elapsed}}
@@ -854,6 +885,7 @@
      catch e:Exception do
         || report failure
         {w.stop}
+        {self.dbx.note-progress-stop}
         {self.report-status e}
     }
   }
@@ -1101,9 +1133,79 @@
 }
 {def connection-cache =
     {{Memoizer-of SQLiteDatabase, SQLiteConnection}
-        {proc {db:SQLiteDatabase}:SQLiteConnection
-            {return {SQLiteConnection db}}
-        }
+        {fn db => {SQLiteConnection db}}
     }
 }
 
+|| generic container
+|| --------------------
+{define-proc public {app-view
+                        content:Graphic,
+                        title:String = {message Sample},
+                        || default values
+                        window-left:Distance = 1in,
+                        window-top:Distance = 1in,
+                        window-width:Distance = 8in,
+                        window-height:Distance = 6in,
+                        || minimum values
+                        min-width:Distance = 1in,
+                        min-height:Distance = 1in,
+                        ...
+                    }:View
+    def label = {bold {value title}}
+
+    || settings
+    def settings = {get-persistent-data-repository}
+    {type-switch {settings.get-if-exists "window-height"}
+     case val:Distance do
+        set window-height = val}
+    {type-switch {settings.get-if-exists "window-width"}
+     case val:Distance do
+        set window-width = val}
+    {type-switch {settings.get-if-exists "window-left"}
+     case val:Distance do
+        set window-left = {max val, 0mm}}
+    {type-switch {settings.get-if-exists "window-top"}
+     case val:Distance do
+        set window-top = {max val, 0mm}}
+
+    || applet
+    {{get-the-applet}.set-title title}
+    {on-applet-suspend do
+        {commit-persistent-data repository = settings}}
+
+    || application view
+    def view =
+        {View
+            title = title,
+            visibility = "normal",
+            width = window-width,
+            height = window-height,
+
+            || maintain view state
+            {on ViewActivateEvent do
+                {view.set-window-position window-left, window-top}},
+            {on ViewMoveEvent do
+                set (window-left,  window-top) = {view.get-window-position}
+                {set-persistent-data "window-left", window-left,
+                    repository = settings}
+                {set-persistent-data "window-top", window-top,
+                    repository = settings}},
+            {on ViewResizeEvent do
+                set (window-width, window-height) = {view.get-window-size}
+                {set-persistent-data "window-width", window-width,
+                    repository = settings}
+                {set-persistent-data "window-height", window-height,
+                    repository = settings}},
+
+            || terminate
+            {on WindowClose do
+                {exit}},
+
+            {splice ...}
+        }
+    || content
+    {view.add content}
+
+    {return view}
+}
