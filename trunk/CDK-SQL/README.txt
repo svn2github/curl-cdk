@@ -69,7 +69,7 @@ It also includes test suites, and some sample applets.
 - tests			test suite
 -- start-tests.curl	test suite
 
-- tools			build applets
+- build			build applets
 
  
 CHANGES
@@ -89,6 +89,8 @@ included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
 - Includes support for encrypted databases. (This feature can only be
   used by an applet that has a Curl Pro server license.)
+
+- CDK Developer's Guide is indexed for full text search
 
 NOTE: This library is not compatible with early Curl Version 7.0 beta
 releases.  The API provided by CURL.IO.SQLITE-LIBRARY changed for the

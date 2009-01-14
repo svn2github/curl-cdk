@@ -72,7 +72,7 @@
         {item Uses SQLite Engine version 3.6.2}
         {item Includes support for encrypted databases.            
             {br}{italic This feature can only be used by an applet that has a Curl Pro server license.}}
-        || TODO: bugs fixed, sample improved
+        {item CDK Developer's Guide is indexed for full text search}
     }
 
     NOTE: This library is not compatible with early Curl API Version 7.0 beta releases.
