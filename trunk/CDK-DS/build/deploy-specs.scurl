@@ -104,9 +104,12 @@
             {proc {self:DeployAction,
                    source-root:Url,
                    target-root:Url}:void
+                def target = {target-root.concat "blazeds-curl-samples/lib"}
+                {create-Directory target,
+                    error-if-exists? = false}
                 {copy 
                     {target-root.concat "deploy/" & dirname},
-                    {target-root.concat "blazeds-curl-samples/lib/" & dirname},
+                    {target.concat dirname},
                     error-if-exists? = true,
                     recurse? = true}
             }},
