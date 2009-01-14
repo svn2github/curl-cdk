@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 applet}
+{curl 7.0 applet}
 
 {applet manifest = "manifest.mcurl", locale = "en"}
 
@@ -75,7 +75,23 @@
 }
 
 {heading level=2,
-    What's New in CDK-DS 1.0
+    What's New in CDK-DS 1.1
+}
+
+{paragraph
+    This CDK-DS Release is a manintenance release,
+    for use with Curl API Version 7.0.
+
+    CDK-DS packages are marked as version 1.
+
+    {itemize
+        {item CDK-DS Developer's Guide is indexed for full text search}
+    }
+
+}
+
+{heading level=2,
+    What was New in CDK-DS 1.0
 }
 
 {paragraph

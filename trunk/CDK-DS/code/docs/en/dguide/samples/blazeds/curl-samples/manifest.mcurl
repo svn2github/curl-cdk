@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 manifest}
+{curl 7.0 manifest}
 
 {manifest COM.CURL.CDK.DATA-SERVICES.BLAZEDS-SAMPLES}
 
@@ -24,14 +24,6 @@
 || - replaced with incorporated pcurl by build process
 {delegate-to COM.CURL.CDK.DATA-SERVICES,
     location = "../../../../../../manifest.mcurl"}
-
-|| STYLED is incorporated
-{delegate-to COM.CURL.GUI.STYLED,
-    location = "lib/COM.CURL.GUI.STYLED-6.0-03-pcurl-en/manifest.mcurl"
-}
-{component directory COM.CURL.GUI.STYLED-6._0-03-pcurl-en,
-    location = "lib/COM.CURL.GUI.STYLED-6.0-03-pcurl-en"
-}
 
 || Packages
 || --------------------

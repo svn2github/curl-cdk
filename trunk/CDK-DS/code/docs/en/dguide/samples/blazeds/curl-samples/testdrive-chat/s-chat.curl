@@ -14,11 +14,10 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 6.0 applet}
+{curl 7.0 applet}
 
 {applet manifest = "../manifest.mcurl"}
 
-{import * from COM.CURL.GUI.STYLED-CONTROLS}
 {import * from COM.CURL.CDK.MESSAGES}
 {import * from COM.CURL.CDK.MESSAGING}
 {import * from COM.CURL.CDK.DATA-OBJECT}

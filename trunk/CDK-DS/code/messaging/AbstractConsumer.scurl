@@ -279,7 +279,7 @@
   }
 
   {doc-next
-    {doc-next
+    {purpose
         Force a poll request to be sent now.
     }
   }

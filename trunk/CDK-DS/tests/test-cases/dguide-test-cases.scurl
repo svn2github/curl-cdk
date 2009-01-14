@@ -13,59 +13,15 @@
 ||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
-{import * from CURL.LANGUAGE.SOURCE}
+{import * from COM.CURL.CDU.DEPLOY-SUPPORT}
 
-|| TODO: move to extension package, or CDU
 {define-proc public {dguide-test-suite
                         contents-loc:Url,
                         title:String = {lmessage dguide pages}
                     }:TestSuite
-    || generate files from dguide TOC
-    def locs = {UrlArray}
-    || get first prefix expression, 
-    || ignoring comments and whitespace
-    let contents:#Prefix = null
-    {with-open-streams 
-        in = {read-open contents-loc}
-     do
-        def srcs = {CurlSourceTextInputStream in}
-        {for src in {srcs.to-Iterator} do
-            {type-switch src
-             case src:Prefix do
-                set contents = src 
-                {break}}
-        }}    
-    def parse-locs =
-        {proc {src:CurlSource}:void    
-            {syntax-switch src, must-match? = true
-             case {pattern
-                      {node 
-                          || title: ignore
-                          ?:{literal String},
-                          || null or url
-                          ?maybe-loc:expression
-                          || member nodes
-                          ?:{optional ,}
-                          ?rest:verbatim}
-                  } do
-                || collect non-null url
-                {syntax-switch maybe-loc
-                 case {pattern {url ?loc:{literal String}}} do
-                    def val = loc.value asa String
-                    {locs.append {contents-loc.merge val}}
-                    || unwrap examples
-                    def prefix = "generic-example.curl?"
-                    {if {val.prefix? prefix} then
-                        {locs.append {contents-loc.merge {val.tail prefix.size}}}
-                    }}
-                || recurse on member nodes
-                {syntax-switch rest, must-match? = true
-                 case {pattern ?nodes:{comma-sequence {node ?:tokens}}} do
-                    {for node in nodes do
-                        {parse-locs node}}}
-            }}
-    {if-non-null contents then
-        {parse-locs contents}}
+    || get files from dguide TOC
+    def locs = {guide-content-files contents-loc}
+
     || generate suite
     def suite = 
         {TestSuite title,

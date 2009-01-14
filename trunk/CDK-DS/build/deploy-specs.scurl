@@ -14,9 +14,6 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-|| TODO: move to CDU
-{include "zip-support.scurl"}
-
 {value
     def name = "COM.CURL.CDK.DATA-SERVICES"
     def version = "1.0"
@@ -55,21 +52,14 @@
             {proc {self:DeployAction,
                    source-root:Url,
                    target-root:Url}:void
-                || NOTE: rename for distribution tree
-                || -- from 'build' to 'tools'
-||--            def target = {target-root.concat "src/build"}
-                def target = {target-root.concat "src/tools"}
+                def target = {target-root.concat "src/build"}
                 {create-Directory target,
                     error-if-exists? = false}
                 def files =
                     {StringArray
                         "deploy.curl",
                         "deploy-batch.curl",
-                        "deploy-specs.scurl",
-                        || ~~~~~~~~~~ \\
-                        || TODO: remove this when in CDU
-                        "zip-support.scurl"
-                        || ~~~~~~~~~~ //
+                        "deploy-specs.scurl"
                     }
                 {for file in files do
                     {copy 

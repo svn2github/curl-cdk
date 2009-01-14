@@ -31,7 +31,7 @@
 
 || Define the StyleSheet.
 {StyleSheet
-    {manifest-url "file", "DEFAULT-STYLE-SHEET"},
+    {get-default-style-sheet},
     || General purpose
     {StyleRule "Panel",
         hstretch? = true,
