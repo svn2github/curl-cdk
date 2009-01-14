@@ -1,0 +1,68 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+
+|| RemoteObject for online testings
+{define-class public TestRemoteObject
+  {inherits RemoteObject, TimingMeans}
+  
+  field private result:#MessageEventAdapter
+
+  {constructor public {default
+                          endpoint:Url,
+                          destination:String,
+                          source:String = ""
+                      }
+    {construct-super.RemoteObject
+        endpoint, destination,
+        {on re:ResultEvent do
+            set self.result = {ResultAdapter re}
+            {self.end-idling}
+        },
+        {on fe:FaultEvent do
+            set self.result = {FaultAdapter fe}
+            {self.end-idling}
+        }
+    }
+    {construct-super.TimingMeans}
+    set self.source = source
+
+    {self.initialize}
+  }
+
+  {method protected {initialize}:void
+    set self.result = null
+  }
+
+  {method public {exe args:Arguments}:void
+    {self.send {splice args}}
+  }
+  
+  {method public {invoke-method
+                     name:String,
+                     ...
+                 }:#MessageEventAdapter
+    {self.initialize}
+
+    {self.start-with-idling
+        {Arguments name, {splice ...}}
+    }
+
+    {return self.result}
+  }
+
+}
+

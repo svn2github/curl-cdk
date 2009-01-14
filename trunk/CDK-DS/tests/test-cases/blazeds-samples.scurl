@@ -1,0 +1,33 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{value
+    def home = {url "../../code/docs/en/dguide/samples/blazeds/curl-samples"}
+    {TestSuite "BlazeDS Samples",
+        
+        
+        || Online tests
+        || --------------------
+        {AppletTestCase {home.concat "start.curl"}},
+        {AppletTestCase {home.concat "testdrive.curl"}},
+        {AppletTestCase {home.concat "testdrive-remoteobject/s-remoteobject.curl"}},
+        {AppletTestCase {home.concat "testdrive-101/s-101.curl"}},
+        {AppletTestCase {home.concat "testdrive-update/s-update.curl"}},
+        {AppletTestCase {home.concat "testdrive-datapush/s-datapush.curl"}},
+        {AppletTestCase {home.concat "testdrive-chat/s-chat.curl"}}
+        
+    }
+}
