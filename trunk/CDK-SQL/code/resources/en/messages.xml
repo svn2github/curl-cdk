@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.-->
+<!-- Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.-->
 <!-- -->
 <!-- An OpenCurl project. -->
 <!-- -->
@@ -22,6 +22,14 @@
 
 <string>
 <original>Authentication APIs are not available.</original>
+</string>
+
+<string>
+<original>Can not call close the database or finalize or prepare new statements while executing a hook or callback.</original>
+</string>
+
+<string>
+<original>Can not call step, reset, or finalize while executing a statement.</original>
 </string>
 
 <string>
@@ -61,6 +69,10 @@
 </string>
 
 <string>
+<original>This library is not compatible with early beta releases, including this one: %s.</original>
+</string>
+
+<string>
 <original>Tried to prepare already prepared statement.</original>
 </string>
 
@@ -93,4 +105,3 @@
 </string>
 
 </translation-dictionary>
-
