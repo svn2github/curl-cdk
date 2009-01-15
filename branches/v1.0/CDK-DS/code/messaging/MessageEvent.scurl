@@ -34,4 +34,8 @@
     {construct-super}
     set self.message = message
   }
+
+  {getter public {message-id}:String
+    {return self.message.message-id}
+  }
 }
