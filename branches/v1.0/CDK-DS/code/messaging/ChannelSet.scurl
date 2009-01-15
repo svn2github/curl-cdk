@@ -554,8 +554,13 @@
 
   {method private {hunt}:bool
     {if self.channels.empty? then
-        {error {lmessage No channel available.}}
+        {error {lmessage No channels are available for use.}}
     }
+    
+    {if-non-null self.current-channel then
+        {self.disconnect-channel}
+    }
+    
     {inc self.current-channel-index}
     {if self.current-channel-index >= self.channels.size or
         self.current-channel-index < 0
@@ -569,7 +574,7 @@
     {if self.configured? then
 ||--        {if-non-null channel = self.channels[self.current-channel-index] then
         def channel = self.channels[self.current-channel-index]
-            set self._current-channel = channel
+        set self._current-channel = channel
 ||--         else
             || TODO: This implementation iterates over the channels, but the
             ||       Flex implementation does it differently. Figure out what's
@@ -629,7 +634,9 @@
 
   {method public {add-channel channel:Channel}:void
     {if self.configured? then
-        {error {lmessage Cannot add channels when configured.}}
+        {error
+            {lmessage Channels cannot be added to a ChannelSet that targets a configured destination.}
+        }
     }
     {if self.clustered? and channel.id == null then
         {error {lmessage Cannot add null id channel when clustered.}}
@@ -684,11 +691,6 @@
     }
     {self.current-channel.disconnect self}
   }
-
-||--  {method protected {dispatch-rpc-event event:AbstractEvent}:void
-||--    {event.call-token-responders}
-||--    {self.enqueue-event event}
-||--  }
 
   {method protected {message-handler event:MessageEvent}:void
     {self.enqueue-event event}
