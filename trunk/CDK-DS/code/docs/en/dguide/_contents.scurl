@@ -52,17 +52,17 @@
         {node
             |"Data Object Adapters"|,
             {url "generic-example.curl?examples/data-object-mapping.curl"}}
-    },
-    {node
-        |"CDK Data Services Samples"|,
-        null, ||{url "cdk-samples.curl"},
-        
-        {node 
-            |"BlazeDS Samples Overview"|,
-            {url "samples/blazeds/curl-samples/start.curl"}},
-        {node 
-            |"BlazeDS Samples Test Drive"|,
-            {url "samples/blazeds/curl-samples/testdrive.curl"}}
-        }
+    }||, || NOTE: dguide full-text index fails to process these
+||--    {node
+||--        |"CDK Data Services Samples"|,
+||--        null, ||{url "cdk-samples.curl"},
+||--        
+||--        {node 
+||--            |"BlazeDS Samples Overview"|,
+||--            {url "samples/blazeds/curl-samples/start.curl"}},
+||--        {node 
+||--            |"BlazeDS Samples Test Drive"|,
+||--            {url "samples/blazeds/curl-samples/testdrive.curl"}}
+||--        }
 }
 
