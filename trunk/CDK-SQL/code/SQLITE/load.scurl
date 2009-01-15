@@ -78,7 +78,7 @@
 
 || NOTE: early version 7 beta releases are incompatible
 {curl-version-switch
- case "7.0.0 [beta] kendall 58+" 
+ case "7.0.0 [beta] kendall 58+" do
     || compatible CURL.IO.SQLITE package
     {import public * from COM.CURL.CDK.SQLITE-BASE}
     {import public * from COM.CURL.CDK.SQLITE-RECORDSET}
