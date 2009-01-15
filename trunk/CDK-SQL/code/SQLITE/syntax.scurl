@@ -36,12 +36,6 @@
         just import {ctext COM.CURL.CDK.SQLITE}
         and it will re-export all of the macros below.
     }
-    {notes
-        {italic
-        This package contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.}
-    }
 }
 
 {import * from CURL.LANGUAGE.SOURCE}

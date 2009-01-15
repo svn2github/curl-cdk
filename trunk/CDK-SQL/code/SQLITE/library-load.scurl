@@ -36,12 +36,6 @@
         just import {ctext COM.CURL.CDK.SQLITE}
         and it will re-export the necessary types.
     }
-    {notes
-        {italic
-        This package contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.}
-    }
     {since 7.0}
 }
 ||{import * from CURL.IO.SQLITE-LIBRARY-SYNTAX}

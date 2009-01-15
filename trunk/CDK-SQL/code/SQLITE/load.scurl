@@ -40,12 +40,6 @@
             {item {docref COM.CURL.CDK.SQLITE-LIBRARY}}
         }
     }
-    {notes
-        {italic
-        This package contains preliminary versions of new features. 
-        These features are not yet in final form, 
-        and are subject to revision.}
-    }
 }
 
 {import public * from COM.CURL.CDK.SQLITE-SYNTAX}
