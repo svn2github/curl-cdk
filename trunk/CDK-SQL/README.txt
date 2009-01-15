@@ -94,7 +94,7 @@ included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
 NOTE: This library is not compatible with early Curl Version 7.0 beta
 releases.  The API provided by CURL.IO.SQLITE-LIBRARY changed for the
-"Beta 3" release (labeled as '7.0.0 [beta] kendall-0/50').
+"Beta 3" release (labeled as '7.0.0 [beta] kendall-0/58').
 
 CDK 1.0 CHANGES
 --------------------

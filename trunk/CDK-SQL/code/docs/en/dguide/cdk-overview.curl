@@ -77,7 +77,7 @@
 
     NOTE: This library is not compatible with early Curl API Version 7.0 beta releases.
     The API provided by {docref CURL.IO.SQLITE-LIBRARY} changed for the "Beta 3" release
-    (labeled as {monospace "7.0.0 [beta] kendall-0/50"}).
+    (labeled as {monospace "7.0.0 [beta] kendall-0/58"}).
     
     CDK 1.1 Release packages are marked as version 1.1.
 }
