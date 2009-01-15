@@ -82,7 +82,7 @@
     This CDK-DS Release is a manintenance release,
     for use with Curl API Version 7.0.
 
-    CDK-DS packages are marked as version 1.
+    CDK-DS packages are marked as version 1.1.
 
     {itemize
         {item CDK-DS Developer's Guide is indexed for full text search}

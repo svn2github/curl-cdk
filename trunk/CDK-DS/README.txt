@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Data Services Release 1.0 for Curl API Version 6.0. 
+CDK Data Services Release 1.1 for Curl API Version 7.0. 
 ====================
 
-This directory contains the 1.0 release of the Curl Data Kit Data
+This directory contains the 1.1 release of the Curl Data Kit Data
 Services (CDK-DS)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
@@ -43,7 +43,7 @@ Deployable Library
 The 'deploy' directory contains a preprocessed library 
 for use in deployed applications.
 
-- COM.CURL.CDK.DATA-SERVICES.1.0/manifest.mcurl   	
+- COM.CURL.CDK.DATA-SERVICES.1.1/manifest.mcurl   	
 			CDK library definition
 
 Documentation
@@ -55,7 +55,7 @@ using the IDE 'Install Documentation' command.
 The directories include both documentation
 and preprocessed library.
 
-- COM.CURL.CDK-DATA-SERVICES.1.0/manifest.mcurl
+- COM.CURL.CDK-DATA-SERVICES.1.1/manifest.mcurl
 			CDK-DS library doc definition
 
 Samples
@@ -89,6 +89,12 @@ It also includes test suites, and some sample applets.
  
 CHANGES
 ====================
+
+CDK-DS 1.1 CHANGES
+--------------------
+
+This CDK-DS Release is a maintenance release,
+for use with Curl API Version 7.0.
 
 CDK-DS 1.0 CHANGES
 --------------------
