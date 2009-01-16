@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 1.1 for Curl API Version 7.0. 
+CDK Preview Release 1.1 for Curl API Version 7.0 Beta 3. 
 ====================
 
 This directory contains the 1.1 preview of the Curl Data Kit (CDK)

@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Data Services Release 1.1 for Curl API Version 7.0. 
+CDK Data Services Preview Release 1.1 for Curl API Version 7.0 Beta 3.
 ====================
 
-This directory contains the 1.1 release of the Curl Data Kit Data
+This directory contains the 1.1 preview of the Curl Data Kit Data
 Services (CDK-DS)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
