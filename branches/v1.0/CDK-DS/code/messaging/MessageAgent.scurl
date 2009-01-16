@@ -94,8 +94,11 @@
 
   {setter public {id s:String}:void
     {if self._id != s then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "id", self._id, s
+                    }
         set self._id = s
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -119,9 +122,11 @@
             {self.channel-set.disconnect self}
             set self.channel-set = null
         }
-        || TODO: PropertyChangeEvent
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "destination", self._destination, d
+                    }
         set self._destination = d
-        || TODO: Dispatch event
+        {self.enqueue-event event}
     }
   }
 
@@ -150,8 +155,12 @@
 
   {setter public {connected? b?:bool}:void
     {if self._connected? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "connected?", self._connected?, b?
+                    }
         set self._connected? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
+
         {if-non-null self.channel-set then
             {self.set-authenticated?
                 b? and self.channel-set.authenticated?,
@@ -188,10 +197,12 @@
   {getter public {channel-set}:#ChannelSet
     {if self._channel-set == null then
         {if-non-null endpoint = self._endpoint then
-            set self.channel-set =
+            {self.internal-set-channel-set
                 {ChannelSet
                     channel = {AMFChannel id = self.destination, uri = endpoint}
                 }
+            }
+            set self.channel-set-mode = MessageAgent.AUTO_CONFIGURED_CHANNELSET
         }
     }
     {return self._channel-set}
@@ -229,8 +240,12 @@
 
   {method public {set-authenticated? b?:bool, credentials:#String = null}:void
     {if self._authenticated? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "authenticated?", self._authenticated?, b?
+                    }
         set self._authenticated? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
+        
         {if b? then
             {if-non-null credentials then
                 {if credentials != self.credentials then
@@ -465,14 +480,6 @@
   }
 
   {method protected {init-channel-set message:IMessage}:void
-    {if self.channel-set == null then
-        set self.channel-set-mode = MessageAgent.AUTO_CONFIGURED_CHANNELSET
-||--        {self.internal-set-channel-set
-||--            {ServerConfig.get-channel-set self.destination}
-||--        }
-        {error {lmessage No channel set configured.}}
-    }
-
     {if self.channel-set.connected? and
         self.needs-config? and
         not self.config-requested?
