@@ -136,13 +136,28 @@
     {return {{RecordFacade-for T} subject}}
   }
   || implementation
-  || TODO: consider using getter/setter from RecordField 
-  || -- containing REFLECTION Getter/Setter
+  {method final inline {field-for k:String}:{RecordField-for T}
+    {return {self.record-set.fields.get k} asa {RecordField-for T}}
+  }
   {method protected {internal-get k:String}:any
-    {return {get-public-property self.subject, k}}
+    def f = {self.field-for k}
+    {return {f.get-value self.subject}}
   }
   {method protected {internal-set k:String, x:any}:void
-    {set-public-property self.subject, k, x}
+    def f = {self.field-for k}
+    {f.set-value self.subject, x}
+  }
+  {method public {compare-field k:String, y:any}:int
+    def f = {self.field-for k}
+    def x = {f.get-value self.subject}
+    {return
+        {if-non-null x then
+            {if-non-null y then
+                {f.domain.compare x, y}
+             else -1}
+         else
+            {if-non-null y then 1
+             else 0}}}
   }
 }
 {doc-next ||=== fields-for
@@ -155,49 +170,55 @@
 {define-proc public {fields-for t:ClassType,
                         sort?:bool = false
                     }:RecordFields
-    let ms:{FastArray-of ClassMember} = 
+    def ms = 
         {t.get-members search-superclasses? = true,
             filter = ClassMember.get-property-filter}
-    let fs:{Array-of RecordField} = {{Array-of RecordField}}
-    let seen:{Set-of String} = {{Set-of String}}
+    def fs = {{Array-of RecordField}}
+    def seen = {{Set-of String}}
     {for m in ms do
         {type-switch m
          case p:Property do
-            let name:String = p.name
+            def name = p.name
             {if not {seen.member? name} then
                 {seen.insert name}
-                let settable?:bool =
-                    {t.get-property-for-set name} != null
-                {fs.append
-                    {RecordField p.name, 
-                        domain = {domain-for p.type},
-                        nullable? = p.type.can-be-null?, 
-                        modifiable? = settable?}}}}}
+                def settable? = {t.get-property-for-set name} != null
+                def RF = {RecordField-for.construct t}
+                def f =
+                    {with-compiler-directives allow-any-calls? = true do
+                        {RF p.name, 
+                            domain = {domain-for p.type},
+                            nullable? = p.type.can-be-null?, 
+                            modifiable? = settable?} asa RecordField}
+                {fs.append f}}}}
     {if sort? then
         {fs.sort 
             comparison-proc =
                 {proc {a:RecordField, b:RecordField}:bool
                     {return {String-leq? a.name, b.name}}}}}
-    let fields:RecordFields = 
-        {RecordFields {splice fs}}
+    def fields = {RecordFields {splice fs}}
     {return fields}
 }
-|| TODO: consider saving getter/setter
-|| -- something like this
-||--    {return {self.fields[k].get-value self.subject}}
-|#
-{define-class {Field-for Tc:ClassType, Tf:ClassType, p:String}
-  field get-value:{proc-type {Tc}:Tf}
-  {constructor {default}
+{define-class public {RecordField-for C:ClassType}
+  {inherits DefaultRecordField}
+  field public-get get-value:{proc-type {C}:any}
+  field public-get set-value:{proc-type {C, any}:void}
+  {constructor public {default name:String, ...}
+    {construct-super name, {splice ...}}
     set self.get-value =
-      {evaluate
-        {expand-template 
-            {proc {x:?{Literal Tc}}:?{Literal Tf}
-                {return x.?{Identifier p}}}
-        }}
+        {evaluate
+            {expand-template 
+                {proc {x:?{Literal C}}:any
+                    {return x.?{Identifier self.name}}}
+        }} asa {proc-type {C}:any}
+    set self.set-value =
+        {evaluate
+            {expand-template 
+                {proc {x:?{Literal C}, v:any}:void
+                    {with-compiler-directives allow-implicit-any-casts? = true do
+                        set x.?{Identifier self.name} = v}}
+            }} asa {proc-type {C, any}:void}
   }
 }
-#|
 {define-proc {domain-for t:Type}:Domain
     let d:Domain = {Domain.from-type any}
     let constant domain-of:ParameterizedTypeTemplate = Domain-of
@@ -247,6 +268,7 @@
     {return s}
   }
   {method public {compare x:any, y:any}:int
+    || NOTE: comparing print representation => SLOW
     {return {{self.format x}.compare {self.format y}}}
   }
 }
