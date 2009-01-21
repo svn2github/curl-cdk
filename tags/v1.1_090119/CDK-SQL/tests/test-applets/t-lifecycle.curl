@@ -1,0 +1,182 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from CURL.ENGINE.BROWSER}
+{import * from CURL.IO.JSON}
+
+{define-class public AppletDriver ||{inherits TestCase}
+  field public-get constant applet-url:Url
+  field applet-data:#AppletData
+  field public timeout:Time= 30s
+  field public-get timed-out?:bool = false
+  {constructor public {default 
+                          location:Url, 
+                          timeout:Time= 30s}
+    || ensure the applet url is resolvable
+    {location.resolve} 
+    set self.applet-url = location
+    set self.timeout = timeout
+  }
+  {method public {exercise
+                     display:#AppletGraphic = null
+                 }:void
+    || timer mechanism for causing a timeout
+    set self.timed-out? = false
+    {after self.timeout do
+        set self.timed-out? = true
+    }
+    {try
+        || load the applet
+        def subject = {AppletData display, self.applet-url}
+        set self.applet-data = subject
+        
+        || prepare for callbacks
+        set subject.applet-invoke-ready-callback =
+            {proc {}:void
+                {self.log "ready"}}
+        set subject.parent-invoke-handler =
+            {proc {name:String, ...:any}:any
+                def args = {Array {splice ...}}
+                {switch name
+                 case "log" do
+                    def msg =
+                        {if args.empty? then ""
+                         else {String args[0]}}
+                    {self.log ">> " & msg}
+                 else
+                    {self.log {message >> CALLBACK {value name}}}}
+                {return true}}
+        
+        || await load completion (synchronous)
+        {self.await "loaded",
+            {proc {}:bool
+                {return not subject.loading?}}}
+        || check status
+        {if subject.what == "finished" then
+            || successful load of the applet
+            {self.log {message -- loaded {value self.applet-url.filename}}}
+         else
+            || some other failed status
+            {self.log {lmessage --unexpected {value subject.info}}}
+        }
+
+        def action =
+            {proc {what:String}:void
+                let done?:bool = false
+                {subject.applet-invoke-async what,
+                    finish-proc =
+                        {proc {e:#Exception, v:JsonValue}:void
+                            set done? = true
+                            {if-non-null e then
+                                {self.log {message {value what} EXCEPTION: {value e}}}
+                             else 
+                                {self.log {message {value what} RESULT: {value v}}}}}
+                }
+                || await task completion
+                {self.await what,
+                    {proc {}:bool
+                        {return done?}}}
+            }
+        
+        || lifecyle
+        {self.log {message -- demand}}
+        {action "demand"}
+
+        || TODO: test faults
+||--        {self.log {message -- bogus}}
+||--        {action "bogus"}
+        
+        {self.log {message -- suspend}}
+        {subject.suspend}
+        
+        {self.log {message -- resume}}
+        {subject.resume}
+
+        {self.await "ready",
+            {proc {}:bool
+                {return subject.applet-invoke-ready?}}}
+        
+        {self.log {message -- demand}}
+        {action "demand"}
+        
+        {self.log {message -- suspend}}
+        {subject.suspend}
+        || TODO: await state change
+        
+        {self.log {message -- destroy}}
+        {subject.destroy}
+        || TODO: await state change
+        
+        {self.log {message -- done}}
+        set self.applet-data = null
+
+     finally
+        || flush applet, so its resources can be reclaimed
+        {if-non-null subject = self.applet-data then
+            {self.log {message -- finally suspend}}
+            {subject.suspend}
+            {self.log {message -- finally destroy}}
+            {subject.destroy}
+        }
+    }
+  }
+  {method {await
+              what:String,
+              ready?:{proc-type {}:bool}
+          }:void
+    || throttle logging
+    let started:DateTimeData = {DateTimeData}
+    || await readiness
+    {while not {ready?} and not self.timed-out? do
+        {if {started.elapsed} > .5s then
+            {self.log {message awaiting {value what}}}
+            set started = {DateTimeData}}
+        {dispatch-events true}
+    }
+    || check status
+    {if not {ready?} then
+        || failed to finish
+        {self.log {lmessage Timeout}}
+        {error "Timeout"}
+    }
+  }
+  {method {log msg:String}:void
+    {output msg}
+  }
+}
+
+{value
+    def loc:Url = {url "t-census.curl"}
+    def test:AppletDriver =
+        {AppletDriver loc}
+    def display =
+        {AppletGraphic
+            width = 6in,
+            height = 4in}
+
+    {VBox
+        background = "silver",
+        margin = 3px,
+        display,
+        {CommandButton label = "Run",
+            {on Action do        
+                {test.exercise
+                    display = display}}
+        }}
+}

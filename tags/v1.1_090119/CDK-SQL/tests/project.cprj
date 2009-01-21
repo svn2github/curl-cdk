@@ -1,0 +1,24 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "7.0",
+    compiler-directives = "careful? = true",
+    {target
+        name = "deploy",
+        target-url-name = "c:\\curl\\CDK_support",
+        {resource-transform "test-cases\u0000directory\u0000test-cases", copy? = true},
+        {resource-transform "test-applets\u0000directory\u0000test-applets", copy? = true},
+        {resource-transform "test-data\u0000directory\u0000test-data", copy? = true},
+        {assembly-transform "COM.CURL.CDK", use-path? = true},
+        {resource-transform "start-tests.curl\u0000file\u0000start-tests.curl", copy? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
+        {assembly-transform "COM.CURL.CDU", use-path? = true},
+        {assembly-transform "COM.CURL.GUI.STYLED", use-path? = true},
+        {package-transform "COM.CURL.CDK.SQLITE-TEST-SUPPORT\u0000package\u0000test-extensions/sqlite-test-support.scurl", copy? = true}
+    },
+    {file-setting "start-tests.curl", start-file? = true}
+}
