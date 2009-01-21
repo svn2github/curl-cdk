@@ -1,0 +1,567 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
+{import * from COM.CURL.CDK.MESSAGING}
+
+|| Url of WebORB
+|| -- do not terminate this by '/'
+{def
+    weborb-url =
+        {url "http://census-test.curl.com:8080/test-weborb/examples/flex/remoting"}
+}
+
+|| Make weborb tests
+{define-proc {weborb-test
+                 tro:TestRemoteObject,
+                 method-name:String,
+                 channel-id:String = "my-amf",
+                 test-name:String = method-name,
+                 expect-fault?:bool = false,
+                 ...
+             }:Test
+    def rest = {Arguments ...}
+    {return
+        {test-case test-name,
+            {test-condition
+                {tro.invoke-method method-name, {splice rest}},
+                expect-fault? = expect-fault?
+            }
+        }
+    }
+}
+
+|| Make RemoteObject for weborb
+{define-proc {weborb-ro
+                 endpoint-tail:String,
+                 source:String,
+                 destination:String = "GenericDestination"
+             }:TestRemoteObject
+    {return
+        {TestRemoteObject
+            {weborb-url.concat endpoint-tail},
+            destination,
+            source = source
+        }
+    }
+}
+
+
+|| WebORB TestSuite
+{value
+    || Basic Invocation
+    def bi = {weborb-ro
+                 "basicinvoke/weborb.wo",
+                 "Weborb.Examples.BasicService"
+             }
+    def basic-invocation =
+        {TestSuite "Basic invocation",
+            {weborb-test
+                bi, "Calculate", test-name = "1 + 1", 1, 1, 1},
+            {weborb-test
+                bi, "Calculate", test-name = "1 - 1", 1, 2, 1},
+            {weborb-test
+                bi, "Calculate", test-name = "1 * 1", 1, 3, 1},
+            {weborb-test
+                bi, "Calculate", test-name = "1 / 1", 1, 4, 1},
+            {weborb-test
+                bi, "Calculate",
+                test-name = "1 / 0", expect-fault? = true, 1, 4, 0}
+        }
+
+
+    || Sending and Receiving an object
+    def eo = {weborb-ro
+                 "echoobject/weborb.wo",
+                 "Weborb.Examples.IdentityService"
+             }
+    def obj = {StandardDataObject
+                  "name", "James",
+                  "age", 10,
+                  "sex", "Male",
+                  "eyeColor", "Black"
+              }
+    def echo-object =
+        {TestSuite "Sending and Receiving an object",
+            {weborb-test
+                eo, "HideIdentity", obj}
+        }
+
+
+    || Invocation Test Suite
+    |||| Primitive Tests
+    def ts1 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.PrimitiveTest"
+              }
+    def date = {DateTime
+                   year = 2009,
+                   month = 1,
+                   day = 1,
+                   hour = 1,
+                   minute = 1,
+                   second = 1,
+                   partial-second = 1
+               }
+    def primitive-tests =
+        {TestSuite "Primitive Tests",
+            {weborb-test
+                ts1, "echoInt", 7},
+            {weborb-test
+                ts1, "echoLong", 7777777},
+            {weborb-test
+                ts1, "echoShort", 7},
+            {weborb-test
+                ts1, "echoByte", 7},
+            {weborb-test
+                ts1, "echoDouble", 7777.7777},
+            {weborb-test
+                ts1, "echoChar", "a"},
+            {weborb-test
+                ts1, "echoBoolean", true},
+            {weborb-test
+                ts1, "echoGuid",
+                "12345678-9ABC-DEF1-1234-567890101234"},
+            {weborb-test
+                ts1, "echoDate", date},
+            {weborb-test
+                ts1, "echoNullableDate", date},
+            {weborb-test
+                ts1, "echoNull", null},
+            {weborb-test
+                ts1, "unknownMethod", expect-fault? = true}
+        }
+
+
+    |||| Strings Tests
+    def ts2 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.StringsTest"
+              }
+    def test-string = "WebORB Rocks"
+    def strings-tests =
+        {TestSuite "Strings Test",
+            {weborb-test
+                ts2, "echoString", test-string},
+            {weborb-test
+                ts2, "echoNullString", null},
+            {weborb-test
+                ts2, "echoStringBuilder", test-string},
+            {weborb-test
+                ts2, "echoNullStringBuilder", null}
+        }
+
+
+    |||| Primitive Array Tests
+    def ts3 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.PrimitiveArrayTest"
+              }
+    def pri-array-tests =
+        {TestSuite "Primitive Array Tests",
+            {weborb-test
+                ts3, "echoIntArray",
+                {Array 7, 7}
+            },
+            {weborb-test
+                ts3, "echoLongArray",
+                {Array 7777777, 7777777}
+            },
+            {weborb-test
+                ts3, "echoShortArray",
+                {Array 7, 7}
+            },
+            {weborb-test
+                ts3, "echoDoubleArray",
+                {Array 7777.7777, 7777.7777}
+            },
+            {weborb-test
+                ts3, "echoByteArray",
+                {Array 7, 7}
+            },
+            {weborb-test
+                ts3, "echoBooleanArray",
+                {Array 1, 2}
+            },
+            {weborb-test
+                ts3, "echoFloatArray",
+                {Array 77.77, 77.77}
+            },
+            {weborb-test
+                ts3, "echoEmptyArray",
+                {Array}
+            },
+            {weborb-test
+                ts3, "echoNullArray",
+                null
+            }
+        }
+
+
+    |||| Collection Types Tests
+    def ts4 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.CollectionsTest"
+              }
+    def col-types-tests =
+        {TestSuite "Collection Types Tests",
+            {weborb-test
+                ts4, "getArrayCollection"},
+            {weborb-test
+                ts4, "getGenericArrayCollection"}
+        }
+
+
+    |||| Collection Types Tests
+    def ts5 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.ComplexTypesTest"
+              }
+    def com-traits = {StandardDataObjectTraits
+                         "Weborb.Examples.InvocationTests.ComplexType",
+                         {StringArray
+                             "intField",
+                             "floatField",
+                             "longField",
+                             "shortField",
+                             "byteField",
+                             "doubleField",
+
+                             "intWrapperField",
+                             "floatWrapperField",
+                             "longWrapperField",
+                             "shortWrapperField",
+                             "byteWrapperField",
+                             "doubleWrapperField",
+                             
+                             "stringField",
+                             "stringBufferField",
+
+                             "intArrayField",
+                             "shortArrayField",
+                             "longArrayField",
+                             "byteArrayField",
+                             "doubleArrayField",
+                             "floatArrayField",
+                             
+                             "intWrapperArrayField",
+                             "shortWrapperArrayField",
+                             "longWrapperArrayField",
+                             "byteWrapperArrayField",
+                             "doubleWrapperArrayField",
+                             "floatWrapperArrayField",
+
+                             "collectionField",
+                             "abstractCollectionField",
+                             "listCollectionField",
+                             "abstractListField",
+                             "abstractSequentialListField",
+                             "stackField",
+                             "vectorField",
+                             "linkedLIstField",
+                             "arrayListField",
+                             "setField",
+                             "sortedSetField",
+                             "abstractSetField",
+                             "treeSetField",
+                             "mapSetField",
+                             "abstractMapField",
+                             "propertiesField",
+                             "treeMapField"
+                         },
+                         dynamic? = false
+                     }
+    def complex = {StandardDataObject
+                      traits = com-traits,
+                      "intField", 1,
+                      "floatField", 1,
+                      "longField", 1,
+                      "shortField", 1,
+                      "byteField", 1, 
+                      "doubleField", 1,
+
+                      "intWrapperField", 1,
+                      "floatWrapperField", 1,
+                      "longWrapperField", 1,
+                      "shortWrapperField", 1,
+                      "byteWrapperField", 1,
+                      "doubleWrapperField", 1,
+
+                      "stringField", "1",
+                      "stringBufferField", "1",
+
+                      "intArrayField", {Array 1, 2},
+                      "shortArrayField", {Array 1, 2},
+                      "longArrayField", {Array 1, 2},
+                      "byteArrayField", {Array 1, 2},
+                      "doubleArrayField", {Array 1, 2},
+                      "floatArrayField", {Array 1, 2},
+                      
+                      "intWrapperArrayField", {Array 1, 2},
+                      "shortWrapperArrayField", {Array 1, 2},
+                      "longWrapperArrayField", {Array 1, 2},
+                      "byteWrapperArrayField", {Array 1, 2},
+                      "doubleWrapperArrayField", {Array 1, 2},
+                      "floatWrapperArrayField", {Array 1, 2},
+
+                      "collectionField", {Array 1, 2},
+                      "abstractCollectionField", {Array 1, 2},
+                      "listCollectionField", {Array 1, 2},
+                      "abstractListField", {Array 1, 2},
+
+                      "abstractSequentialListField", {Array 1, 2},
+                      "stackField", {Array 1, 2},
+                      "vectorField", {Array 1, 2},
+                      "linkedLIstField", {Array 1, 2},
+
+                      "arrayListField", {Array 1, 2},
+
+                      "setField", {Array 1, 2},
+                      "abstractSetField", {Array 1, 2},
+                      "treeSetField", {Array 1, 2},
+
+                      "sortedSetField", {{HashTable-of String, any}
+                                            "1item", 1,
+                                            "2item", 2
+                                        },
+                      "mapSetField", {{HashTable-of String, any}
+                                         "1item", 1,
+                                         "2item", 2
+                                     },
+                      "abstractMapField", {{HashTable-of String, any}
+                                              "1item", 1,
+                                              "2item", 2
+                                          },
+                      "propertiesField", {{HashTable-of String, any}
+                                             "1item", 1,
+                                             "2item", 2
+                                         },
+                      "treeMapField", {{HashTable-of String, any}
+                                          "1item", 1,
+                                          "2item", 2
+                                      }
+                  }
+    def em-test-string = "Joe orbman"
+    def employ = {StandardDataObject
+                     traits = {StandardDataObjectTraits
+                                  "weborb.tests.Employee",
+                                  {StringArray
+                                      "employeeName",
+                                      "hireDate",
+                                      "emailAliases"}
+                              },
+                     "employeeName", em-test-string,
+                     "hireDate", null,
+                     "emailAliases", {Array
+                                         "joe@foo.com",
+                                         "jane@foo.com"
+                                     }
+                 }
+    def complex-types-tests =
+        {TestSuite "Collection Types Tests",
+            {weborb-test
+                ts5, "echoComplexType", complex},
+            {weborb-test
+                ts5, "echoNullComplexType", null},
+            {weborb-test
+                ts5, "getEmployee", em-test-string},
+            {weborb-test
+                ts5, "setEmployee", employ},
+            {weborb-test
+                ts5, "echoEnumType", "APPLES"},
+            {weborb-test
+                ts5, "getCrossReferencedObject", 2}
+        }
+
+
+    |||| Multiple Args Tests
+    def ts6 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.MultipleArgsTest"
+              }
+    def multiple-args-tests =
+        {TestSuite "Multiple Args Tests",
+            {weborb-test
+                ts6, "echoInts", 21, 0, -12312, 11111111},
+            {weborb-test
+                ts6, "echoNullStringBuilderDouble", null, 21}
+        }
+
+
+    |||| Data Access Test
+    def ts7 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.DatabaseTest"
+              }
+    def data-access-test =
+        {TestSuite "Data Access Test",
+            {weborb-test
+                ts7, "getCustomersTable"}
+        }
+
+
+    |||| Secure Test
+    def sec-des = "SecureTest"
+    def sec-ep = "testsuite/weborb.wo"
+    def get-ro = {proc {}:TestRemoteObject
+                     {return
+                         {weborb-ro
+                             sec-ep, "", destination=sec-des}}}
+    def sec-test =
+        {proc {uname:#String, passworld:#String, fault?:bool}:void
+            def ro = {get-ro}
+            {ro.logout}
+            let pending?:bool = true
+            def agent = {ro.login uname, passworld}
+            {agent.register-responder
+                {AuthenticationResultResponder
+                    result-proc = {fn => set pending? = false},
+                    status-proc = {fn => set pending? = false}
+                }
+            }
+            {while pending? do
+                {dispatch-events true}}
+            def mea = {ro.invoke-method "helloWorld"}
+            {ro.logout}
+            {test-condition
+                mea,
+                expect-fault? = fault?}
+        }
+    
+    def secure-tests =
+        {TestSuite "Secure Test",
+            {TestSuite "Immediately login",
+                {test-case "NoCredentials(this should fail)",
+                    {sec-test null, null, true}
+                },
+                {test-case "WrongCreadentials(this should fail)",
+                    {sec-test "admin1", "changeme1", true}
+                },
+                {test-case "Credentails",
+                    {sec-test "admin", "changeme", false}
+                }
+            },
+            {TestSuite "Non-Immediately login",
+                {test-case "NoCredentials(this should fail)",
+                    def nc = {get-ro}
+                    {nc.login null, null, immediately?=false}
+                    {test-condition
+                        {nc.invoke-method "helloWorld"},
+                        expect-fault? = true
+                    }
+                },
+                {test-case "WrongCreadentials(this should fail)",
+                    def wc = {get-ro}
+                    {wc.login "admin1", "changeme1", immediately?=false}
+                    {test-condition
+                        {wc.invoke-method "helloWorld"},
+                        expect-fault? = true
+                    }
+                },
+                {test-case "Credentails",
+                    def c = {get-ro}
+                    {c.login "admin", "changeme", immediately?=false}
+                    def mea = {c.invoke-method "helloWorld"}
+                    {c.logout}
+                    {test-condition mea}
+                }
+            },
+            
+            {test-case "Bad ID in FlexClient",
+                def bi = {get-ro}
+                def agent = {bi.login "admin", "changeme"}
+                let pending? = true
+                {agent.register-responder
+                    {AuthenticationResultResponder
+                        result-proc = {fn {}:void
+                                          set {FlexClient.get-instance}.id = "foo"
+                                          set pending? = false
+                                      }
+                    }
+                }
+                {while pending? do
+                    {dispatch-events true}}
+                def mea = {bi.invoke-method "helloWorld"}
+                {test-condition
+                    mea
+                }
+            }
+        }
+    
+    
+    
+    |||| Cross Reference Test
+    def ts9 = {weborb-ro
+                  "testsuite/weborb.wo",
+                  "Weborb.Examples.InvocationTests.CrossReferenceTest"
+              }
+    def parent-t = {StandardDataObjectTraits
+                       "Weborb.Examples.InvocationTests.Parent",
+                       {StringArray
+                           "childField", "str", "arr"
+                       }
+                   }
+    def child-t = {StandardDataObjectTraits
+                      "Weborb.Examples.InvocationTests.Child",
+                      {StringArray
+                          "parentField", "str", "arr"
+                      }
+                  }
+    def parent = {StandardDataObject
+                     traits = parent-t,
+                     "str", "parent string",
+                     "arr", {Array 1, 2, 3, 4}
+                 }
+    def child = {StandardDataObject
+                    traits = child-t,
+                    "str", "child string",
+                    "arr", {Array 1, 2, 3, 4}
+                }
+    set parent["childField"] = child
+    set child["parentField"] = parent
+
+    def cross-ref-test =
+        {TestSuite "Cross Reference Test",
+            {weborb-test
+                ts9, "echoParent", parent},
+            {weborb-test
+                ts9, "echoChild", child}
+        }
+
+
+    {TestSuite "WebORB",
+        || precondition
+        || NOTE: just checks url availability
+        || TODO: guard against service inactive
+        {test-host-accessible-guard {weborb-url.stem.name.tail "http://".size}},
+        || tests
+        basic-invocation,
+        echo-object,
+        {TestSuite "Invocation Test Suite",
+            primitive-tests,
+            strings-tests,
+            pri-array-tests,
+            col-types-tests,
+            complex-types-tests,
+            multiple-args-tests,
+            data-access-test,
+            secure-tests,
+            cross-ref-test
+        }
+    }
+}
+
