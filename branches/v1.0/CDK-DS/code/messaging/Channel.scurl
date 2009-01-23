@@ -143,8 +143,11 @@
         {if self._connected? then
             set self.previously-connected? = true
         }
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "connected?", self._connected?, b?
+                    }
         set self._connected? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
         {if not b? then
             set self.authenticated? = false
         }
@@ -157,8 +160,11 @@
 
   {setter protected {reconnecting? b?:bool}:void
     {if self._reconnecting? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "reconnecting?", self._reconnecting?, b?
+                    }
         set self._reconnecting? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 

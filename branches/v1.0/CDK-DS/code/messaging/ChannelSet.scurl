@@ -507,7 +507,17 @@
   
   {method public {send agent:MessageAgent, message:IMessage}:void
     {if self.current-channel != null and self.connected? then
-        || TODO: Filter out any commands to trigger connection establishment?
+        
+        {type-switch message
+         case cm:CommandMessage do
+            {if cm.operation == CommandMessage.TRIGGER_CONNECT_OPERATION then
+                def ack = {AcknowledgeMessage}
+                set ack.client-id = agent.client-id
+                set ack.correlation-id = message.message-id
+                {agent.acknowledge ack, message}
+                {return}
+            }
+        }
 
         {if not self.has-requested-cluster-endpoints? and self.clustered? then
             def cmd = {CommandMessage}
@@ -704,10 +714,18 @@
     
     {while not self.pending-sends.empty? do
         def ps = self.pending-sends[0]
+        {self.pending-sends.remove 0}
         def ps-msg = ps.message
         {self.pending-messages.remove ps-msg, error-if-missing? = false}
         {type-switch ps-msg
          case cm:CommandMessage do
+            {if cm.operation == CommandMessage.TRIGGER_CONNECT_OPERATION then
+                def ack = {AcknowledgeMessage}
+                set ack.client-id = ps.agent.client-id
+                set ack.correlation-id = cm.message-id
+                {ps.agent.acknowledge ack, cm}
+                {continue}
+            }
             {if not ps.agent.config-requested? and
                 ps.agent.needs-config? and
                 cm.operation == CommandMessage.CLIENT_PING_OPERATION
@@ -717,7 +735,6 @@
             }
         }
         {self.send ps.agent, ps-msg}
-        {self.pending-sends.remove 0}
     }
 
     {if self.hunting? then

@@ -66,7 +66,8 @@
     set self.agent-type = "consumer" ||""
   }
 
-  {setter protected {client-id id:#String}:void
+  || TODO: remove this?
+  {setter protected {client-ids id:#String}:void
     || FIXME: This is the same as {self.subscribe client-id = id} except for how
     || null id's are handled.
     {if super.client-id != id then
@@ -247,6 +248,8 @@
                 set self.subscribed? = true
                 {super.acknowledge ack, cm}
              case CommandMessage.POLL_OPERATION do
+                || Handle the result of a 'receive' invocation,
+                || but is this necessary?
                 {type-switch ack.body
                  case array:{Array-of any} do
                     {for a in array do
@@ -354,7 +357,8 @@
         def err = {ErrorMessage}
         set err.fault-code = "Client.Error.Subscribe" ||""
         set err.fault-string = {lmessage Consumer subscribe error}
-        set err.fault-detail = {lmessage Failed to subscribe}
+        set err.fault-detail =
+            {lmessage The consumer was not able to subscribe to its target destination.}
         {if-non-null subscribe-message = self.subscribe-message then
             set err.correlation-id = subscribe-message.message-id
             {self.fault err, subscribe-message}

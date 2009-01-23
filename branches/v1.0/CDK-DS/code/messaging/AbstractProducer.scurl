@@ -152,14 +152,6 @@
     {if not self.connected? then
         set self.should-be-connected? = true
         {if self.connect-message == null then
-||--            set self.connect-message = {new CommandMessage}
-||--            set self.connect-message.operation =
-||--                CommandMessage.CLIENT_PING_OPERATION
-||--            set self.connect-message.client-id = self.client-id
-||--            set self.connect-message.destination = self.destination
-||--            {if-non-null msg = self.connect-message then
-||--                {self.internal-send msg, wait-for-client-id? = false}
-||--            }
             set self.connect-message = {self.build-connect-message}
             {self.internal-send {non-null self.connect-message}}
         }
