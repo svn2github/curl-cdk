@@ -1,0 +1,386 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+
+{def
+    amfpolling = {url "http://census-test.curl.com:8080/test-blazeds/messagebroker/amfpolling"},
+    default-destination = "chat"
+}
+
+{define-proc {def-consumer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 ...:EventHandler
+             }:Consumer
+    {return
+        {Consumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            ...
+        }
+    }
+}
+
+{define-proc {def-producer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 ...:EventHandler
+             }:Producer
+    {return
+        {Producer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            ...
+        }
+    }
+}
+
+{define-class public Waiter
+  field public-get private-set max-attempts:int
+  field private still-wait?:bool = true
+
+  {constructor public {default
+                          max-attempts:int = 1000
+                      }
+    set self.max-attempts = max-attempts
+  }
+
+  {method public {wait}:void
+    {for i:int=0 below self.max-attempts do
+        {dispatch-events true}
+        {if not self.still-wait? then
+            set self.still-wait? = true
+            {break}
+        }
+    }
+  }
+  {method public {go-forward}:void
+    set self.still-wait? = false
+  }
+}
+
+{define-proc {get-msg-body
+                 me:MessageEvent,
+                 key:String = "chatMessage"
+             }:(val:any, exists?:bool)
+    {type-switch me.message.body
+     case obj:DataObject do
+        def (val, exists?) = {obj.get-if-exists key}
+        {return val, exists?}
+    }
+    {return null, false}
+}
+
+{define-proc {is-subscribe? mae:MessageAckEvent}:bool
+    {type-switch mae.correlation
+     case cmd:CommandMessage do
+        {return (cmd.operation == CommandMessage.SUBSCRIBE_OPERATION)}
+    }
+    {return false}
+}
+
+{define-proc {test-consumer
+                 consumer:Consumer,
+                 attempt-count:int = 1000
+             }:void
+    let result:any = null
+    let handled?:bool = false
+    def chat-message = "chat-message"
+    def producer = {def-producer
+                       endpoint = {non-null consumer.endpoint},
+                       destination = consumer.destination,
+                       channel-set = consumer.channel-set
+                   }
+    
+    {consumer.add-event-handler
+        {on me:MessageEvent do
+            {type-switch me.message.body
+             case obj:DataObject do
+                def (x, x?) = {obj.get-if-exists "chatMessage"}
+                {if x? then
+                    set result = x
+                    set handled? = true
+                }
+            }
+        }
+    }
+    {consumer.add-event-handler
+        {on mae:MessageAckEvent do
+            {type-switch mae.correlation
+             case cmd:CommandMessage do
+                {if cmd.operation == CommandMessage.SUBSCRIBE_OPERATION then
+                    {producer.send
+                        {AsyncMessage
+                            body = {DataObject chatMessage = chat-message}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    {consumer.subscribe}
+
+    def pe? = {if-non-null cc = consumer.channel-set.current-channel then
+                  (cc asa AMFChannel).polling-enabled?
+               else
+                  true
+              }
+
+    {for i:int=0 below attempt-count do
+        {dispatch-events true}
+        {if not pe? then
+            {consumer.receive}
+        }
+        {if handled? then
+            {break}
+        }
+    }
+    {consumer.unsubscribe}
+    {TestCondition.assert (result == chat-message),
+        message = {String result}
+    }
+    
+}
+
+{TestSuite "MessageAgent",
+    {TestSuite "Consumer",
+        {test-case "subscribe",
+            {test-consumer {def-consumer}}
+        },
+        {test-case "receive",
+            def amf-channel =
+                {AMFChannel id = default-destination, uri = amfpolling}
+            set amf-channel.polling-enabled? = false
+            {test-consumer
+                {def-consumer
+                    channel-set = {ChannelSet channel = amf-channel}
+                }
+            }
+        },
+        {test-case "resubscribe",
+            def channels = {{Array-of Channel}
+                               || should be failed.
+                               {AMFChannel
+                                   id = "hoge",
+                                   uri = {url "http://localhost/"}
+                               },
+                               {AMFChannel
+                                   id = default-destination,
+                                   uri = amfpolling
+                               }
+                           }
+            def channel-set = {ChannelSet channels = channels}
+            def consumer = {def-consumer channel-set = channel-set}
+            {test-consumer consumer}
+        },
+        {test-case "resubscribe(error)",
+            def wa = {Waiter}
+            let ok?:bool = false
+            def channels = {{Array-of Channel}
+                               || Both channels should be faild.
+                               {AMFChannel id = "ch1", uri = {url "http://ch1"}},
+                               {AMFChannel id = "ch2", uri = {url "http://ch2"}}
+                           }
+            def channel-set = {ChannelSet channels = channels}
+            def consumer = {def-consumer
+                               channel-set = channel-set,
+                               {on e:MessageFaultEvent do
+                                   {if e.fault-code == "Client.Error.Subscribe" then
+                                       set ok? = true
+                                       {wa.go-forward}
+                                   }
+                               }
+                           }
+            set consumer.resubscribe-attempts = 1
+            {consumer.subscribe}
+            {wa.wait}
+            {consumer.unsubscribe}
+            {TestCondition.assert ok?, message = ""}
+        },
+        {test-case "access id",
+            let ok?:bool = false
+            def cm = {def-consumer}
+            def old-id = cm.id
+            def new-id = "new"
+            {cm.add-event-handler
+                {on e:PropertyChangeEvent do
+                    set ok? = (e.kind == PropertyChangeEventKind.update and
+                               e.property == "id" and
+                               e.old-value == old-id and
+                               e.new-value == new-id and
+                               e.source == cm)
+                }
+            }
+        
+            set cm.id = new-id
+            {dispatch-events true}
+            {TestCondition.assert ok?}
+        },
+        {test-case "access destination",
+            let handled?:bool = false
+            let d?:bool = false
+            let s?:bool = false
+            def w = {Waiter}
+            def con = {def-consumer
+                          destination = "feed",
+                          {on ma:MessageAckEvent do
+                              {if {is-subscribe? ma} then
+                                  {if handled? then
+                                      {w.go-forward}
+                                   else
+                                      set handled? = true
+                                      set con.destination = default-destination
+                                  }
+                              }
+                          },
+                          {on pc:PropertyChangeEvent do
+                              {switch pc.property
+                               case "subscribed?" do
+                                  set s? = (pc.kind == PropertyChangeEventKind.update and
+                                            pc.old-value == false and
+                                            pc.new-value == true and
+                                            pc.source == con)
+                                            
+                               case "destination" do
+                                  set d? = (pc.kind == PropertyChangeEventKind.update and
+                                            pc.old-value == "feed" and
+                                            pc.new-value == default-destination and
+                                            pc.source == con)
+                              }
+                          }
+                      }
+            {con.subscribe}
+            {w.wait}
+            {TestCondition.assert
+                (con.subscribed? and s? and d?),
+                message = {lmessage {value s?} and {value d?}}
+            }
+        },
+        {test-case "disconnect(Consumer)",
+            let c?:bool = false
+            def w = {Waiter}
+            def con = {def-consumer
+                          {on ma:MessageAckEvent do
+                              {if {is-subscribe? ma} then
+                                  {con.disconnect}
+                              }
+                          },
+                          {on cd:ChannelDisconnectEvent do
+                              {w.go-forward}
+                          },
+                          {on pc:PropertyChangeEvent do
+                              {if pc.property == "connected?" then
+                                  set c? = (pc.new-value == false)
+                              }
+                          }
+                      }
+            {con.subscribe}
+            {w.wait}
+            {TestCondition.assert (not con.subscribed?) and c?}
+        },
+        {test-case "disconnect(ChannelSet)",
+            let handled?:bool = false
+            let mc?:bool = false
+            let cc?:bool = false
+            def w = {Waiter}
+            def con = {def-consumer
+                          {on ma:MessageAckEvent do
+                              {if {is-subscribe? ma} then
+                                  {if handled? then
+                                      {w.go-forward}
+                                   else
+                                      set handled? = true
+                                      {con.channel-set.disconnect con}
+                                  }
+                              }
+                          },
+                          {on pc:PropertyChangeEvent do
+                              {if pc.property == "connected?" then
+                                  set mc? = pc.new-value
+                              }
+                          }
+                      }
+            {con.channel-set.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set cc? = pc.new-value
+                }
+            }
+            {con.subscribe}
+            {w.wait}
+            {TestCondition.assert
+                con.subscribed? and handled? and mc? and cc?
+            }
+        }
+    },
+    {TestSuite "Producer",
+        {test-case "connect",
+            let ok?:bool = false
+            def wa = {Waiter}
+            def pro = {def-producer
+                          {on e:ChannelConnectEvent do
+                              set ok? = true
+                              {wa.go-forward}
+                          }
+                      }
+            {pro.connect}
+            {wa.wait}
+            {TestCondition.assert ok?}
+        },
+        {test-case "disconnect",
+            let cc?:bool = false
+            let handled?:bool = false
+            def w = {Waiter}
+            def pr = {def-producer
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on cc:ChannelConnectEvent do
+                             {if not handled? then
+                                 set handled? = true
+                                 {pr.disconnect}
+                             }
+                         },
+                         {on cd:ChannelDisconnectEvent do
+                             {w.go-forward}
+                         }
+                     }
+            {pr.send {AsyncMessage body = {DataObject chatMessage = "cm"}}}
+            {w.wait}
+            {TestCondition.assert handled? and (not cc?)}
+        }||,
+||--        {test-case "reconnect",
+||--            def pr = {def-producer
+||--
+||--                     }
+||--        }
+    }
+}

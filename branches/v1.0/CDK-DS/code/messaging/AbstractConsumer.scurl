@@ -161,11 +161,11 @@
 
   {setter public {subscribed? b?:bool}:void
     {if self._subscribed? != b? then
-        set self._subscribed? = b?
         def event = {PropertyChangeEvent.create-update-event
                         self, "subscribed?",
                         self._subscribed?, b?
                     }
+        set self._subscribed? = b?
         {if self._subscribed? then
             {{ConsumerMessageDispatcher.get-instance}.register-subscription
                 self

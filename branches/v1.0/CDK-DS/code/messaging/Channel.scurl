@@ -371,6 +371,14 @@
     {self.enqueue-event event}
   }
 
+  {method protected {disconnect-succeeded}:void
+    || TODO:
+  }
+
+  {method protected {disconnect-failed}:void
+    || TODO:
+  }
+
   {method private {cleanup-connect}:void
     {if self.owns-wait-guard? then
         set self.owns-wait-guard? = false
