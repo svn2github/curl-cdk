@@ -248,40 +248,87 @@
             let d?:bool = false
             let s?:bool = false
             def w = {Waiter}
-            def con = {def-consumer
-                          destination = "feed",
-                          {on ma:MessageAckEvent do
-                              {if {is-subscribe? ma} then
-                                  {if handled? then
-                                      {w.go-forward}
-                                   else
-                                      set handled? = true
-                                      set con.destination = default-destination
-                                  }
-                              }
-                          },
-                          {on pc:PropertyChangeEvent do
-                              {switch pc.property
-                               case "subscribed?" do
-                                  set s? = (pc.kind == PropertyChangeEventKind.update and
-                                            pc.old-value == false and
-                                            pc.new-value == true and
-                                            pc.source == con)
-                                            
-                               case "destination" do
-                                  set d? = (pc.kind == PropertyChangeEventKind.update and
-                                            pc.old-value == "feed" and
-                                            pc.new-value == default-destination and
-                                            pc.source == con)
-                              }
-                          }
-                      }
+            def con =
+                {def-consumer
+                    destination = "feed",
+                    {on ma:MessageAckEvent do
+                        {if {is-subscribe? ma} then
+                            {if handled? then
+                                {w.go-forward}
+                             else
+                                set handled? = true
+                                set con.destination = default-destination
+                            }
+                        }
+                    },
+                    {on pc:PropertyChangeEvent do
+                        {switch pc.property
+                         case "subscribed?" do
+                            set s? = (pc.kind == PropertyChangeEventKind.update and
+                                      pc.old-value == false and
+                                      pc.new-value == true and
+                                      pc.source == con)
+                            
+                         case "destination" do
+                            set d? = (pc.kind == PropertyChangeEventKind.update and
+                                      pc.old-value == "feed" and
+                                      pc.new-value == default-destination and
+                                      pc.source == con)
+                        }
+                    }
+                }
             {con.subscribe}
             {w.wait}
             {TestCondition.assert
                 (con.subscribed? and s? and d?),
                 message = {lmessage {value s?} and {value d?}}
             }
+        },
+        {test-case "access resubscribe-interval",
+            def con = {def-consumer}
+            let ri?:bool = false
+            let error?:bool = false
+            def old-value = con.resubscribe-interval
+            def new-value = 100s
+            {con.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set ri? = (pc.kind == PropertyChangeEventKind.update and
+                               pc.property == "resubscribe-interval" and
+                               pc.old-value == old-value and
+                               pc.new-value == new-value)
+                }
+            }
+
+            || set normal value
+            set con.resubscribe-interval = new-value
+            {dispatch-events true}
+
+            || set abnormal value (expect an error)
+            {try
+                set con.resubscribe-interval = -1s
+             catch e:Exception do
+                set error? = true
+            }
+
+            || set 0s to stop resubscribing
+            let handled?:bool = false
+            def w = {Waiter max-attempts = 10}
+            def con2 = {def-consumer
+                           {on mae:MessageAckEvent do
+                               {if {is-subscribe? mae} then
+                                   {if handled? then
+                                       {w.go-forward}
+                                    else
+                                       set handled? = true
+                                       {con.channel-set.disconnect con}
+                                   }
+                               }
+                           }
+                       }
+            set con2.resubscribe-interval = 0s
+            {con2.subscribe}
+            {w.wait}
+            {TestCondition.assert ri? and error? and (not con2.subscribed?)}
         },
         {test-case "disconnect(Consumer)",
             let c?:bool = false
@@ -376,11 +423,79 @@
             {pr.send {AsyncMessage body = {DataObject chatMessage = "cm"}}}
             {w.wait}
             {TestCondition.assert handled? and (not cc?)}
-        }||,
-||--        {test-case "reconnect",
-||--            def pr = {def-producer
-||--
-||--                     }
-||--        }
+        },
+        {test-case "reconnect",
+            let handled?:bool = false
+            let cc?:bool = false
+            def w = {Waiter}
+            def pr = {def-producer
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on cc:ChannelConnectEvent do
+                             {if not handled? then
+                                 set handled? = true
+                                 {pr.channel-set.disconnect pr}
+                              else
+                                 {w.go-forward}
+                             }
+                         }
+                     }
+            set pr.reconnect-attempts = 1
+            set pr.reconnect-interval = 1s
+            {pr.send {AsyncMessage}}
+            {w.wait}
+            {TestCondition.assert handled? and cc?}
+        },
+        {test-case "reconnect(error)",
+            let handled?:bool = false
+            let cnt:int = 0
+            let cc?:bool = false
+            def w = {Waiter max-attempts = 50}
+            def pr = {def-producer
+                         channel-set =
+                             {ChannelSet
+                                 channel = {AMFChannel
+                                               id = "ch",
+                                               uri = {url "http://localhost/"}
+                                           }
+                             },
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on mfe:MessageFaultEvent do
+                             {if handled? then
+                                 {w.go-forward}
+                              else
+                                 set handled? = true
+                             }
+                         }
+                     }
+            set pr.reconnect-attempts = 1
+            set pr.reconnect-interval = 1s
+            {pr.send {AsyncMessage}}
+            {w.wait}
+            {TestCondition.assert handled? and not cc?}
+        },
+        {test-case "auto-connect?",
+            def w = {Waiter}
+            let handled?:bool = false
+            def pr = {def-producer
+                         {on mfe:MessageFaultEvent do
+                             {if mfe.fault-code == "Client.Error.MessageSend" then
+                                 set handled? = true
+                                 {w.go-forward}
+                             }
+                         }
+                     }
+            set pr.auto-connect? = false
+            {pr.send {AsyncMessage}}
+            {w.wait}
+            {TestCondition.assert handled?}
+        }
     }
 }

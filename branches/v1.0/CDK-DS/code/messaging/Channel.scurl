@@ -278,28 +278,30 @@
     }
   }
 
-  {method public {disconnect channel-set:ChannelSet}:void
+  {method final public {disconnect channel-set:ChannelSet}:void
     || TODO: What else should this do?
     def channel-set-index = {self._channel-sets.find channel-set}
     {if channel-set-index >= 0 then
         {self._channel-sets.remove channel-set-index}
-    }
-    {if self.connected? then
-        {channel-set.channel-disconnect-handler
-            {ChannelDisconnectEvent
-                channel = self,
-                connected? = self.connected?
+
+        def connected? = self.connected?
+        {if self.channel-sets.empty? then
+            set self.should-be-connected? = false
+            {if connected? then
+                {self.internal-disconnect}
+            }
+        }
+        {if connected? then
+            {channel-set.channel-disconnect-handler
+                {ChannelDisconnectEvent
+                    channel = self,
+                    connected? = self.connected?
+                }
             }
         }
     }
-    {if self.channel-sets.empty? then
-        set self.should-be-connected? = false
-        {if self.connected? then
-            {self.internal-disconnect}
-        }
-    }
   }
-
+  
   {method public {logout agent:#MessageAgent = null}:void
     {if (self.connected? and
          self.authenticated? and
