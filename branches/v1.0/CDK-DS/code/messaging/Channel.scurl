@@ -29,6 +29,7 @@
   field private _uri:#Url
   field private primary-uri:#Url
   field private previously-connected?:bool = false
+  field private connect-timer:#Alarm
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
@@ -47,12 +48,19 @@
   }
   field public request-timeout:Time = -1s
 
+  field private flex-client-wait-handler-proc:EventHandler
+  
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
     set self._uri = uri
     set self.primary-uri = uri
     set self._failover-uris = {{Array-of Url}}
     set self.failover-index = -1
+
+    set self.flex-client-wait-handler-proc =
+        {on e:PropertyChangeEvent do
+            {self.flex-client-wait-handler e}
+        }
 
     {self.add-event-handler
         {on e:ChannelConnectEvent do
@@ -251,6 +259,13 @@
             set self.connecting? = true
             {if self.connect-timeout > 0s then
                 || TODO: Start a timeout timer.
+                set self.connect-timer =
+                    {Alarm
+                        {proc {}:void
+                            {self.connect-timeout-handler}
+                        },
+                        delay = self.connect-timeout
+                    }
             }
             def flex-client = {FlexClient.get-instance}
             {if flex-client.id == null then
@@ -261,7 +276,7 @@
                  else
                     || TODO: When the PropertyChangeEvents are in, swap this
                     ||       {internal-connect} for the commented out code.
-                    {self.internal-connect}
+||--                    {self.internal-connect}
 ||--                    {flex-client.add-event-handler
 ||--                        {on e:PropertyChangeEvent do
 ||--                            {switch e.type
@@ -270,6 +285,9 @@
 ||--                            }
 ||--                        }
 ||--                    }
+                    {flex-client.add-event-handler
+                        self.flex-client-wait-handler-proc
+                    }
                 }
              else
                 {self.internal-connect}
@@ -344,7 +362,7 @@
   }
 
   {method protected {connect-succeeded}:void
-    || TODO: shutdownConnectTimer()
+    {self.shutdown-connect-timer}
     || TODO: ServerConfig and agent configuration stuff.
     set self.connected? = true
     set self.failover-index = -1
@@ -359,8 +377,9 @@
   }
 
   {method protected {connect-failed event:ChannelFaultEvent}:void
-    || TODO: shutdownConnectTimer()
+    {self.shutdown-connect-timer}
     set self.connected? = false
+
     {if not event.rejected? and {self.should-attempt-failover?} then
         set self.connecting? = true
         {self.failover}
@@ -373,12 +392,57 @@
     {self.enqueue-event event}
   }
 
-  {method protected {disconnect-succeeded}:void
-    || TODO:
+  {method protected {disconnect-succeeded rejected?:bool=false}:void
+    set self.connected? = false
+
+    {if not rejected? and {self.should-attempt-failover?} then
+        set self.connecting? = true
+        {self.failover}
+     else
+        set self.connecting? = false
+    }
+
+    {self.enqueue-event
+        {ChannelDisconnectEvent
+            channel = self,
+            reconnecting? = self.reconnecting?,
+            rejected? = rejected?
+        }
+    }
   }
 
-  {method protected {disconnect-failed}:void
-    || TODO:
+  {method protected {disconnect-failed event:ChannelFaultEvent}:void
+    set self.connecting? = false
+    set self.connected? = false
+
+    {if self.reconnecting? then
+        {self.reset-to-primary-uri}
+        set event.reconnecting? = false
+    }
+    {self.enqueue-event event}
+  }
+
+  {method protected {connect-timeout-handler}:void
+    {self.shutdown-connect-timer}
+    {if not self.connected? then
+        set self.should-be-connected? = false
+        def err-msg = {lmessage Connect attempt timed out.}
+        def event = {ChannelFaultEvent
+                        channel = self,
+                        reconnecting? = false,
+                        code = "Channel.Connect.Failed",
+                        level = "error",
+                        description = err-msg
+                    }
+        {self.connect-failed event}
+    }
+  }
+
+  {method private {shutdown-connect-timer}:void
+    {if-non-null timer = self.connect-timer then
+        {timer.cancel}
+        set self.connect-timer = null
+    }
   }
 
   {method private {cleanup-connect}:void
@@ -412,9 +476,19 @@
     }
   }
 
-||--  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
-||--    || TODO:
-||--  }
+  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
+    {if event.property == "wait-for-flex-client-id?" then
+        def client:FlexClient = event.source asa FlexClient
+        {if not client.wait-for-flex-client-id? then
+            {client.remove-event-handler
+                self.flex-client-wait-handler-proc
+            }
+            set client.wait-for-flex-client-id? = true
+            set self.owns-wait-guard? = true
+            {self.internal-connect}
+        }
+    }
+  }
 
   {method private {should-attempt-failover?}:bool
     {return
