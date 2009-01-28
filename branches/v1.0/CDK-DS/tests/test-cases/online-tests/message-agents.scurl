@@ -496,6 +496,26 @@
             {pr.send {AsyncMessage}}
             {w.wait}
             {TestCondition.assert handled?}
+        },
+        {test-case "access deafault-headers",
+            def pr = {def-producer}
+            def old-value = pr.default-headers
+            def new-value = {DataObject test = "test"}
+
+            let ok?:bool = false
+            {pr.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set ok? = (pc.kind == PropertyChangeEventKind.update and
+                               pc.property == "default-headers" and
+                               pc.old-value == old-value and
+                               pc.new-value == new-value and
+                               pc.source == pr)
+                }
+            }
+                         
+            set pr.default-headers = new-value
+            {dispatch-events true}
+            {TestCondition.assert ok?}
         }
     }
 }
