@@ -30,25 +30,16 @@
   field private primary-uri:#Url
   field private previously-connected?:bool = false
   field private connect-timer:#Alarm
+  field private flex-client-wait-handler-proc:EventHandler
+  field private _small-messages-supported?:bool
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
   field protected-get private-set should-be-connected?:bool = false
-  {doc-next
-    {purpose
-        Not implemented yet.
-    }
-  }
   field public connect-timeout:Time = -1s
-
-  {doc-next
-    {purpose
-        Not implemented yet.
-    }
-  }
+  field public enable-small-messages?:bool = true
   field public request-timeout:Time = -1s
 
-  field private flex-client-wait-handler-proc:EventHandler
   
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
@@ -142,6 +133,16 @@
     set self._authenticating? = b?
   }
 
+  {getter public {use-small-messages?}:bool
+    {return
+        (self._small-messages-supported? and self.enable-small-messages?)
+    }
+  }
+
+  {setter public {use-small-messages? val:bool}:void
+    set self._small-messages-supported? = val
+  }
+  
   {getter protected {connected?}:bool
     {return self._connected?}
   }
@@ -174,27 +175,6 @@
         set self._reconnecting? = b?
         {self.enqueue-event event}
     }
-  }
-
-  {method protected {internal-connect}:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {internal-disconnect rejected?:bool = false}:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {internal-send
-                        message-responder:MessageResponder
-                    }:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {get-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return null}
   }
 
   {method public {set-credentials
@@ -438,22 +418,6 @@
     }
   }
 
-  {method private {shutdown-connect-timer}:void
-    {if-non-null timer = self.connect-timer then
-        {timer.cancel}
-        set self.connect-timer = null
-    }
-  }
-
-  {method private {cleanup-connect}:void
-    {if self.owns-wait-guard? then
-        set self.owns-wait-guard? = false
-        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
-    }
-    set self.connecting? = false
-    set self.reconnecting? = false
-  }
-
   {method protected {initialize-request-timeout responder:MessageResponder}:void
     def message = responder.message
     def (timeout-header, found?) = 
@@ -474,6 +438,40 @@
             self.request-timeout
         }
     }
+  }
+
+  {method protected {internal-connect}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-send
+                        message-responder:MessageResponder
+                    }:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {get-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return null}
+  }
+
+  {method protected {handle-server-messaging-version version:double}:void
+    set self.use-small-messages? = (version >= self.messaging-version)
+  }
+
+  {method protected {set-flex-client-id-on-message message:IMessage}:void
+    set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
+        {if-non-null id = {FlexClient.get-instance}.id then
+            id
+         else
+            FlexClient.NULL_FLEXCLIENT_ID
+        }
   }
 
   {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
@@ -527,12 +525,19 @@
     set self.uri = self.primary-uri
   }
 
-  {method protected {set-flex-client-id-on-message message:IMessage}:void
-    set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
-        {if-non-null id = {FlexClient.get-instance}.id then
-            id
-         else
-            FlexClient.NULL_FLEXCLIENT_ID
-        }
+  {method private {shutdown-connect-timer}:void
+    {if-non-null timer = self.connect-timer then
+        {timer.cancel}
+        set self.connect-timer = null
+    }
+  }
+
+  {method private {cleanup-connect}:void
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    set self.connecting? = false
+    set self.reconnecting? = false
   }
 }

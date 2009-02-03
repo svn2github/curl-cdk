@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public abstract AbstractMessage {inherits IMessage}
+{define-class public abstract AbstractMessage {inherits ISmallMessage}
   field private client-id-bytes:#ByteArray
   field private message-id-bytes:#ByteArray
 
@@ -126,6 +126,23 @@
         {return result}
     }
     {return null}
+  }
+
+  {setter public {client-id val:#String}:void
+    set super.client-id = val
+    set self.client-id-bytes = null
+  }
+
+  {getter public {message-id}:String
+    {if super.message-id.empty? then
+        set super.message-id = {AbstractMessage.create-uid}
+    }
+    {return super.message-id}
+  }
+
+  {setter public {message-id val:String}:void
+    set super.message-id = val
+    set self.message-id-bytes = null
   }
 
   || A convenience method for deserializing externalizable AbstractMessages.

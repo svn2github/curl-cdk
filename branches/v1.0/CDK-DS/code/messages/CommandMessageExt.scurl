@@ -31,6 +31,13 @@
     {construct-super.Externalizable}
   }
 
+  {getter public {message-id}:String
+    {if-non-null msg = self._message then
+        {return msg.message-id}
+    }
+    {return super.message-id}
+  }
+
   {method public open {read-externalizable deserializer:AMFDeserializer}:void
     {if-non-null msg = self._message then
         {msg.read-external deserializer}

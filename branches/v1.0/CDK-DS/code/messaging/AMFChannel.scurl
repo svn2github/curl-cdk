@@ -21,6 +21,7 @@
 }
 {define-class public AMFChannel {inherits CurlConnectionChannel}
   field private ignore-net-status-events?:bool = false
+  field protected reconnecting-with-session-id?:bool
 
   field public result-handler:{proc-type {msg:IMessage}:void} =
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
@@ -53,6 +54,14 @@
 
   {getter public {polling?}:bool
     {return self.poll-outstanding?}
+  }
+
+  {getter public {piggybacking-enabled?}:bool
+    {return super.piggybacking-enabled?}
+  }
+
+  {setter public {piggybacking-enabled? val:bool}:void
+    set super.piggybacking-enabled? = val
   }
 
   {method protected {internal-connect}:void
@@ -124,6 +133,14 @@
                     set flex-client.id = id asa String
                 }
             }
+
+            def (version, found?) = {msg.headers.get-if-exists
+                                        CommandMessage.MESSAGING_VERSION
+                                    }
+            {if found? then
+                {self.handle-server-messaging-version (version asa double)}
+            }
+            
             {self.connect-succeeded}
             {type-switch msg
              case err:ErrorMessage do
@@ -216,7 +233,16 @@
                             msg.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER]
                         asa String
                     }
-                    || TODO: Process features advertised by the server endpoint.
+                    || Process features advertised by the server endpoint.
+                    def (version, found?) = {msg.headers.get-if-exists
+                                                CommandMessage.MESSAGING_VERSION
+                                            }
+                    {if found? then
+                        {self.handle-server-messaging-version
+                            (version asa double)
+                        }
+                    }
+                    
                     {self.connect-failed
                         {ChannelFaultEvent
                             channel = self,

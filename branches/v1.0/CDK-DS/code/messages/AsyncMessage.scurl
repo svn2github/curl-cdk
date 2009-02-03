@@ -108,4 +108,11 @@
         {serializer.write-one correlation-id-bytes}
     }
   }
+
+  {method public {get-small-message}:#IMessage
+    {if {type-of self} == AsyncMessage then
+        {return {AsyncMessageExt message = self}}
+    }
+    {return null}
+  }
 }

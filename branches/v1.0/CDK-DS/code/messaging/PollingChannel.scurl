@@ -19,7 +19,7 @@
   field protected should-poll?:bool
   field private _polling-interval:Time =
       PollingChannel.DEFAULT_POLLING_INTERVAL
-  field private _piggy-backing-enabled?:bool = false
+  field private _piggybacking-enabled?:bool = false
   field protected poll-outstanding?:bool = false
   field protected polling-ref:int = -1
   field private _alarm:#Alarm
@@ -84,12 +84,12 @@
     }
   }
 
-  {getter public {piggy-backing-enabled?}:bool
-    {return self._piggy-backing-enabled?}
+  {getter protected {piggybacking-enabled?}:bool
+    {return self._piggybacking-enabled?}
   }
 
-  {setter public {piggy-backing-enabled? b?:bool}:void
-    set self._piggy-backing-enabled? = b?
+  {setter protected {piggybacking-enabled? b?:bool}:void
+    set self._piggybacking-enabled? = b?
   }
 
   {method public {alarm-required?}:bool
@@ -172,7 +172,7 @@
      case cm:CommandMessage do
         || Nothing
      else
-        {if not self.poll-outstanding? and self.piggy-backing-enabled? then
+        {if not self.poll-outstanding? and self._piggybacking-enabled? then
             {if self.should-poll? then
                 set piggy-back? = true
              else

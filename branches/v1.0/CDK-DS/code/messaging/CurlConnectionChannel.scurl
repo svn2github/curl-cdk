@@ -41,6 +41,13 @@
     {return self._connection}
   }
 
+  {getter public {use-small-messages?}:bool
+    {return
+        super.use-small-messages? and
+        self._connection.object-encoding >= CurlConnection.AMF3
+    }
+  }
+
   {method protected {internal-connect}:void
 ||--    || NOTE: This call to {super.internal-connect} bubbles up to an empty method
 ||--    ||       in Channel.scurl. Thus, it's probably unnecessary.
@@ -55,12 +62,22 @@
   {method protected {internal-disconnect rejected?:bool = false}:void
     {super.internal-disconnect rejected? = rejected?}
     || TODO: shut-down-net-connection
-||--    {self.disconnect-succeeded rejected? = rejected?}
+    {self.disconnect-succeeded rejected? = rejected?}
   }
 
   {method protected {internal-send message-responder:MessageResponder}:void
     let message:IMessage = message-responder.message
     {self.set-flex-client-id-on-message message}
+
+    {if self.use-small-messages? then
+        {type-switch message
+         case sm:ISmallMessage do
+            {if-non-null small-msg = {sm.get-small-message} then
+                set message = small-msg
+            }
+        }
+    }
+    
     {self.connection.call
         command = null,
         responder = message-responder,
