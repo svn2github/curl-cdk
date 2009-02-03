@@ -71,15 +71,19 @@
     set self.max-attempts = max-attempts
   }
 
-  {method public {wait}:void
+  {method public {wait}:bool
+    let run-out?:bool = true
     {for i:int=0 below self.max-attempts do
         {dispatch-events true}
         {if not self.still-wait? then
             set self.still-wait? = true
+            set run-out? = (i == self.max-attempts - 1)
             {break}
         }
     }
+    {return run-out?}
   }
+  
   {method public {go-forward}:void
     set self.still-wait? = false
   }
@@ -516,6 +520,69 @@
             set pr.default-headers = new-value
             {dispatch-events true}
             {TestCondition.assert ok?}
+        },
+        {test-case "access reconnect-interval",
+            def pr = {def-producer}
+            let ok-normal?:bool = false
+            def old-value = pr.reconnect-interval
+            def new-value = 100s
+            {pr.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set ok-normal? =
+                        (pc.kind == PropertyChangeEventKind.update and
+                         pc.property == "reconnect-interval" and
+                         pc.old-value == old-value and
+                         pc.new-value == new-value)
+                }
+            }
+
+            || set normal value
+            set pr.reconnect-interval = new-value
+            {dispatch-events true}
+            
+            || set abnormal value (expect an error)
+            let ok-abnormal?:bool = false
+            {try
+                set pr.reconnect-interval = -1s
+             catch e:Exception do
+                set ok-abnormal? = true
+            }
+
+            || set 0s to stop resubscribing
+            let handled?:bool = false
+            let ok-set0?:bool = false
+            def w = {Waiter max-attempts = 100}
+            def msg = {AsyncMessage body = {DataObject test = "test"}}
+            def pr2 =
+                {def-producer
+                    {on mae:MessageAckEvent do
+                        {if not handled? then
+                            set handled? = true
+                            {pr2.channel-set.disconnect pr2}
+                         else
+                            {type-switch mae.correlation
+                             case cm:CommandMessage do
+                                {if cm.operation ==
+                                    CommandMessage.TRIGGER_CONNECT_OPERATION
+                                 then
+                                    {w.go-forward}
+                                }
+                            }
+                        }
+                    },
+                    {on pr:PropertyChangeEvent do
+                        {if pr.property == "connected?" then
+                            set ok-set0? = not pr.new-value
+                        }
+                    }
+                }
+            set pr2.reconnect-interval = 0s
+            set pr2.reconnect-attempts = 1
+            {pr2.send msg}
+            {w.wait}
+            {TestCondition.assert
+                ok-normal? and ok-abnormal? and ok-set0?
+            }
         }
     }
 }
