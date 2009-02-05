@@ -157,26 +157,33 @@
                  then
                     {return}
                 }
-                def fault = {new Fault,
-                                {if-non-null fc = event.fault-code then
-                                    fc
-                                 else
-                                    ""
-                                },
-                                {if-non-null fs = event.fault-string then
-                                    fs
-                                 else
-                                    ""
-                                },
-                                fault-detail = event.fault-detail
-                            }
-                def fault-event = {FaultEvent
-                                      fault = fault,
-                                      token = token,
+
+                {if {self.process-fault
+                        {non-null event.message},
+                        {non-null token}
+                    }
+                 then
+                    def fault = {new Fault,
+                                    {if-non-null fc = event.fault-code then
+                                        fc
+                                     else
+                                        ""
+                                    },
+                                    {if-non-null fs = event.fault-string then
+                                        fs
+                                     else
+                                        ""
+                                    },
+                                    fault-detail = event.fault-detail
+                                }
+                    def fault-event = {FaultEvent
+                                          fault = fault,
+                                          token = token,
 ||--                                      headers = self.response-headers,
-                                      message = event.message
-                                  }
-                {self.dispatch-rpc-event fault-event}
+                                          message = event.message
+                                      }
+                    {self.dispatch-rpc-event fault-event}
+                }
             }
         }
   }
@@ -205,7 +212,7 @@
     {return {self.active-calls.remove-call id}}
   }
 
-  {method private {process-result message:IMessage, token:AsyncToken}:bool
+  {method protected {process-result message:IMessage, token:AsyncToken}:bool
 
     def body = message.body
 
@@ -219,6 +226,10 @@
         set self.result = body
 ||--    }
 
+    {return true}
+  }
+
+  {method protected {process-fault message:IMessage, token:AsyncToken}:bool
     {return true}
   }
 }

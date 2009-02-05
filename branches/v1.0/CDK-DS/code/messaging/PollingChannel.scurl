@@ -39,23 +39,24 @@
     }
   }
 
-  {getter public {polling-enabled?}:bool
+  {getter protected {polling-enabled?}:bool
     {return self._polling-enabled?}
   }
 
-  {setter public {polling-enabled? b?:bool}:void
+  {setter protected {polling-enabled? b?:bool}:void
     set self._polling-enabled? = b?
     {if not b? and
         ({self.alarm-running?} or
          (not {self.alarm-running?} and self._polling-interval == 0s))
      then
         {self.stop-polling}
+
      elseif b? and self.should-poll? and not {self.alarm-running?} then
         {self.start-polling}
     }
   }
 
-  {getter public {polling-interval}:Time
+  {getter protected {polling-interval}:Time
     {if self._alarm != null then
         {return self._polling-interval}
      else
@@ -63,7 +64,7 @@
     }
   }
 
-  {setter public {polling-interval t:Time}:void
+  {setter protected {polling-interval t:Time}:void
     {if t == 0s then
         set self._polling-interval = t
         {if-non-null alarm = self._alarm then
@@ -90,6 +91,10 @@
 
   {setter protected {piggybacking-enabled? b?:bool}:void
     set self._piggybacking-enabled? = b?
+  }
+
+  {getter protected {realtime?}:bool
+    {return self.polling-enabled?}
   }
 
   {method public {alarm-required?}:bool
@@ -203,6 +208,12 @@
         }
     }
   }
+
+  {method protected {connect-failed event:ChannelFaultEvent}:void
+    {self.stop-polling}
+    {super.connect-failed event}
+  }
+
   {method protected {enable-alarm}:void
     {if-non-null alarm = self._alarm then
         {alarm.cancel}
@@ -215,7 +226,7 @@
     || method for any specific behavior.
   }
 
-  {method protected {get-message-responder
+  {method final protected {get-message-responder
                         agent:MessageAgent,
                         message:IMessage
                     }:#MessageResponder

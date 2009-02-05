@@ -65,7 +65,9 @@
   }
 
   {setter public {channel-set cs:#ChannelSet}void
-    set self.async-request.channel-set = cs
+    {if self.channel-set != cs then
+        set self.async-request.channel-set = cs
+    }
   }
 
   {getter public {destination}:String

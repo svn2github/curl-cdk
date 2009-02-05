@@ -23,7 +23,6 @@
   field private _reconnect-attempts:int = 0
   field private _reconnect-interval:Time = 0ms
   field private reconnect-timer:#Timer
-  || TODO: implement 'priority'
 
   {doc-next
     {purpose
@@ -159,8 +158,8 @@
   }
 
   {method public {disconnect}:void
-    || TODO: StopReconnectTimer
     set self.should-be-connected? = false
+    {self.stop-reconnect-timer}
     {super.disconnect}
   }
 

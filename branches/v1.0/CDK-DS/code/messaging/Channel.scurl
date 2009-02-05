@@ -22,8 +22,8 @@
   field private _connected?:bool = false
   field private connecting?:bool = false
   field private owns-wait-guard?:bool = false
-  field private failover-index:int
-  field private _failover-uris:{Array-of Url}
+  field private failover-index:int = -1
+  field private _failover-uris:{Array-of Url} = {{Array-of Url}}
   field private _id:#String
   field private _reconnecting?:bool = false
   field private _uri:#Url
@@ -31,7 +31,7 @@
   field private previously-connected?:bool = false
   field private connect-timer:#Alarm
   field private flex-client-wait-handler-proc:EventHandler
-  field private _small-messages-supported?:bool
+  field private _small-messages-supported?:bool = false
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
@@ -45,8 +45,6 @@
     set self._id = id
     set self._uri = uri
     set self.primary-uri = uri
-    set self._failover-uris = {{Array-of Url}}
-    set self.failover-index = -1
 
     set self.flex-client-wait-handler-proc =
         {on e:PropertyChangeEvent do
@@ -93,7 +91,9 @@
   }
 
   {setter public {id s:#String}:void
-    set self._id = s
+    {if self._id != s then
+        set self._id = s
+    }
   }
 
   {getter public {failover-uris}:{Array-of Url}
@@ -177,6 +177,10 @@
     }
   }
 
+  {getter protected {realtime?}:bool
+    {return false}
+  }
+
   {method public {set-credentials
                      credentials:#String,
                      agent:#MessageAgent = null,
@@ -254,17 +258,6 @@
                     set self.owns-wait-guard? = true
                     {self.internal-connect}
                  else
-                    || TODO: When the PropertyChangeEvents are in, swap this
-                    ||       {internal-connect} for the commented out code.
-||--                    {self.internal-connect}
-||--                    {flex-client.add-event-handler
-||--                        {on e:PropertyChangeEvent do
-||--                            {switch e.type
-||--                             case PropertyChangeEvent.PROPERTY_CHANGE do
-||--                                {self.flex-client-wait-handler e}
-||--                            }
-||--                        }
-||--                    }
                     {flex-client.add-event-handler
                         self.flex-client-wait-handler-proc
                     }
@@ -277,7 +270,11 @@
   }
 
   {method final public {disconnect channel-set:ChannelSet}:void
-    || TODO: What else should this do?
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    
     def channel-set-index = {self._channel-sets.find channel-set}
     {if channel-set-index >= 0 then
         {self._channel-sets.remove channel-set-index}

@@ -67,7 +67,7 @@
   }
 
   || TODO: remove this?
-  {setter protected {client-ids id:#String}:void
+  {setter protected {client-id id:#String}:void
     || FIXME: This is the same as {self.subscribe client-id = id} except for how
     || null id's are handled.
     {if super.client-id != id then
@@ -416,6 +416,10 @@
         {self.resubscribe-timer.disable}
         set self.resubscribe-timer = null
     }
+  }
+
+  {method protected {channel-connect-handler event:ChannelConnectEvent}:void
+    {super.channel-connect-handler event}
   }
 
   {method protected {channel-disconnect-handler event:ChannelDisconnectEvent}:void

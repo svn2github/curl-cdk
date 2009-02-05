@@ -64,6 +64,22 @@
     set super.piggybacking-enabled? = val
   }
 
+  {getter public {polling-enabled?}:bool
+    {return super.polling-enabled?}
+  }
+
+  {setter public {polling-enabled? val:bool}:void
+    set super.polling-enabled? = val
+  }
+
+  {getter public {polling-interval}:Time
+    {return super.polling-interval}
+  }
+
+  {setter public {polling-interval val:Time}:void
+    set super.polling-interval = val
+  }
+
   {method protected {internal-connect}:void
     {super.internal-connect}
     set self.ignore-net-status-events? = false
