@@ -178,6 +178,19 @@
         {test-case "subscribe",
             {test-consumer {def-consumer}}
         },
+        {test-case "subscribe(without use of SmallMessage)",
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            set channel.enable-small-messages? = false
+
+            {test-consumer
+                {def-consumer
+                    channel-set = {ChannelSet channel = channel}
+                }
+            }
+        },
         {test-case "receive",
             def amf-channel =
                 {AMFChannel id = default-destination, uri = amfpolling}
@@ -404,6 +417,27 @@
             {wa.wait}
             {TestCondition.assert ok?}
         },
+        {test-case "connect(timeout)",
+            def w = {Waiter}
+            let handled?:bool = false
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            set channel.connect-timeout = {pow .1, 10} * 1s
+            def pr = {def-producer
+                         channel-set = {ChannelSet channel = channel},
+                         {on e:ChannelFaultEvent do
+                             {if e.fault-code == "Channel.Connect.Failed" then
+                                 set handled? = true
+                                 {w.go-forward}
+                             }
+                         }
+                     }
+            {pr.send {AsyncMessage}}
+            {w.wait}
+            {TestCondition.assert handled?}
+        },
         {test-case "disconnect",
             let cc?:bool = false
             let handled?:bool = false
@@ -484,6 +518,32 @@
             {pr.send {AsyncMessage}}
             {w.wait}
             {TestCondition.assert handled? and not cc?}
+        },
+        {test-case "send (timeout)",
+            def w = {Waiter}
+            let handled?:bool = false
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            def pr = {def-producer
+                         channel-set = {ChannelSet channel = channel},
+                         {on e:MessageFaultEvent do
+                             {if e.fault-code == "Client.Error.RequestTimeout" then
+                                 set handled? = true
+                                 {w.go-forward}
+                             }
+                         }
+                     }
+            {pr.send
+                {AsyncMessage
+                    headers = {DataObject
+                                  DSRequestTimeout = {pow .1, 10}
+                              }
+                }
+            }
+            {w.wait}
+            {TestCondition.assert handled?}
         },
         {test-case "auto-connect?",
             def w = {Waiter}

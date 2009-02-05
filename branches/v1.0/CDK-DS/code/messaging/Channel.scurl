@@ -242,7 +242,6 @@
         {if not self.connecting? then
             set self.connecting? = true
             {if self.connect-timeout > 0s then
-                || TODO: Start a timeout timer.
                 set self.connect-timer =
                     {Alarm
                         {proc {}:void
