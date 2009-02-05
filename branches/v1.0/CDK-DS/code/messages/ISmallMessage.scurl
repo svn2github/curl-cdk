@@ -26,8 +26,6 @@
     }
   }
 
-  {method public {get-small-message}:#IMessage
-    {return null}
-  }
+  {method public abstract {get-small-message}:#IMessage}
 
 }

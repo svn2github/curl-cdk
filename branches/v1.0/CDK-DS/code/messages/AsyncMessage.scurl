@@ -36,7 +36,7 @@
         }
       }
 
-  field public correlation-id:#String
+  field private _correlation-id:#String
   field private correlation-id-bytes:#ByteArray
 
   let public constant SUBTOPIC_HEADER:String = "DSSubtopic" ||""
@@ -50,6 +50,22 @@
                       }
     {construct-super body = body, headers = headers}
     set self.correlation-id = ""
+  }
+
+  {getter public {correlation-id}:#String
+    {return self._correlation-id}
+  }
+
+  {setter public {correlation-id s:#String}:void
+    set self._correlation-id = s
+    set self.correlation-id-bytes = null
+  }
+
+  {method public {get-small-message}:#IMessage
+    {if {type-of self} == AsyncMessage then
+        {return {AsyncMessageExt message = self}}
+    }
+    {return null}
   }
 
   || A convenience method for deserializing externalizable AsyncMessages.
@@ -107,12 +123,5 @@
     {if-non-null correlation-id-bytes = self.correlation-id-bytes then
         {serializer.write-one correlation-id-bytes}
     }
-  }
-
-  {method public {get-small-message}:#IMessage
-    {if {type-of self} == AsyncMessage then
-        {return {AsyncMessageExt message = self}}
-    }
-    {return null}
   }
 }

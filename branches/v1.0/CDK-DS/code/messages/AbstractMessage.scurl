@@ -145,6 +145,10 @@
     set self.message-id-bytes = null
   }
 
+  {method public {get-small-message}:#IMessage
+    {return null}
+  }
+
   || A convenience method for deserializing externalizable AbstractMessages.
   {method public {read-external deserializer:AMFDeserializer}:void
     def input = deserializer.input
@@ -201,6 +205,7 @@
         }
     }
   }
+
   {define-proc protected {read-flags input:ByteInputStream}:ByteArray
     let has-next-flag?:bool = true
     def flags-array = {ByteArray}
