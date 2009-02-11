@@ -62,6 +62,8 @@
     "MessageFaultEvent.scurl",
     "MessageResponder.scurl",
     "MessagingException.scurl",
+    "MultiTopicConsumer.scurl",
+    "MultiTopicProducer.scurl",
     "PendingSend.scurl",
     "PollCommandMessageResponder.scurl",
     "PollingChannel.scurl",

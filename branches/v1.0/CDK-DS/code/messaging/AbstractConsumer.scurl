@@ -159,7 +159,7 @@
     {return self._subscribed?}
   }
 
-  {setter public {subscribed? b?:bool}:void
+  {setter protected {subscribed? b?:bool}:void
     {if self._subscribed? != b? then
         def event = {PropertyChangeEvent.create-update-event
                         self, "subscribed?",

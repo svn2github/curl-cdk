@@ -50,6 +50,9 @@
   let public constant NO_OP_POLL_HEADER:String = "DSNoOpPoll"
   let public constant POLL_WAIT_HEADER:String = "DSPollWait"
   let public constant MAX_FREQUENCY_HEADER:String = "DSMaxFrequency"
+  let public constant SUBTOPIC_SEPARATOR:String = "_;_"
+  let public constant ADD_SUBSCRIPTIONS:String = "DSAddSub"
+  let public constant REMOVE_SUBSCRIPTIONS:String = "DSRemSub"
   ||""))
 
   let public constant SUBSCRIBE_OPERATION:uint = 0
