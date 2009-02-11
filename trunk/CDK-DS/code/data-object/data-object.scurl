@@ -1028,7 +1028,7 @@
 {doc-next ||=== ExtendedArray
     {purpose Represents an {docref Array} extended by named properties.}
     {details Used for "ECMA Array" data 
-        with {docref AMFDeserializer} and {docref AMFSerializer}.}
+        with {docref AMFDeserializer} and {docref AMFSerializer}}.
 }
 {define-class public ExtendedArray {inherits Array}
 
