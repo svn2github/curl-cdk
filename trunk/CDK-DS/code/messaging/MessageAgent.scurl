@@ -34,7 +34,6 @@
         side yet.
     }
   }
-  field public request-timeout:Time = -1s
   field protected _client-id:#String
   field protected _connected?:bool = false
   field protected disconnect-barrier?:bool = false
@@ -51,6 +50,7 @@
   field private remote-credentials-character-encoding:#CharEncoding
   field private pending-connect-event:#ChannelConnectEvent
   field private client-id-wait-queue:#{Array-of IMessage}
+  field private _request-timeout:Time = -1s
 
   let public constant AUTO_CONFIGURED_CHANNELSET:int = 0
   let public constant MANUALLY_ASSIGNED_CHANNELSET:int = 1
@@ -94,8 +94,11 @@
 
   {setter public {id s:String}:void
     {if self._id != s then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "id", self._id, s
+                    }
         set self._id = s
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -119,9 +122,11 @@
             {self.channel-set.disconnect self}
             set self.channel-set = null
         }
-        || TODO: PropertyChangeEvent
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "destination", self._destination, d
+                    }
         set self._destination = d
-        || TODO: Dispatch event
+        {self.enqueue-event event}
     }
   }
 
@@ -148,10 +153,14 @@
     {return self._connected?}
   }
 
-  {setter public {connected? b?:bool}:void
+  {setter protected {connected? b?:bool}:void
     {if self._connected? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "connected?", self._connected?, b?
+                    }
         set self._connected? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
+
         {if-non-null self.channel-set then
             {self.set-authenticated?
                 b? and self.channel-set.authenticated?,
@@ -161,11 +170,11 @@
     }
   }
 
-  {getter public {needs-config?}:bool
+  {getter protected {needs-config?}:bool
     {return self._needs-config?}
   }
 
-  {setter public {needs-config? b?:bool}:void
+  {setter protected {needs-config? b?:bool}:void
     {if self._needs-config? != b? then
         set self._needs-config? = b?
         {if self._needs-config? then
@@ -188,10 +197,13 @@
   {getter public {channel-set}:#ChannelSet
     {if self._channel-set == null then
         {if-non-null endpoint = self._endpoint then
-            set self.channel-set =
+            def cs =
                 {ChannelSet
                     channel = {AMFChannel id = self.destination, uri = endpoint}
                 }
+            set cs.initial-destination-id = self.destination
+            {self.internal-set-channel-set cs}
+            set self.channel-set-mode = MessageAgent.AUTO_CONFIGURED_CHANNELSET
         }
     }
     {return self._channel-set}
@@ -223,14 +235,32 @@
     }
   }
 
+  {getter public {request-timeout}:Time
+    {return self._request-timeout}
+  }
+
+  {setter public {request-timeout val:Time}:void
+    {if self._request-timeout != val then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "request-timeout", self._request-timeout, val
+                    }
+        set self._request-timeout = val
+        {self.enqueue-event event}
+    }
+  }
+
   {getter public {authenticated?}:bool
     {return self._authenticated?}
   }
 
-  {method public {set-authenticated? b?:bool, credentials:#String = null}:void
+  {method protected {set-authenticated? b?:bool, credentials:#String = null}:void
     {if self._authenticated? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "authenticated?", self._authenticated?, b?
+                    }
         set self._authenticated? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
+        
         {if b? then
             {if-non-null credentials then
                 {if credentials != self.credentials then
@@ -410,7 +440,6 @@
         wait-for-client-id? and
         (self.client-id == null)
      then
-        || TODO: Implement message queueing behavior.
         {if self.client-id-wait-queue == null then
             set self.client-id-wait-queue = {{Array-of IMessage}}
          else
@@ -465,14 +494,6 @@
   }
 
   {method protected {init-channel-set message:IMessage}:void
-    {if self.channel-set == null then
-        set self.channel-set-mode = MessageAgent.AUTO_CONFIGURED_CHANNELSET
-||--        {self.internal-set-channel-set
-||--            {ServerConfig.get-channel-set self.destination}
-||--        }
-        {error {lmessage No channel set configured.}}
-    }
-
     {if self.channel-set.connected? and
         self.needs-config? and
         not self.config-requested?
@@ -497,7 +518,10 @@
         {if-non-null old-channel-set = self._channel-set then
             {old-channel-set.disconnect self}
         }
-        || TODO: Create a PropertyChangeEvent
+
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "channel-set", self._channel-set, channel-set
+                    }
         set self._channel-set = channel-set
         {if-non-null channel-set then
             {if-non-null self.credentials then
@@ -509,7 +533,7 @@
             }
             {channel-set.connect self}
         }
-        || TODO: Dispatch the PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 

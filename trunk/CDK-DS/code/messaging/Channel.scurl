@@ -22,37 +22,34 @@
   field private _connected?:bool = false
   field private connecting?:bool = false
   field private owns-wait-guard?:bool = false
-  field private failover-index:int
-  field private _failover-uris:{Array-of Url}
+  field private failover-index:int = -1
+  field private _failover-uris:{Array-of Url} = {{Array-of Url}}
   field private _id:#String
   field private _reconnecting?:bool = false
   field private _uri:#Url
   field private primary-uri:#Url
   field private previously-connected?:bool = false
+  field private connect-timer:#Alarm
+  field private flex-client-wait-handler-proc:EventHandler
+  field private _small-messages-supported?:bool = false
   field protected login-after-disconnect?:bool = false
   field protected credentials:#String
   field protected messaging-version:double = 1.0
   field protected-get private-set should-be-connected?:bool = false
-  {doc-next
-    {purpose
-        Not implemented yet.
-    }
-  }
   field public connect-timeout:Time = -1s
-
-  {doc-next
-    {purpose
-        Not implemented yet.
-    }
-  }
+  field public enable-small-messages?:bool = true
   field public request-timeout:Time = -1s
 
+  
   {constructor public {default id:#String = null, uri:#Url = null}
     set self._id = id
     set self._uri = uri
     set self.primary-uri = uri
-    set self._failover-uris = {{Array-of Url}}
-    set self.failover-index = -1
+
+    set self.flex-client-wait-handler-proc =
+        {on e:PropertyChangeEvent do
+            {self.flex-client-wait-handler e}
+        }
 
     {self.add-event-handler
         {on e:ChannelConnectEvent do
@@ -94,7 +91,9 @@
   }
 
   {setter public {id s:#String}:void
-    set self._id = s
+    {if self._id != s then
+        set self._id = s
+    }
   }
 
   {getter public {failover-uris}:{Array-of Url}
@@ -134,6 +133,16 @@
     set self._authenticating? = b?
   }
 
+  {getter public {use-small-messages?}:bool
+    {return
+        (self._small-messages-supported? and self.enable-small-messages?)
+    }
+  }
+
+  {setter public {use-small-messages? val:bool}:void
+    set self._small-messages-supported? = val
+  }
+  
   {getter protected {connected?}:bool
     {return self._connected?}
   }
@@ -143,8 +152,11 @@
         {if self._connected? then
             set self.previously-connected? = true
         }
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "connected?", self._connected?, b?
+                    }
         set self._connected? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
         {if not b? then
             set self.authenticated? = false
         }
@@ -157,30 +169,16 @@
 
   {setter protected {reconnecting? b?:bool}:void
     {if self._reconnecting? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "reconnecting?", self._reconnecting?, b?
+                    }
         set self._reconnecting? = b?
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
-  {method protected {internal-connect}:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {internal-disconnect rejected?:bool = false}:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {internal-send
-                        message-responder:MessageResponder
-                    }:void
-    || This implementation intentionally left blank.
-  }
-
-  {method protected {get-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return null}
+  {getter protected {realtime?}:bool
+    {return false}
   }
 
   {method public {set-credentials
@@ -244,7 +242,13 @@
         {if not self.connecting? then
             set self.connecting? = true
             {if self.connect-timeout > 0s then
-                || TODO: Start a timeout timer.
+                set self.connect-timer =
+                    {Alarm
+                        {proc {}:void
+                            {self.connect-timeout-handler}
+                        },
+                        delay = self.connect-timeout
+                    }
             }
             def flex-client = {FlexClient.get-instance}
             {if flex-client.id == null then
@@ -253,17 +257,9 @@
                     set self.owns-wait-guard? = true
                     {self.internal-connect}
                  else
-                    || TODO: When the PropertyChangeEvents are in, swap this
-                    ||       {internal-connect} for the commented out code.
-                    {self.internal-connect}
-||--                    {flex-client.add-event-handler
-||--                        {on e:PropertyChangeEvent do
-||--                            {switch e.type
-||--                             case PropertyChangeEvent.PROPERTY_CHANGE do
-||--                                {self.flex-client-wait-handler e}
-||--                            }
-||--                        }
-||--                    }
+                    {flex-client.add-event-handler
+                        self.flex-client-wait-handler-proc
+                    }
                 }
              else
                 {self.internal-connect}
@@ -272,28 +268,34 @@
     }
   }
 
-  {method public {disconnect channel-set:ChannelSet}:void
-    || TODO: What else should this do?
+  {method final public {disconnect channel-set:ChannelSet}:void
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    
     def channel-set-index = {self._channel-sets.find channel-set}
     {if channel-set-index >= 0 then
         {self._channel-sets.remove channel-set-index}
-    }
-    {if self.connected? then
-        {channel-set.channel-disconnect-handler
-            {ChannelDisconnectEvent
-                channel = self,
-                connected? = self.connected?
+
+        def connected? = self.connected?
+        {if self.channel-sets.empty? then
+            set self.should-be-connected? = false
+            {if connected? then
+                {self.internal-disconnect}
+            }
+        }
+        {if connected? then
+            {channel-set.channel-disconnect-handler
+                {ChannelDisconnectEvent
+                    channel = self,
+                    connected? = self.connected?
+                }
             }
         }
     }
-    {if self.channel-sets.empty? then
-        set self.should-be-connected? = false
-        {if self.connected? then
-            {self.internal-disconnect}
-        }
-    }
   }
-
+  
   {method public {logout agent:#MessageAgent = null}:void
     {if (self.connected? and
          self.authenticated? and
@@ -336,7 +338,7 @@
   }
 
   {method protected {connect-succeeded}:void
-    || TODO: shutdownConnectTimer()
+    {self.shutdown-connect-timer}
     || TODO: ServerConfig and agent configuration stuff.
     set self.connected? = true
     set self.failover-index = -1
@@ -351,8 +353,9 @@
   }
 
   {method protected {connect-failed event:ChannelFaultEvent}:void
-    || TODO: shutdownConnectTimer()
+    {self.shutdown-connect-timer}
     set self.connected? = false
+
     {if not event.rejected? and {self.should-attempt-failover?} then
         set self.connecting? = true
         {self.failover}
@@ -365,13 +368,50 @@
     {self.enqueue-event event}
   }
 
-  {method private {cleanup-connect}:void
-    {if self.owns-wait-guard? then
-        set self.owns-wait-guard? = false
-        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+  {method protected {disconnect-succeeded rejected?:bool=false}:void
+    set self.connected? = false
+
+    {if not rejected? and {self.should-attempt-failover?} then
+        set self.connecting? = true
+        {self.failover}
+     else
+        set self.connecting? = false
     }
+
+    {self.enqueue-event
+        {ChannelDisconnectEvent
+            channel = self,
+            reconnecting? = self.reconnecting?,
+            rejected? = rejected?
+        }
+    }
+  }
+
+  {method protected {disconnect-failed event:ChannelFaultEvent}:void
     set self.connecting? = false
-    set self.reconnecting? = false
+    set self.connected? = false
+
+    {if self.reconnecting? then
+        {self.reset-to-primary-uri}
+        set event.reconnecting? = false
+    }
+    {self.enqueue-event event}
+  }
+
+  {method protected {connect-timeout-handler}:void
+    {self.shutdown-connect-timer}
+    {if not self.connected? then
+        set self.should-be-connected? = false
+        def err-msg = {lmessage Connect attempt timed out.}
+        def event = {ChannelFaultEvent
+                        channel = self,
+                        reconnecting? = false,
+                        code = "Channel.Connect.Failed",
+                        level = "error",
+                        description = err-msg
+                    }
+        {self.connect-failed event}
+    }
   }
 
   {method protected {initialize-request-timeout responder:MessageResponder}:void
@@ -396,9 +436,53 @@
     }
   }
 
-||--  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
-||--    || TODO:
-||--  }
+  {method protected {internal-connect}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-disconnect rejected?:bool = false}:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {internal-send
+                        message-responder:MessageResponder
+                    }:void
+    || This implementation intentionally left blank.
+  }
+
+  {method protected {get-message-responder
+                        agent:MessageAgent,
+                        message:IMessage
+                    }:#MessageResponder
+    {return null}
+  }
+
+  {method protected {handle-server-messaging-version version:double}:void
+    set self.use-small-messages? = (version >= self.messaging-version)
+  }
+
+  {method protected {set-flex-client-id-on-message message:IMessage}:void
+    set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
+        {if-non-null id = {FlexClient.get-instance}.id then
+            id
+         else
+            FlexClient.NULL_FLEXCLIENT_ID
+        }
+  }
+
+  {method protected {flex-client-wait-handler event:PropertyChangeEvent}:void
+    {if event.property == "wait-for-flex-client-id?" then
+        def client:FlexClient = event.source asa FlexClient
+        {if not client.wait-for-flex-client-id? then
+            {client.remove-event-handler
+                self.flex-client-wait-handler-proc
+            }
+            set client.wait-for-flex-client-id? = true
+            set self.owns-wait-guard? = true
+            {self.internal-connect}
+        }
+    }
+  }
 
   {method private {should-attempt-failover?}:bool
     {return
@@ -437,12 +521,19 @@
     set self.uri = self.primary-uri
   }
 
-  {method protected {set-flex-client-id-on-message message:IMessage}:void
-    set message.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER] =
-        {if-non-null id = {FlexClient.get-instance}.id then
-            id
-         else
-            FlexClient.NULL_FLEXCLIENT_ID
-        }
+  {method private {shutdown-connect-timer}:void
+    {if-non-null timer = self.connect-timer then
+        {timer.cancel}
+        set self.connect-timer = null
+    }
+  }
+
+  {method private {cleanup-connect}:void
+    {if self.owns-wait-guard? then
+        set self.owns-wait-guard? = false
+        set {FlexClient.get-instance}.wait-for-flex-client-id? = false
+    }
+    set self.connecting? = false
+    set self.reconnecting? = false
   }
 }

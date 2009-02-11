@@ -24,7 +24,8 @@
   field private _authenticated?:bool = false
   field private _connected?:bool = false
   field private connecting?:bool = false
-  field private clustered?:bool
+  field private _clustered?:bool
+  field private _initial-destination-id:String = ""
   field private _channel-failover-uris:{HashTable-of String, {Array-of Url}}
   field private has-requested-cluster-endpoints?:bool = false
   field private _configured?:bool = false
@@ -176,6 +177,25 @@
 
   {getter public {current-channel}:#Channel
     {return self._current-channel}
+  }
+
+  {getter public {clustered?}:bool
+    {return self._clustered?}
+  }
+
+  {setter public {clustered? val:bool}:void
+    {if self._clustered? != val then
+        ||TODO: handle channel-ids
+        set self._clustered? = val
+    }
+  }
+
+  {getter public {initial-destination-id}:String
+    {return self._initial-destination-id}
+  }
+
+  {setter public {initial-destination-id val:String}:void
+    set self._initial-destination-id = val
   }
 
   {getter protected {channel-failover-uris}:{HashTable-of String, {Array-of Url}}
@@ -507,12 +527,22 @@
   
   {method public {send agent:MessageAgent, message:IMessage}:void
     {if self.current-channel != null and self.connected? then
-        || TODO: Filter out any commands to trigger connection establishment?
+        
+        {type-switch message
+         case cm:CommandMessage do
+            {if cm.operation == CommandMessage.TRIGGER_CONNECT_OPERATION then
+                def ack = {AcknowledgeMessage}
+                set ack.client-id = agent.client-id
+                set ack.correlation-id = message.message-id
+                {agent.acknowledge ack, message}
+                {return}
+            }
+        }
 
         {if not self.has-requested-cluster-endpoints? and self.clustered? then
             def cmd = {CommandMessage}
             {if agent isa AuthenticationAgent then
-                || TODO: initial-destination-id
+                set cmd.destination = self.initial-destination-id
              else
                 set cmd.destination = agent.destination
             }
@@ -554,8 +584,13 @@
 
   {method private {hunt}:bool
     {if self.channels.empty? then
-        {error {lmessage No channel available.}}
+        {error {lmessage No channels are available for use.}}
     }
+    
+    {if-non-null self.current-channel then
+        {self.disconnect-channel}
+    }
+    
     {inc self.current-channel-index}
     {if self.current-channel-index >= self.channels.size or
         self.current-channel-index < 0
@@ -569,7 +604,7 @@
     {if self.configured? then
 ||--        {if-non-null channel = self.channels[self.current-channel-index] then
         def channel = self.channels[self.current-channel-index]
-            set self._current-channel = channel
+        set self._current-channel = channel
 ||--         else
             || TODO: This implementation iterates over the channels, but the
             ||       Flex implementation does it differently. Figure out what's
@@ -629,7 +664,9 @@
 
   {method public {add-channel channel:Channel}:void
     {if self.configured? then
-        {error {lmessage Cannot add channels when configured.}}
+        {error
+            {lmessage Channels cannot be added to a ChannelSet that targets a configured destination.}
+        }
     }
     {if self.clustered? and channel.id == null then
         {error {lmessage Cannot add null id channel when clustered.}}
@@ -685,11 +722,6 @@
     {self.current-channel.disconnect self}
   }
 
-||--  {method protected {dispatch-rpc-event event:AbstractEvent}:void
-||--    {event.call-token-responders}
-||--    {self.enqueue-event event}
-||--  }
-
   {method protected {message-handler event:MessageEvent}:void
     {self.enqueue-event event}
   }
@@ -702,10 +734,18 @@
     
     {while not self.pending-sends.empty? do
         def ps = self.pending-sends[0]
+        {self.pending-sends.remove 0}
         def ps-msg = ps.message
         {self.pending-messages.remove ps-msg, error-if-missing? = false}
         {type-switch ps-msg
          case cm:CommandMessage do
+            {if cm.operation == CommandMessage.TRIGGER_CONNECT_OPERATION then
+                def ack = {AcknowledgeMessage}
+                set ack.client-id = ps.agent.client-id
+                set ack.correlation-id = cm.message-id
+                {ps.agent.acknowledge ack, cm}
+                {continue}
+            }
             {if not ps.agent.config-requested? and
                 ps.agent.needs-config? and
                 cm.operation == CommandMessage.CLIENT_PING_OPERATION
@@ -715,7 +755,6 @@
             }
         }
         {self.send ps.agent, ps-msg}
-        {self.pending-sends.remove 0}
     }
 
     {if self.hunting? then

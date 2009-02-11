@@ -21,15 +21,17 @@
       {new {HashTable-of #String, AbstractConsumer}}
   field private constant channel-set-ref-counts:{HashTable-of #ChannelSet, int} =
       {new {HashTable-of #ChannelSet, int}}
-  field private constant consumer-duplicate-message-barrier:{HashTable-of String, any} =
-      {new {HashTable-of String, any}}
+  field private constant consumer-duplicate-message-barrier:{HashTable-of String, Array} =
+      {new {HashTable-of String, Array}}
   field private constant channel-set-event-handler:EventHandler
+
+  field private last-target:#ChannelSet
 
   {constructor protected {default}
     set self.channel-set-event-handler =
-        {on e:MessageEvent do
+        {on e:MessageEvent at cs:ChannelSet do
             {if {type-of e} == MessageEvent then
-                {self.message-handler e}
+                {self.message-handler e, cs}
             }
         }
   }
@@ -61,6 +63,7 @@
         {self.channel-set-ref-counts.get-if-exists channel-set}
     {if not exists? then
         {channel-set.add-event-handler self.channel-set-event-handler}
+        set self.last-target = channel-set
     }
     set self.channel-set-ref-counts[channel-set] = ref-count + 1
   }
@@ -86,36 +89,45 @@
     }
   }
 
-  {method private {message-handler event:MessageEvent}:void
-    {if {self.consumers.key-exists? event.message.client-id} then
-
-        def consumer = self.consumers[event.message.client-id]
-
-||--        {if event.target.current-channel.channel-sets.size > 1 then
-||--            def consumer-id = consumer.id
-||--            {if not {self.consumer-duplicate-message-barrier.key-exists?
-||--                        consumer-id
-||--                    }
-||--             then
-||--                set self.consumer-duplicate-message-barrier[consumer-id] =
-||--                    {new Object}
-||--            }
-||--            def channel-id = event.target.current-channel.id
-||--            {if self.consumer-duplicate-message-barrier
-||--                [consumer-id][channel-id] != event.message-id
-||--             then
-||--                set self.consumer-duplicate-message-barrier
-||--                [consumer-id][channel-id] = event.message-id
-||--                {consumer.message-handler event}
-||--            }
-||--
-||--         else
-
-            {consumer.message-handler event}
-||--        }
-
-     else
+  {method private {message-handler event:MessageEvent, target:ChannelSet}:void
+    def client-id = event.message.client-id
+    {if client-id == null then
         {return}
     }
+    def (consumer, exists?) = {self.consumers.get-if-exists client-id}
+    {if not exists? then
+        {return}
+    }
+    {dump consumer.id}
+    
+    {if target.current-channel.channel-sets.size > 1 then
+        let cnt:int = 0
+        {for cs in target.current-channel.channel-sets do
+            {if {self.channel-set-ref-counts.key-exists? cs} then
+                {inc cnt}
+            }
+        }
+
+        {if cnt > 1 then
+            def consumer-id = consumer.id
+            {if not {self.consumer-duplicate-message-barrier.key-exists?
+                        consumer-id
+                    }
+             then
+                set self.consumer-duplicate-message-barrier[consumer-id] =
+                    {Array event.message-id, cnt}
+                {consumer.message-handler event}
+            }
+
+            def guard = self.consumer-duplicate-message-barrier[consumer-id]
+            {if (guard[0] asa String) == event.message-id then
+                {if (guard[1] asa int) == 1 then
+                    {self.consumer-duplicate-message-barrier.remove consumer-id}
+                }
+            }
+            {return}
+        }
+    }
+    {consumer.message-handler event}
   }
 }

@@ -81,11 +81,14 @@
         {if reset-subscription? then
             {self.unsubscribe}
         }
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "selector", self._selector, s
+                    }
         set self._selector = s
         {if reset-subscription? then
             {self.subscribe client-id = self.client-id}
         }
-        || TODO: Fire PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 

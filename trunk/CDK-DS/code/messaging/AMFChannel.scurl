@@ -55,6 +55,30 @@
     {return self.poll-outstanding?}
   }
 
+  {getter public {piggybacking-enabled?}:bool
+    {return super.piggybacking-enabled?}
+  }
+
+  {setter public {piggybacking-enabled? val:bool}:void
+    set super.piggybacking-enabled? = val
+  }
+
+  {getter public {polling-enabled?}:bool
+    {return super.polling-enabled?}
+  }
+
+  {setter public {polling-enabled? val:bool}:void
+    set super.polling-enabled? = val
+  }
+
+  {getter public {polling-interval}:Time
+    {return super.polling-interval}
+  }
+
+  {setter public {polling-interval val:Time}:void
+    set super.polling-interval = val
+  }
+
   {method protected {internal-connect}:void
     {super.internal-connect}
     set self.ignore-net-status-events? = false
@@ -124,6 +148,14 @@
                     set flex-client.id = id asa String
                 }
             }
+
+            def (version, found?) = {msg.headers.get-if-exists
+                                        CommandMessage.MESSAGING_VERSION
+                                    }
+            {if found? then
+                {self.handle-server-messaging-version (version asa double)}
+            }
+            
             {self.connect-succeeded}
             {type-switch msg
              case err:ErrorMessage do
@@ -216,7 +248,16 @@
                             msg.headers[AbstractMessage.FLEX_CLIENT_ID_HEADER]
                         asa String
                     }
-                    || TODO: Process features advertised by the server endpoint.
+                    || Process features advertised by the server endpoint.
+                    def (version, found?) = {msg.headers.get-if-exists
+                                                CommandMessage.MESSAGING_VERSION
+                                            }
+                    {if found? then
+                        {self.handle-server-messaging-version
+                            (version asa double)
+                        }
+                    }
+                    
                     {self.connect-failed
                         {ChannelFaultEvent
                             channel = self,

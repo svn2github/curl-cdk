@@ -22,7 +22,6 @@
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
   field protected status-handler:{proc-type {msg:IMessage}:void} =
       {uninitialized-value-for-type {proc-type {msg:IMessage}:void}}
-  || Note: Not used yet.
   field private request-alarm:#Alarm
 
   {constructor public {default
@@ -35,6 +34,7 @@
     set self.agent = agent
     set self.message = message
     set self.channel = channel
+    set self.request-timed-out? = false
   }
 
   {method public {result message:IMessage}:void
@@ -55,15 +55,25 @@
     }
   }
 
-  {doc-next
-    {purpose
-        Not implemented yet.
-    }
-  }
   {method protected {start-request-timeout timeout:Time}:void
     || The argument passed in here might come from a message header, so it might
     || not be the Time value we want it to be.
-    || TODO: Set up the timeout alarm.
+    set self.request-alarm = {Alarm
+                                 {proc {}:void
+                                     {self.timeout-request}
+                                 },
+                                 delay = timeout
+                             }
+  }
+
+  {method protected {request-timed-out}:void
+    || Default implementation does nothing.
+  }
+
+  {method private {timeout-request}:void
+    set self.request-timed-out? = true
+    {self.release-alarm}
+    {self.request-timed-out}
   }
 
   {method protected {release-alarm}:void
