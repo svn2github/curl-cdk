@@ -15,15 +15,15 @@
 ||| limitations under the License.
 
 {define-class public abstract AbstractConsumer {inherits MessageAgent}
-  field protected current-attempt:int
-  field protected _resubscribe-attempts:int = 5
-  field protected _resubscribe-interval:Time = 5000ms
-  field protected resubscribe-timer:#Timer
-  field protected _subscribed?:bool = false
   field protected should-be-subscribed?:bool = false
   field protected subscribe-message:#CommandMessage
-  field protected _timestamp:double = -1
   field protected _max-frequency:Frequency = 0(1/s)
+  field private current-attempt:int
+  field private _resubscribe-attempts:int = 5
+  field private _resubscribe-interval:Time = 5000ms
+  field private resubscribe-timer:#Timer
+  field private _subscribed?:bool = false
+  field private _timestamp:double = -1
 
   {doc-next
     {purpose
@@ -66,6 +66,7 @@
     set self.agent-type = "consumer" ||""
   }
 
+  || TODO: remove this?
   {setter protected {client-id id:#String}:void
     || FIXME: This is the same as {self.subscribe client-id = id} except for how
     || null id's are handled.
@@ -111,8 +112,12 @@
         {if n == 0 then
             {self.stop-resubscribe-timer}
         }
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "resubscribe-attempts",
+                        self._resubscribe-attempts, n
+                    }
         set self._resubscribe-attempts = n
-        || TODO: Fire PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -136,8 +141,12 @@
                 set self.resubscribe-timer.interval = t
             }
         }
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "resubscribe-interval",
+                        self._resubscribe-interval, t
+                    }
         set self._resubscribe-interval = t
-        || TODO: Fire PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -150,8 +159,12 @@
     {return self._subscribed?}
   }
 
-  {setter public {subscribed? b?:bool}:void
+  {setter protected {subscribed? b?:bool}:void
     {if self._subscribed? != b? then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "subscribed?",
+                        self._subscribed?, b?
+                    }
         set self._subscribed? = b?
         {if self._subscribed? then
             {{ConsumerMessageDispatcher.get-instance}.register-subscription
@@ -178,7 +191,7 @@
                 }
             }
         }
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -188,8 +201,11 @@
 
   {setter public {timestamp d:double}:void
     {if self._timestamp != d then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "timestamp", self._timestamp, d
+                    }
         set self._timestamp = d
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
@@ -232,6 +248,8 @@
                 set self.subscribed? = true
                 {super.acknowledge ack, cm}
              case CommandMessage.POLL_OPERATION do
+                || Handle the result of a 'receive' invocation,
+                || but is this necessary?
                 {type-switch ack.body
                  case array:{Array-of any} do
                     {for a in array do
@@ -320,8 +338,6 @@
   {method public {unsubscribe preserve-durable?:bool = false}:void
     set self.should-be-subscribed? = false
     {if self.subscribed? then
-        || TODO: should this do something to avoid ack for wrong channel-set if channel-set
-        || is changed.
         {self.internal-send
             {self.build-unsubscribe-message
                 preserve-durable? = preserve-durable?
@@ -341,7 +357,8 @@
         def err = {ErrorMessage}
         set err.fault-code = "Client.Error.Subscribe" ||""
         set err.fault-string = {lmessage Consumer subscribe error}
-        set err.fault-detail = {lmessage Failed to subscribe}
+        set err.fault-detail =
+            {lmessage The consumer was not able to subscribe to its target destination.}
         {if-non-null subscribe-message = self.subscribe-message then
             set err.correlation-id = subscribe-message.message-id
             {self.fault err, subscribe-message}
@@ -399,6 +416,10 @@
         {self.resubscribe-timer.disable}
         set self.resubscribe-timer = null
     }
+  }
+
+  {method protected {channel-connect-handler event:ChannelConnectEvent}:void
+    {super.channel-connect-handler event}
   }
 
   {method protected {channel-disconnect-handler event:ChannelDisconnectEvent}:void
