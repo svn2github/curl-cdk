@@ -43,6 +43,7 @@
     "CommandMessageExt.scurl",
     "ErrorMessage.scurl",
     "IMessage.scurl",
+    "ISmallMessage.scurl",
     "RemotingMessage.scurl"
 }
 

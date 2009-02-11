@@ -50,6 +50,9 @@
   let public constant NO_OP_POLL_HEADER:String = "DSNoOpPoll"
   let public constant POLL_WAIT_HEADER:String = "DSPollWait"
   let public constant MAX_FREQUENCY_HEADER:String = "DSMaxFrequency"
+  let public constant SUBTOPIC_SEPARATOR:String = "_;_"
+  let public constant ADD_SUBSCRIPTIONS:String = "DSAddSub"
+  let public constant REMOVE_SUBSCRIPTIONS:String = "DSRemSub"
   ||""))
 
   let public constant SUBSCRIBE_OPERATION:uint = 0
@@ -105,6 +108,7 @@
   {constructor public {default}
     {construct-super}
     set self.timestamp = {DateTimeData}.epoch-second
+    set self.operation = CommandMessage.UNKNOWN_OPERATION
   }
 
   {define-proc public {get-operation-as-String op:int}:String
@@ -157,5 +161,15 @@
     {if operation != 0 then
         {serializer.write-one operation}
     }
+  }
+
+  {method public {get-small-message}:#IMessage
+    || We shouldn't use small messages for PING or LOGIN operations as the
+    || messaging version handshake would not yet be complete... for now just
+    || optimize POLL operations.
+    {if self.operation == CommandMessage.POLL_OPERATION then
+        {return {CommandMessageExt message = self}}
+    }
+    {return null}
   }
 }

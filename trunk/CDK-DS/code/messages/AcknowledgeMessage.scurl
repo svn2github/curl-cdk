@@ -62,4 +62,11 @@
     let flags:byte = 0
     {serializer.output.write-one flags}
   }
+
+  {method public {get-small-message}:#IMessage
+    {if {type-of self} == AcknowledgeMessage then
+        {return {AcknowledgeMessageExt message = self}}
+    }
+    {return null}
+  }
 }
