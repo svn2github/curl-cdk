@@ -1163,4 +1163,51 @@
         }
     }
   }
+
+ {doc-next
+    {purpose
+        Provide information about a column in a table.
+    }
+    {parameter database-name,
+        Name of the database to look for the table in.  If {ctext null}
+        search all attached databases for the table.
+    }
+    {parameter table-name,
+        Name of the table to look for the column in.
+    }
+    {parameter column-name,
+        Name of the column to get metadata for.
+    }
+    {notes
+        This may return a {ctext auto-increment?} of {ctext false} for columns
+        which are an alias for the {ctext ROWID}, even though the
+        {ctext ROWID} is basically auto-increment.
+    }
+  }
+  {method public {table-column-metadata
+                     database-name:#String,
+                     table-name:String,
+                     column-name:String
+                 }:(datatype:#String, collation:#String,
+                    not-null?:bool, primary-key?:bool, auto-increment?:bool)
+    def (status, datatype, collation, not-null?, primary-key?, auto-increment?) =
+        {{SQLiteInterface}.table-column-metadata
+            self._handle,
+            {if database-name == "" then "main" else database-name},
+            table-name,
+            column-name
+        }
+    {if status != SQLiteStatus.OK then
+        let errmsg:String =
+            {if status == SQLiteStatus.CURL-INTERNAL-MISSING-API then
+                {lmessage Metadata APIs are not available.}
+             else
+                {{SQLiteInterface}.errmsg self._handle}
+            }
+        {throw
+            {SQLiteException status, errmsg}
+        }
+    }
+    {return datatype, collation, not-null?, primary-key?, auto-increment?}
+  }
 }

@@ -93,8 +93,9 @@
                 platform = "win32"}
          case "linux" do
             || Built with
-            || CFLAGS="-Os -DSQLITE_OMIT_UTF16=1 -DSQLITE_DLL=1 -DSQLITE_HAS_CODEC=1"
-            || ./configure --disable-tcl --enable-threadsafe 
+            || CFLAGS="-Os -DSQLITE_OMIT_UTF16=1 -DSQLITE_DLL=1 \
+            || -DSQLITE_HAS_CODEC=1 -DSQLITE_ENABLE_COLUMN_METADATA=1" \
+            || ./configure --enable-threadsafe 
             ||
             || and stripped with:
             || strip -S -x --strip-unneeded .libs/libsqlite3.so.0.8.6 

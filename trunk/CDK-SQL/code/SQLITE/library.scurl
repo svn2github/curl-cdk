@@ -75,11 +75,11 @@
                     "curl://install/lib/" &
                     {platform-switch
                      case "win32" do
-                        "sqlite_3-6-2.dll"
+                        "sqlite_3-6-10.dll"
                      case "linux" do
-                        "sqlite_3-6-2.so"
+                        "sqlite_3-6-10.so"
                      case "mac" do
-                        "sqlite_3-6-2.dylib"
+                        "sqlite_3-6-10.dylib"
                      else
                         {unreachable}
                     }
@@ -2499,19 +2499,97 @@
 
   || reflection
   || ----------
-||--  || NOTE: not in default library
-||--  {dll-method public {table_column_metadata ("sqlite3_table_column_metadata") ||""
-||--                  sqlite3:SQLiteDatabaseHandle,
-||--                  dbname:#String,
-||--                  tablename:String,
-||--                  columnname:String,
-||--                  datatype:CPointer, ||{Pointer-to CStringUTF8},
-||--                  collseq:CPointer, ||{Pointer-to CStringUTF8},
-||--                  notnull:CPointer, ||{Pointer-to int},
-||--                  primarykey:CPointer, ||{Pointer-to int},
-||--                  autotinc:CPointer ||{Pointer-to int}
-||--              }:int
-||--  }
+  {doc-next
+    {purpose
+        Provide information about a column in a table.
+    }
+    {parameter sqlite3,
+        SQLite database handle.
+    }
+    {parameter database-name,
+        Name of the database to look for the table in.  If {ctext null}
+        search all attached databases for the table.
+    }
+    {parameter table-name,
+        Name of the table to look for the column in.
+    }
+    {parameter column-name,
+        Name of the column to get metadata for.
+    }
+    {return-vals
+        If the first return value is not {ctext SQLiteStatus.OK}, then the
+        return of the return values are undefined.
+    }
+    {notes
+        This may return a {ctext auto-increment?} of {ctext false} for columns
+        which are an alias for the {ctext ROWID}, even though the
+        {ctext ROWID} is basically auto-increment.
+    }
+  }
+  {method public {table-column-metadata
+                     sqlite3:SQLiteDatabaseHandle,
+                     database-name:#String,
+                     table-name:String,
+                     column-name:String
+                 }:(status:SQLiteStatus, datatype:#String, collation:#String,
+                    not-null?:bool, primary-key?:bool, auto-increment?:bool)
+    def datatype:{Pointer-to CStringUTF8} = {new {Pointer-to CStringUTF8}}
+    def collation:{Pointer-to CStringUTF8} = {new {Pointer-to CStringUTF8}}
+    def non-null:{Pointer-to int} = {new {Pointer-to int}}
+    def primary-key:{Pointer-to int} = {new {Pointer-to int}}
+    def auto-increment:{Pointer-to int} = {new {Pointer-to int}}
+    def status =
+        {self.table-column-metadata-internal
+            sqlite3.non-null-sqlite3,
+            database-name,
+            table-name,
+            column-name,
+            datatype,
+            collation,
+            non-null,
+            primary-key,
+            auto-increment
+        }
+    def datatype-string = {datatype.value.to-String-or-null}
+    def collation-string = {collation.value.to-String-or-null}
+    def primary-key? = primary-key.value != 0
+    {return 
+        {SQLiteStatus index = status},
+        datatype-string,
+        collation-string,
+        non-null.value != 0,
+        primary-key.value != 0,
+        auto-increment.value != 0 or
+        || For some reason auto-increment? is not true for rowid if there is
+        || not an explicitly declared column that is being used as the rowid,
+        || so fake it.
+        (primary-key? and
+         datatype-string == "INTEGER" and ||""
+         ({column-name.equal? "rowid", ignore-case? = true} or ||""
+          {column-name.equal? "oid", ignore-case? = true} or ||""
+          {column-name.equal? "_rowid_", ignore-case? = true})) ||""
+    }
+  }
+
+  || NOTE: not in default library, must be compiled with
+  || SQLITE_ENABLE_COLUMN_METADATA 
+  {dll-method private {table-column-metadata-internal
+                          ("sqlite3_table_column_metadata") ||""
+
+                          sqlite3:LowSQLiteDatabaseHandle,
+                          dbname:#String,
+                          tablename:String,
+                          columnname:String,
+                          datatype:{Pointer-to CStringUTF8},
+                          collseq:{Pointer-to CStringUTF8},
+                          notnull:{Pointer-to int},
+                          primarykey:{Pointer-to int},
+                          autotinc:{Pointer-to int}
+                      }:int
+    {if-missing
+        {return SQLiteStatus.CURL-INTERNAL-MISSING-API.index}
+    }
+  }
 
   {doc-next
     {purpose

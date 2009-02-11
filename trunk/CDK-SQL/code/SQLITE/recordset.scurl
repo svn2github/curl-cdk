@@ -18,7 +18,7 @@
 || --------------------
 {define-class public SQLiteRecordSet {inherits SQLConnectedRecordSet}
 
-  {define-proc private {need-rowid?
+  {define-proc package {need-rowid?
                            connection:SQLiteConnection,
                            database-name:String,
                            table-name:String
@@ -712,7 +712,7 @@
     }
     {for fi = 0 below self.fields.size do
         let f:SQLRecordField = {self.fields.get-by-index fi} asa SQLRecordField
-        || If there is more than one auto-increment column then this is doing
+        || If there is more than one auto-increment column then this is going
         || to screw stuff up.
         {if f.auto-increment? then
             let constant f-name:String = f.name

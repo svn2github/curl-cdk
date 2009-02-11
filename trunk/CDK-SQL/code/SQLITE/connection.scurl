@@ -109,6 +109,35 @@
     {return tables}
   }
 
+  {method private {get-auto-increment-for-name
+                      database-name:String,
+                      table-name:String,
+                      primary-key-field-name:String
+                  }:(found-answer?:bool, bool)
+    {try
+        let primary-key-is-auto-increment?:bool
+        def (datatype, collation, not-null?, primary-key?, auto-increment?) =
+            {self.database.table-column-metadata
+                database-name,
+                table-name,
+                primary-key-field-name
+            }
+            {if primary-key? and
+                (auto-increment? or
+                || Looks like an alias for ROWID
+                 not {SQLiteRecordSet.need-rowid?
+                        self, database-name, table-name
+                     })
+             then
+                set primary-key-is-auto-increment? = true
+            }
+        {return true, primary-key-is-auto-increment?}
+     catch ex:SQLiteException do
+        || Ignore errors like metadata functions don't exist.
+    }
+    {return false, false}
+  }
+
   {doc-next
     {purpose Return a {docref RecordFields} object representing the
         columns of a table or query result in the specified database.
@@ -140,32 +169,40 @@
     || FIXME: could we skip this if not request-modifiable?
     || Use table-name, if available to get additional meta-data.
     {if-non-null table-name then
-        || FIXME: There is no way to get if a column is auto-increment, so
-        || we check for a row about this table in sqlite_sequence, but
-        || that row may not be created until at least one row has been
-        || added to the table.  Maybe if we compile with metadata APIs
-        || we can find this out reliably.
-        {try
-            {self.execute-sqlite
-                "SELECT seq from " & ||""
-                {self.combined-table-name database-name, "sqlite_sequence"} &
-                " WHERE name='" & table-name & "'", ||""
-|#
-                args-callback =
-                    {proc {statement:SQLiteStatement}:void
-                        {statement.bind-text 1,
-                            {self.combined-table-name database-name, table-name}
-                        }
-                    },
-#|
-                callback =
-                    {proc {row:Array}:bool
-                        set primary-key-is-auto-increment? = true
-                        {return false}
-                    }
+        let got-answer?:bool
+        {if primary-keys != null and primary-keys.size == 1 then
+            set (got-answer?, primary-key-is-auto-increment?) =
+                {self.get-auto-increment-for-name
+                    database-name, table-name, primary-keys[0]
                 }
-         catch ex:SQLiteException do
-            || Ignore failures like the table not existing.
+        }
+        {if not got-answer? then
+            || FIXME: There is no way to get if a column is auto-increment, so
+            || we check for a row about this table in sqlite_sequence, but
+            || that row may not be created until at least one row has been
+            || added to the table.
+            {try
+                {self.execute-sqlite
+                    "SELECT seq from " & ||""
+                    {self.combined-table-name database-name, "sqlite_sequence"} &
+                    " WHERE name='" & table-name & "'", ||""
+|#
+                    args-callback =
+                        {proc {statement:SQLiteStatement}:void
+                            {statement.bind-text 1,
+                                {self.combined-table-name database-name, table-name}
+                            }
+                        },
+#|
+                    callback =
+                        {proc {row:Array}:bool
+                            set primary-key-is-auto-increment? = true
+                            {return false}
+                        }
+                    }
+             catch ex:SQLiteException do
+                || Ignore failures like the table not existing.
+            }
         }
         set (defaults, not-nulls) =
             {self.get-defaults-and-not-nulls-for-table database-name, table-name}
@@ -188,6 +225,7 @@
 
             {if i == hidden-primary-key-field then
                 set hidden-primary-key-field-name = real-name
+                let got-answer?:bool
                 {continue}
             }
             let decltype:#String = {statement.get-column-decltype i}
@@ -218,8 +256,11 @@
                     (null, false)
                 }
             let auto-increment?:bool =
-                primary-key? and primary-key-is-auto-increment? and
-                    (affinity == SQLiteDatatypeAffinity.INTEGER)
+                primary-key? and
+                (primary-keys == null or primary-keys.size == 1) and
+                primary-key-is-auto-increment? and
+                (affinity == SQLiteDatatypeAffinity.INTEGER)
+
             let not-null?:bool =
                 auto-increment? or
                 (not-nulls != null and {not-nulls.member? real-name})

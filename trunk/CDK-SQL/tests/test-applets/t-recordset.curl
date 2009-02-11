@@ -19,6 +19,7 @@
     {compiler-directives careful? = true}
 }
 {import * from COM.CURL.CDK.SQLITE}
+{import SQLRecordField from COM.CURL.CDK.SQL-BASE}
 
 {define-enum package SQLiteDecltype
     none = "",
@@ -184,7 +185,8 @@
                 database:SQLiteDatabase,
                 database-name:String,
                 table-name:String,
-                columns:String
+                columns:String,
+                create-view?:bool = true
              }:void
     {database.execute
         "CREATE " &
@@ -202,12 +204,14 @@
         } & " (" & columns & ")"
 
     }
-    {database.execute
-        "CREATE " & {if database-name == "temp" then "TEMP " else ""} &
-        "VIEW " &
-        {make-table-name database-name, table-name & "view"} &
-        " AS SELECT * FROM " &
-        {make-table-name database-name, table-name}
+    {if create-view? then
+        {database.execute
+            "CREATE " & {if database-name == "temp" then "TEMP " else ""} &
+            "VIEW " &
+            {make-table-name database-name, table-name & "view"} &
+            " AS SELECT * FROM " &
+            {make-table-name database-name, table-name}
+        }
     }
 }
 
@@ -1119,6 +1123,58 @@
         {error "Should have failed..."}
      catch ex:SQLiteException do
         || TODO: Is this the right type of exception?
+    }
+
+    || test that auto-increment markings are right.
+    {try
+        {create-table
+            database, database-name, "testai1",
+            "id INTEGER PRIMARY KEY, val", create-view? = false
+        }
+        def rs =
+            {SQLiteRecordSet.create-from-table-name
+                con,
+                database-name,
+                "testai1",
+                request-modifiable? = true
+            }
+        {assert ({rs.fields.get-if-exists "id"} asa SQLRecordField).auto-increment?}
+     finally
+        {drop-table database, database-name, "testai1"}
+    }
+    {try
+        {create-table
+            database, database-name, "testai2",
+            "id2 INTEGER PRIMARY KEY AUTOINCREMENT, val", create-view? = false
+        }
+        def rs =
+            {SQLiteRecordSet.create-from-table-name
+                con,
+                database-name,
+                "testai2",
+                request-modifiable? = true
+            }
+        {assert ({rs.fields.get-if-exists "id2"} asa SQLRecordField).auto-increment?}
+     finally
+        {drop-table database, database-name, "testai2"}
+    }
+    {try
+        {create-table
+            database, database-name, "testai3", "val",
+            create-view? = false
+        }
+        def rs =
+            {con.create-sql-record-set
+                database-name,
+                "SELECT rowid, val from " &
+                    {make-table-name database-name, "testai3"},
+                primary-keys = {StringArray "rowid"},
+                table-name = "testai3",
+                request-modifiable? = true
+            }
+        {assert ({rs.fields.get-if-exists "rowid"} asa SQLRecordField).auto-increment?}
+     finally
+        {drop-table database, database-name, "testai3"}
     }
 }
 
