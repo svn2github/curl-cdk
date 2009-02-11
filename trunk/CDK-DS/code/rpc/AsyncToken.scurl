@@ -14,7 +14,7 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{define-class public AsyncToken
+{define-class public AsyncToken {inherits EventTarget}
   field private _message:IMessage
   field private responders:#{Array-of IResponder}
   field public-get private-set result:any
@@ -56,8 +56,11 @@
 
   {method protected {set-result result:any}:void
     {if self.result != result then
+        def event = {PropertyChangeEvent.create-update-event
+                        self, "result", self.result, result
+                    }
         set self.result = result
-        || TODO: Fire a PropertyChangeEvent
+        {self.enqueue-event event}
     }
   }
 
