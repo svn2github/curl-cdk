@@ -46,6 +46,28 @@
         }
     }
 }
+{define-proc {def-multi-consumer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}
+                     },
+                 subscriptions:{Array-of SubscriptionInfo} =
+                     {{Array-of SubscriptionInfo} {SubscriptionInfo}},
+                 ...:EventHandler
+             }:MultiTopicConsumer
+    {return
+        {MultiTopicConsumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            subscriptions = subscriptions,
+            ...
+        }
+    }
+}
 
 {define-proc {def-producer
                  endpoint:Url = amfpolling,
@@ -68,6 +90,27 @@
     }
 }
 
+{define-proc {def-multi-producer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 subtopics:Array = {Array},
+                 ...:EventHandler
+             }:MultiTopicProducer
+    {return
+        {MultiTopicProducer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            subtopics = subtopics,
+            ...
+        }
+    }
+}
+
 {define-proc {is-subscribe? mae:MessageAckEvent}:bool
     {type-switch mae.correlation
      case cmd:CommandMessage do
@@ -81,7 +124,8 @@
                  consumer:AbstractConsumer,
                  producer:AbstractProducer = {def-producer},
                  do-receiving?:bool = false,
-                 max-attempts:int = 500
+                 max-attempts:int = 500,
+                 selector:any = null
              }:(ok?:bool, ran-out?:bool)
     || message received by consumer
     let result:any
@@ -106,13 +150,18 @@
         {on mae:MessageAckEvent do
             {type-switch mae.correlation
              case cmd:CommandMessage do
-                {if cmd.operation == CommandMessage.SUBSCRIBE_OPERATION then
+                {if cmd.operation == CommandMessage.SUBSCRIBE_OPERATION or
+                    cmd.operation == CommandMessage.MULTI_SUBSCRIBE_OPERATION
+                 then
                     def msg = {AsyncMessage
                                   body = {DataObject
                                              chatMessage = chat-message
                                          }
                               }
-                    set msg.headers["selector"] = "selector"
+                    {if-non-null selector then
+                        set msg.headers["selector"] = selector
+                    }
+                    {dump "sent!!!"}
                     {producer.send msg}
                     {sleep 1s}
                 }
@@ -125,6 +174,7 @@
              case obj:DataObject do
                 def (x, x?) = {obj.get-if-exists "chatMessage"}
                 {if x? then
+                    {dump "received!!!"}
                     set result = x
                     {tm.end-idling}
                 }
@@ -198,10 +248,12 @@
         },
         {test-case "use of selector",
             def ok? = {confirm-messaging
-                          {def-consumer selector = "selector = 'selector'"}
+                          {def-consumer selector = "selector = 'selector'"},
+                          selector = "selector"
                       }
             def ng? = {confirm-messaging
                           {def-consumer selector = "selector = ''"},
+                          selector = "selector",
                           max-attempts = 50
                       }
             {TestCondition.assert
@@ -446,11 +498,6 @@
             {TestCondition.assert
                 con.subscribed? and handled? and mc? and cc?
             }
-        }
-    },
-    {TestSuite "MultiTopicProducer/Consumer",
-        {test-case "subtopic",
-            
         }
     },
     {TestSuite "Producer",
@@ -699,5 +746,93 @@
                 ok-normal? and ok-abnormal? and ok-set0?
             }
         }
+    },
+    {TestSuite "MultiTopicConsumer",
+        {test-case "subscribe",
+            def ok? = {confirm-messaging
+                          {def-multi-consumer}
+                      }
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "subscribe (with subtopic)",
+            def subtopic1 = "subtopic1"
+            def subtopic2 = "subtopic2"
+            def subtopic3 = "subtopic3"
+            
+            || subscriptions that accept two of three subtopics
+            def subscriptions = {{Array-of SubscriptionInfo}
+                                    {SubscriptionInfo
+                                        subtopic = subtopic1},
+                                    {SubscriptionInfo
+                                        subtopic = subtopic2}
+                                }
+
+            def s1-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic1}
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic2}
+                         }
+            || this should be failed.
+            def s3-ng? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic3},
+                             max-attempts = 50
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok? and (not s3-ng?)
+            }
+        },
+        {test-case "subscribe (with selector)",
+            def selector1 = "selector"
+            def selector2 = 2
+            def selector3 = "foo"
+
+            def subscriptions =
+                {{Array-of SubscriptionInfo}
+                    {SubscriptionInfo
+                        selector = "selector = 'selector'"
+                    },
+                    {SubscriptionInfo
+                        selector = "selector = 2"
+                    }
+                }
+            
+            def s1-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector1
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector2
+                         }
+            || this should be failed.
+            def s3-ng? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector3,
+                             max-attempts = 50
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok? and (not s3-ng?)
+            }
+        }
     }
 }
+
