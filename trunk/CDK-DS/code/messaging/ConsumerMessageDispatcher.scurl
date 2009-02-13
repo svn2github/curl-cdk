@@ -98,7 +98,6 @@
     {if not exists? then
         {return}
     }
-    {dump consumer.id}
     
     {if target.current-channel.channel-sets.size > 1 then
         let cnt:int = 0
