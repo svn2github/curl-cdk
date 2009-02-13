@@ -16,31 +16,64 @@
 
 || Wait for the right time to get results of invoking methods.
 {define-class abstract public TimingMeans
-  
-  field private pending?:bool
-  def TIMEOUT = 150
 
-  {constructor public {default}
+  field public constant max-attempts:int
+  field private pending?:bool
+
+  def DEFAULT_TIMEOUT = 500
+
+
+  {constructor public {default
+                          max-attempts:int = TimingMeans.DEFAULT_TIMEOUT
+                      }
+    set self.max-attempts = max-attempts
     set self.pending? = false
   }
 
-  {method public open {start-with-idling args:Arguments}:void
+  {method public open {start-with-idling args:#Arguments=null}:bool
+    let ran-out?:bool = true
     set self.pending? = true
+
     {self.exe args}
-    let cnt:int = 0
-    {while self.pending? do
+    
+    {for i:int=0 below self.max-attempts do
         {dispatch-events true}
-        {inc cnt}
-        {if cnt > TimingMeans.TIMEOUT then
-            set self.pending? = false
+        {self.exe-repeatedly args}
+        {if not self.pending? then
+            set ran-out? = (i == self.max-attempts - 1)
+            {break}
         }
     }
+    {return ran-out?}
   }
 
-  {method abstract protected {exe args:Arguments}:void}
+  {method abstract protected {exe args:#Arguments}:void}
+  {method protected {exe-repeatedly args:#Arguments}:void}
 
   {method public open {end-idling}:void
     set self.pending? = false
+  }
+}
+
+{define-class public SimpleTimingMean {inherits TimingMeans}
+  field public exe-proc:{proc-type {#Arguments}:void}
+  field public exe-repeatedly-proc:{proc-type {#Arguments}:void}
+  {constructor public {default
+                          max-attempts:int = TimingMeans.DEFAULT_TIMEOUT,
+                          exe-proc:{proc-type {#Arguments}:void} = {fn=>},
+                          exe-repeatedly-proc:{proc-type {#Arguments}:void} = {fn=>}
+                      }
+    {construct-super
+        max-attempts = max-attempts
+    }
+    set self.exe-proc = exe-proc
+    set self.exe-repeatedly-proc = exe-repeatedly-proc
+  }
+  {method protected final inline {exe args:#Arguments}:void
+    {self.exe-proc args}
+  }
+  {method protected final inline {exe-repeatedly args:#Arguments}:void
+    {self.exe-repeatedly-proc args}
   }
 }
 

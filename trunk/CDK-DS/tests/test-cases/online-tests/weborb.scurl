@@ -421,12 +421,9 @@
                      {return
                          {weborb-ro
                              sec-ep, "", destination=sec-des}}}
-    def sec-test =
-        {proc {uname:#String, passworld:#String, fault?:bool}:void
-            def ro = {get-ro}
-            {ro.logout}
+    def process-agent =
+        {proc {agent:AuthenticationAgent}:void
             let pending?:bool = true
-            def agent = {ro.login uname, passworld}
             {agent.register-responder
                 {AuthenticationResultResponder
                     result-proc = {fn => set pending? = false},
@@ -435,6 +432,13 @@
             }
             {while pending? do
                 {dispatch-events true}}
+        }
+    def sec-test =
+        {proc {uname:#String, passworld:#String, fault?:bool}:void
+            def ro = {get-ro}
+            {process-agent {non-null {ro.logout force? = true}}}
+            {process-agent {non-null {ro.login uname, passworld}}}
+
             def mea = {ro.invoke-method "helloWorld"}
             {ro.logout}
             {test-condition

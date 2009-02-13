@@ -57,6 +57,7 @@
     || --------------------
     {TestSuite.import {url "online-tests/blazeds.scurl"}},
     {TestSuite.import {url "online-tests/weborb.scurl"}},
+    {TestSuite.import {url "online-tests/message-agents.scurl"}},
     
     || Postlude
     || --------------------

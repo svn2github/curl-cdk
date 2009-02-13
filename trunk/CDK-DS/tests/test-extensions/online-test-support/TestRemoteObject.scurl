@@ -47,8 +47,10 @@
     set self.result = null
   }
 
-  {method public {exe args:Arguments}:void
-    {self.send {splice args}}
+  {method public {exe args:#Arguments}:void
+    {if-non-null args then
+        {self.send {splice args}}
+    }
   }
   
   {method public {invoke-method
@@ -58,7 +60,7 @@
     {self.initialize}
 
     {self.start-with-idling
-        {Arguments name, {splice ...}}
+        args = {Arguments name, {splice ...}}
     }
 
     {return self.result}
