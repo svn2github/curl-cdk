@@ -54,8 +54,8 @@
                          channel =
                              {AMFChannel id = destination, uri = endpoint}
                      },
-                 subscriptions:{Array-of SubscriptionInfo} =
-                     {{Array-of SubscriptionInfo} {SubscriptionInfo}},
+                 subscriptions:SubscriptionInfos =
+                     {SubscriptionInfos {SubscriptionInfo}},
                  ...:EventHandler
              }:MultiTopicConsumer
     {return
@@ -114,7 +114,17 @@
 {define-proc {is-subscribe? mae:MessageAckEvent}:bool
     {type-switch mae.correlation
      case cmd:CommandMessage do
-        {return (cmd.operation == CommandMessage.SUBSCRIBE_OPERATION)}
+        {switch cmd.operation
+         case CommandMessage.SUBSCRIBE_OPERATION do
+            {return true}
+         case CommandMessage.MULTI_SUBSCRIBE_OPERATION do
+            def (val, f?) = {cmd.headers.get-if-exists "DSlastUnsub"}
+            {if f? then
+                {return not (val asa bool)}
+             else
+                {return true}
+            }
+        }
     }
     {return false}
 }
@@ -127,6 +137,7 @@
                  max-attempts:int = 500,
                  selector:any = null
              }:(ok?:bool, ran-out?:bool)
+    {output "===============confirming started===============\n"}
     || message received by consumer
     let result:any
 
@@ -148,23 +159,18 @@
     || add event handlers to the consumer
     {consumer.add-event-handler
         {on mae:MessageAckEvent do
-            {type-switch mae.correlation
-             case cmd:CommandMessage do
-                {if cmd.operation == CommandMessage.SUBSCRIBE_OPERATION or
-                    cmd.operation == CommandMessage.MULTI_SUBSCRIBE_OPERATION
-                 then
-                    def msg = {AsyncMessage
-                                  body = {DataObject
-                                             chatMessage = chat-message
-                                         }
-                              }
-                    {if-non-null selector then
-                        set msg.headers["selector"] = selector
-                    }
-                    {dump "sent!!!"}
-                    {producer.send msg}
-                    {sleep 1s}
+            {if {is-subscribe? mae} and consumer.subscribed? then
+                def msg = {AsyncMessage
+                              body = {DataObject
+                                         chatMessage = chat-message
+                                     }
+                          }
+                {if-non-null selector then
+                    set msg.headers["selector"] = selector
                 }
+                {dump "message has been sent!"}
+                {producer.send msg}
+                {sleep 1s}
             }
         }
     }
@@ -174,7 +180,7 @@
              case obj:DataObject do
                 def (x, x?) = {obj.get-if-exists "chatMessage"}
                 {if x? then
-                    {dump "received!!!"}
+                    {dump "message has been received!"}
                     set result = x
                     {tm.end-idling}
                 }
@@ -185,6 +191,7 @@
     def ran-out? =  {tm.start-with-idling}
     {consumer.unsubscribe}
 
+    {dump "\n===============confirming ended===============\n"}
     {return (result == chat-message), ran-out?}
 }
 
@@ -645,6 +652,24 @@
 
             {TestCondition.assert handled?}
         },
+        {test-case "subtopic",
+            let ok? = false
+            def old-val = "old"
+            def new-val = "new"
+            def pr = {def-producer
+                         subtopic = old-val,
+                         {on e:PropertyChangeEvent do
+                             set ok? = 
+                                 {check-property?
+                                     e, "subtopic", old-val, new-val, pr
+                                 }
+                         }
+                     }
+            set pr.subtopic = new-val
+            {dispatch-events true}
+
+            {TestCondition.assert ok?}
+        },
         {test-case "auto-connect?",
             def tm = {SimpleTimingMean}
             let handled?:bool = false
@@ -761,7 +786,7 @@
             def subtopic3 = "subtopic3"
             
             || subscriptions that accept two of three subtopics
-            def subscriptions = {{Array-of SubscriptionInfo}
+            def subscriptions = {SubscriptionInfos
                                     {SubscriptionInfo
                                         subtopic = subtopic1},
                                     {SubscriptionInfo
@@ -799,7 +824,7 @@
             def selector3 = "foo"
 
             def subscriptions =
-                {{Array-of SubscriptionInfo}
+                {SubscriptionInfos
                     {SubscriptionInfo
                         selector = "selector = 'selector'"
                     },
@@ -832,6 +857,174 @@
             {TestCondition.assert
                 s1-ok? and s2-ok? and (not s3-ng?)
             }
+        },
+        {test-case "set subscriptions",
+            def tm = {SimpleTimingMean max-attempts = 50}
+            let handled?:bool = false
+            def mc = {def-multi-consumer
+                         {on e:MessageAckEvent do
+                             {if {is-subscribe? e} then
+                                 {if handled? then
+                                     {tm.end-idling}
+                                  else
+                                     || need at least one element
+                                     set mc.subscriptions =
+                                         {SubscriptionInfos {SubscriptionInfo}}
+                                     set handled? = true
+                                 }
+                             }
+                         }
+                     }
+
+            {mc.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled? and mc.subscribed?}
+        },
+        {test-case "add subscription",
+            def tm = {SimpleTimingMean}
+            def subtopic = "subtopic"
+
+
+            def mc = {def-multi-consumer}
+
+            let handled?:bool = false
+            def eh = {on e:MessageAckEvent do
+                         {if {is-subscribe? e} then
+                             {if handled? then
+                                 {tm.end-idling}
+                              else
+                                 {mc.add-subscription
+                                     subtopic = subtopic}
+                                 set handled? = true
+                             }
+
+                         }
+                     }
+
+            {mc.add-event-handler eh}
+            {mc.subscribe}
+            {tm.start-with-idling}
+            {mc.remove-event-handler eh}
+
+            def com-ok? = {confirm-messaging
+                                  mc,
+                                  producer = {def-producer
+                                                 subtopic = subtopic}
+                              }
+
+            {TestCondition.assert
+                com-ok? and handled?
+            }
+        },
+        {test-case "remove subscription",
+            def tm = {SimpleTimingMean}
+            def subtopic = "subtopic"
+            def mc = {def-multi-consumer
+                         subscriptions =
+                             {SubscriptionInfos
+                                 {SubscriptionInfo},
+                                 {SubscriptionInfo
+                                     subtopic = subtopic}
+                             }
+                     }
+
+            let handled?:bool = false
+            def eh = {on e:MessageAckEvent do
+                         {if {is-subscribe? e} then
+                             {if handled? then
+                                 {tm.end-idling}
+                              else
+                                 {mc.remove-subscription
+                                     subtopic = subtopic
+                                 }
+                                 set handled? = true
+                             }
+                         }
+                     }
+
+            {mc.add-event-handler eh}
+            {mc.subscribe}
+            {tm.start-with-idling}
+            {mc.remove-event-handler eh}
+
+            def com-ok? = {confirm-messaging
+                              mc,
+                              producer = {def-producer
+                                             subtopic = subtopic},
+                              max-attempts = 50
+                          }
+
+            {TestCondition.assert
+                (not com-ok?) and handled?
+            }
+        }
+    },
+    {TestSuite "MultiTopicProducer",
+        {test-case "connect (with subtopic)",
+            def subtopic1 = "subtopic1"
+            def subtopic2 = "subtopic2"
+            
+            def mp = {def-multi-producer
+                         subtopics = {Array subtopic1, subtopic2}
+                     }
+
+            def s1-ok? = {confirm-messaging
+                             {def-consumer subtopic = subtopic1},
+                             producer = mp
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-consumer subtopic = subtopic2},
+                             producer = mp
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok?
+            }
+        },
+        {test-case "access selectors",
+            let ok?:bool = false
+            def old-val = {Array}
+            def new-val = {Array "subtopic"}
+            def mp = {def-multi-producer
+                         subtopics = old-val,
+                         {on e:PropertyChangeEvent do
+                             set ok? = {check-property?
+                                           e, "subtopics",
+                                           old-val, new-val, mp
+                                       }
+                         }
+                     }
+            set mp.subtopics = new-val
+            {dispatch-events true}
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "add subtopic",
+            def subtopic = "subtopic"
+            def mp = {def-multi-producer}
+            {mp.add-subtopic subtopic}
+
+            def ok? = {confirm-messaging
+                          {def-consumer subtopic = subtopic},
+                          producer = mp
+                      }
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "remove subtopic",
+            def subtopic = "subtopic"
+            def mp = {def-multi-producer
+                         subtopics = {Array subtopic}}
+            {mp.remove-subtopic subtopic}
+
+            def ok? = {confirm-messaging
+                          {def-consumer subtopic = subtopic},
+                          producer = mp,
+                          max-attempts = 50
+                      }
+
+            {TestCondition.assert (not ok?)}
         }
     }
 }
