@@ -316,10 +316,12 @@
     }
   }
   {method public {subscribe client-id:#String = null}:void
+    let unsubscribing?:bool = false
     def reset-client-id? =
         client-id != null and self.client-id != client-id
     {if self.subscribed? and (reset-client-id? or client-id == null) then
         {self.unsubscribe}
+        set unsubscribing? = true
     }
 
     {self.stop-resubscribe-timer}
@@ -331,7 +333,11 @@
     }
     set self.subscribe-message = {self.build-subscribe-message}
     {if-non-null msg = self.subscribe-message then
-        {self.internal-send msg}
+        {if unsubscribing? then
+            {after 1s do {self.internal-send msg}}
+         else
+            {self.internal-send msg}
+        }
     }
   }
 

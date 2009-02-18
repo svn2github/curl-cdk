@@ -69,5 +69,6 @@
     "PollingChannel.scurl",
     "PollSyncMessageResponder.scurl",
     "Producer.scurl",
-    "PropertyChangeEvent.scurl"
+    "PropertyChangeEvent.scurl",
+    "SubscriptionInfo.scurl"
 }

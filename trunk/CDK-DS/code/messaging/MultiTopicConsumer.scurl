@@ -16,16 +16,17 @@
 
 {define-class public MultiTopicConsumer {inherits AbstractConsumer}
 
-  field private _subscriptions:{Array-of SubscriptionInfo}
+  field private _subscriptions:SubscriptionInfos
   field private current-subscriptions:{Set-of String}
   field private subchange-alarm:#Alarm
+  field private subscriptions-change-proc:EventHandler
 
   {constructor public {default
                           endpoint:#Url = null,
                           destination:String = "",
                           channel-set:#ChannelSet = null,
-                          subscriptions:{Array-of SubscriptionInfo} =
-                              {{Array-of SubscriptionInfo} {SubscriptionInfo}},
+                          subscriptions:SubscriptionInfos =
+                              {SubscriptionInfos {SubscriptionInfo}},
                           ...:EventHandler
                       }
     {construct-super
@@ -36,13 +37,21 @@
     }
     set self._subscriptions = subscriptions
     set self.current-subscriptions = {{Set-of String}}
+
+    set self.subscriptions-change-proc =
+        {on SubscriptionInfosChanged do
+            {self.subscriptions-change-handler}
+        }
+    {self.subscriptions.add-event-handler
+        self.subscriptions-change-proc
+    }
   }
 
-  {getter public {subscriptions}:{Array-of SubscriptionInfo}
+  {getter public {subscriptions}:SubscriptionInfos
     {return self._subscriptions}
   }
 
-  {setter public {subscriptions val:{Array-of SubscriptionInfo}}:void
+  {setter public {subscriptions val:SubscriptionInfos}:void
     {if self._subscriptions != val then
         def event = {PropertyChangeEvent.create-update-event
                         self, "subscriptions", self._subscriptions, val}
@@ -52,7 +61,15 @@
             set self.should-be-subscribed? = true
         }
 
+        {self.subscriptions.remove-event-handler
+            self.subscriptions-change-proc
+        }
+
         set self._subscriptions = val
+
+        {self.subscriptions.add-event-handler
+            self.subscriptions-change-proc
+        }
 
         {if self.should-be-subscribed? then
             {self.subscribe client-id = self.client-id}
@@ -82,19 +99,18 @@
                      subtopic:String = "",
                      selector:String = ""
                  }:void
-
-    {for si key i in self.subscriptions do
-        {if si.subtopic == subtopic and si.selector == selector then
-            {self.subscriptions.remove i}
-            {return}
+    {try
+        {self.subscriptions.remove-by-str
+            subtopic = subtopic,
+            selector = selector
         }
-    }
-
-    || if not found
-    {error 
-        {lmessage Attempt to remove a subscription with subtopic:
-            {value subtopic} and selector: {value selector} that this
-            consumer does not have
+     catch e:KeyNotFoundException do
+        || if not found
+        {error 
+            {lmessage Attempt to remove a subscription with subtopic:
+                {value subtopic} and selector: {value selector} that this
+                consumer does not have
+            }
         }
     }
   }
@@ -199,23 +215,23 @@
   }
 
   {method private {subscriptions-change-handler}:void
-    
+    {if (self.should-be-subscribed? or self.subscribed?) and
+        self.subchange-alarm == null
+     then
+        set self.subchange-alarm = {Alarm
+                                       {proc {}:void
+                                           {self.do-resubscribe}
+                                       },
+                                       delay = 0s
+                                   }
+    }
   }
 
   {method private {do-resubscribe}:void
-    
-  }
-}
+    set self.subchange-alarm = null
 
-{define-class public SubscriptionInfo
-  field public constant subtopic:String
-  field public constant selector:String
-
-  {constructor public {default
-                          subtopic:String = "",
-                          selector:String = ""
-                      }
-    set self.subtopic = subtopic
-    set self.selector = selector
+    {if self.subscribed? then
+        {self.internal-send {self.build-subscribe-message}}
+    }
   }
 }
