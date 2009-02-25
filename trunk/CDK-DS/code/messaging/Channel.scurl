@@ -323,14 +323,9 @@
 
     set message.headers[AbstractMessage.ENDPOINT_HEADER] = self._id
 
-    let responder:#MessageResponder =
-        {self.get-message-responder agent, message}
-    {if-non-null responder then
-        {self.initialize-request-timeout responder}
-        {self.internal-send responder}
-     else
-        {error {lmessage No MessageResponder for message.}}
-    }
+    def responder = {self.get-message-responder agent, message}
+    {self.initialize-request-timeout responder}
+    {self.internal-send responder}
   }
 
   {method protected {send-cluster-request responder:MessageResponder}:void
@@ -453,8 +448,12 @@
   {method protected {get-message-responder
                         agent:MessageAgent,
                         message:IMessage
-                    }:#MessageResponder
-    {return null}
+                    }:MessageResponder
+    {error
+        {lmessage
+            Channel subclasses must override get-message-responder.
+        }
+    }
   }
 
   {method protected {handle-server-messaging-version version:double}:void

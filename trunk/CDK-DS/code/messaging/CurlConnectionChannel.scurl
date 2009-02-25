@@ -85,17 +85,10 @@
     }
   }
 
-  {method protected {get-poll-sync-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return {new PollSyncMessageResponder, agent, message, self}}
-  }
-
   {method protected {get-default-message-responder
                         agent:MessageAgent,
                         message:IMessage
-                    }:#MessageResponder
+                    }:MessageResponder
     {return
         {new CurlConnectionMessageResponder, agent, message, channel = self}
     }

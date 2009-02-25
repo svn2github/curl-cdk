@@ -354,7 +354,7 @@
     }
   }
 
-  {method protected {resubscribe event:TimerEvent}:void
+  {method protected {resubscribe}:void
     {if self.resubscribe-attempts != -1 and
         self.current-attempt > self.resubscribe-attempts
      then
@@ -408,7 +408,7 @@
                 {Timer
                     interval = self.resubscribe-interval,
                     {on e:TimerEvent do
-                        {self.resubscribe e}
+                        {self.resubscribe}
                     },
                     delay = 1ms
                 }
@@ -440,10 +440,13 @@
     {if not event.channel.connected? then
         set self.subscribed? = false
     }
+
     {super.channel-fault-handler event}
+
     {if self.should-be-subscribed? and
         not event.rejected? and
-        not event.channel.connected?
+        not event.channel.connected? and
+        not event.reconnecting?
      then
         {self.start-resubscribe-timer}
     }

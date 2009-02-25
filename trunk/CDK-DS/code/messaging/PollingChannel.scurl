@@ -97,6 +97,24 @@
     {return self.polling-enabled?}
   }
 
+  {setter protected {connected? val:bool}:void
+    {if self.connected? != val then
+        {if val then
+            {for cs in self.channel-sets do
+                {for ma in cs.message-agents do
+                    {type-switch ma
+                     case c:AbstractConsumer do
+                        {if c.subscribed? then
+                            {self.enable-polling}
+                        }
+                    }
+                }
+            }
+        }
+        set super.connected? = val
+    }
+  }
+
   {method public {alarm-required?}:bool
     {return true}
   }
@@ -194,7 +212,9 @@
     {if piggy-back? then
         {self.internal-poll}
     }
+
     {super.send agent, message}
+
     {if piggy-back? then
         def msg = {CommandMessage}
         set msg.operation = CommandMessage.POLL_OPERATION
@@ -229,16 +249,11 @@
   {method final protected {get-message-responder
                         agent:MessageAgent,
                         message:IMessage
-                    }:#MessageResponder
+                    }:MessageResponder
     let responder:#MessageResponder = null
     {type-switch message
      case cm:CommandMessage do
         {switch cm.operation
-         case
-            CommandMessage.SUBSCRIBE_OPERATION,
-            CommandMessage.UNSUBSCRIBE_OPERATION
-         do
-            set responder = {self.get-poll-sync-message-responder agent, cm}
          case CommandMessage.POLL_OPERATION do
             set responder = {new PollCommandMessageResponder, agent, cm, self}
         }
@@ -250,17 +265,10 @@
     }
   }
 
-  {method protected {get-poll-sync-message-responder
-                        agent:MessageAgent,
-                        message:IMessage
-                    }:#MessageResponder
-    {return null}
-  }
-
   {method protected {get-default-message-responder
                         agent:MessageAgent,
                         message:IMessage
-                    }:#MessageResponder
+                    }:MessageResponder
     {return {super.get-message-responder agent, message}}
   }
 }
