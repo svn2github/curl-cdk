@@ -159,7 +159,7 @@
     || add event handlers to the consumer
     {consumer.add-event-handler
         {on mae:MessageAckEvent do
-            {if {is-subscribe? mae} and consumer.subscribed? then
+            {if {is-subscribe? mae} then
                 def msg = {AsyncMessage
                               body = {DataObject
                                          chatMessage = chat-message
@@ -169,7 +169,9 @@
                     set msg.headers["selector"] = selector
                 }
                 {dump "message has been sent!"}
+
                 {producer.send msg}
+
                 {sleep 1s}
             }
         }
@@ -268,6 +270,57 @@
                 message = {value ok?} & " and " & {value ng?}
             }
         },
+        {test-case "resubscribe",
+            def channels = {{Array-of Channel}
+                               || should be failed.
+                               {AMFChannel
+                                   id = "hoge",
+                                   uri = {url "http://localhost/"}
+                               },
+                               {AMFChannel
+                                   id = default-destination,
+                                   uri = amfpolling
+                               }
+                           }
+            {TestCondition.assert
+                {confirm-messaging
+                    {def-consumer
+                        channel-set = {ChannelSet channels = channels}
+                    }
+                }
+            }
+        },
+        {test-case "resubscribe(error)",
+            let cf-cnt:int = 0
+            let mf-cnt:int = 0
+            def tm = {SimpleTimingMean}
+            def channels = {{Array-of Channel}
+                               || Both channels should be faild.
+                               {AMFChannel id = "ch1", uri = {url "http://ch1"}},
+                               {AMFChannel id = "ch2", uri = {url "http://ch2"}}
+                           }
+            def consumer =
+                {def-consumer
+                    channel-set = {ChannelSet channels = channels},
+                    {on e:MessageFaultEvent do
+                        {if e.fault-code == "Client.Error.MessageSend" then
+                            {inc mf-cnt}
+                        }
+                    },
+                    {on e:ChannelFaultEvent do
+                        {if e.fault-code == "Channel.Ping.Failed" then
+                            {inc cf-cnt}
+                            {if cf-cnt > 1 then
+                                {tm.end-idling}
+                            }
+                        }
+                    }
+                }
+            {consumer.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert cf-cnt == 2 and mf-cnt == 1}
+        },
         {test-case "receive",
             def channel = {AMFChannel
                               id = default-destination,
@@ -284,49 +337,6 @@
                     do-receiving? = true
                 }
             }
-        },
-        {test-case "resubscribe",
-            def channels = {{Array-of Channel}
-                               || should be failed.
-                               {AMFChannel
-                                   id = "hoge",
-                                   uri = {url "http://localhost/"}
-                               },
-                               {AMFChannel
-                                   id = default-destination,
-                                   uri = amfpolling
-                               }
-                           }
-
-            {TestCondition.assert
-                {confirm-messaging
-                    {def-consumer
-                        channel-set = {ChannelSet channels = channels}
-                    }
-                }
-            }
-        },
-        {test-case "resubscribe(error)",
-            let catch-error?:bool = false
-            def tm = {SimpleTimingMean}
-            def channels = {{Array-of Channel}
-                               || Both channels should be faild.
-                               {AMFChannel id = "ch1", uri = {url "http://ch1"}},
-                               {AMFChannel id = "ch2", uri = {url "http://ch2"}}
-                           }
-            def consumer = {def-consumer
-                               channel-set = {ChannelSet channels = channels},
-                               {on e:MessageFaultEvent do
-                                   {if e.fault-code == "Client.Error.Subscribe" then
-                                       set catch-error? = true
-                                       {tm.end-idling}
-                                   }
-                               }
-                           }
-            {consumer.subscribe}
-            {tm.start-with-idling}
-
-            {TestCondition.assert catch-error?}
         },
         {test-case "access id",
             def c = {def-consumer}
