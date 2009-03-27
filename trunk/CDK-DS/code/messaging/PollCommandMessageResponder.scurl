@@ -27,12 +27,11 @@
     {construct-super agent, imessage, channel = channel}
     set self.result-handler =
         {proc {msg:IMessage}:void
+            def polling-channel = self.channel asa PollingChannel
+
             set polling-channel.poll-outstanding? = false
             {self.remove-property-change-handler}
             
-            let polling-channel:PollingChannel =
-                self.channel asa PollingChannel
-
             {if self.suppress-handlers then
                 {self.do-poll}
                 {return}
