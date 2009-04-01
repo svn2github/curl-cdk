@@ -346,7 +346,7 @@ CREATE TABLE products (
             managed using {docref RecordSet.commit} and {docref RecordSet.revert}.
             Consumers of the RecordSet can see and react to data changes
             before anything is submitted to the underlying database.        
-            This is useful, for example, to manage operations from a GUI for.        
+            This is useful, for example, to manage operations from a GUI form.        
             
             Processing specified in the database
             (like constraints, default values, and triggers)

@@ -38,23 +38,5 @@
     {DBExplorer
         width = 12in, height = 8in,
         {SQLiteDatabase null}
-    }||,
-||--    visibility = "normal", 
-||--    {on WindowClose do
-||--        {exit}
-||--    }
+    }
 }
-
-||--{View
-||--    title = "Curl Database Explorer",
-||--    hstretch? = true,
-||--    vstretch? = true,
-||--    {DBExplorer
-||--        width = 12in, height = 8in,
-||--        {SQLiteDatabase null}
-||--    },
-||--    visibility = "normal", 
-||--    {on WindowClose do
-||--        {exit}
-||--    }
-||--}

@@ -69,15 +69,15 @@
         {item This change eliminates the need for privilege to use SQLite,
             which had been necessary in earlier releases, when the SQLite library
             was included in the CDK using {docref CURL.LANGUAGE.DLL-INTERFACE}.}
-        {item Uses SQLite Engine version 3.6.2}
+        {item Uses SQLite Engine version 3.6.10}
         {item Includes support for encrypted databases.            
             {br}{italic This feature can only be used by an applet that has a Curl Pro server license.}}
         {item CDK Developer's Guide is indexed for full text search}
     }
 
     NOTE: This library is not compatible with early Curl API Version 7.0 beta releases.
-    The API provided by {docref CURL.IO.SQLITE-LIBRARY} changed for the "Beta 3" release
-    (labeled as {monospace "7.0.0 [beta] kendall-0/58"}).
+    The API provided by {docref CURL.IO.SQLITE-LIBRARY} changed for the "Beta 4" release
+    (labeled as {monospace "7.0.0 [beta] kendall-0/66"}).
     
     CDK 1.1 Release packages are marked as version 1.1.
 }

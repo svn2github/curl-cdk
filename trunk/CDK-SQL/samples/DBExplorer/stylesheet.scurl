@@ -24,8 +24,9 @@
 
     || default styling
     def style-manager = {BasicStyleManager {get-default-style-sheet}}
-    def text-area-styles = {style-manager.get-styles-for-element "TextArea"}
-    def text-area-skin = text-area-styles["skin"] asa ShadedSkinSpec
+    def trial-text-area = {TextArea}
+    {style-manager.apply-style trial-text-area}
+    def text-area-skin = trial-text-area.skin asa ShadedSkinSpec
 
     {StyleSheet
         || panels

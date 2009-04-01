@@ -78,17 +78,23 @@
 
 || NOTE: early version 7 beta releases are incompatible
 {curl-version-switch
- case "7.0.0 [beta] kendall 58+" do
-    || compatible CURL.IO.SQLITE package
-    {import public * from COM.CURL.CDK.SQLITE-BASE}
-    {import public * from COM.CURL.CDK.SQLITE-RECORDSET}
- else 
-    || incompatible CURL.IO.SQLITE package
-    {error
-        {lmessage
-            This library is not compatible with early beta releases,
-            including this one: {value curl-version}.}}
+ case "7.0.0 [beta] kendall 0+" do
+    || check ONLY tags indicative of public beta, or official
+    {curl-version-switch
+     case "7.0.0 [beta] kendall 66+" do
+        || compatible CURL.IO.SQLITE package
+     else 
+        || incompatible CURL.IO.SQLITE package
+        {error
+            {lmessage
+                This library is not compatible with early beta releases,
+                including this one: {value curl-version}.}}
+    }
+ else
+    || other tags are internal releases: caveat developer
 }
+{import public * from COM.CURL.CDK.SQLITE-BASE}
+{import public * from COM.CURL.CDK.SQLITE-RECORDSET}
 
 {def public _use-built-in? =
     {if-use-built-in true else false}

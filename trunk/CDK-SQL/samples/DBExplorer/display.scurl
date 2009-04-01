@@ -865,18 +865,17 @@
   }
   {method {execute}:void
     || TODO: modifiable?
-    def w = {StopWatch}
     {try
         {self.report-status "running query ..."}
         {self.dbx.note-progress-start}
-        {w.start}
+        def w = {DateTimeData}
         {self.query-model.execute}
         || report success
-        {w.stop}
+        def elapsed = {w.elapsed}
         {self.dbx.note-progress-stop}
         def rs = {non-null self.query-model.result}
         {self.report-status
-            {lmessage selected {value rs.size} rows in {w.elapsed}}
+            {lmessage selected {value rs.size} rows in {value elapsed}}
         }
         {self.reset-grid}
         set self.grid.record-source = rs
@@ -884,7 +883,6 @@
         {self.dbx.note-query-executed self.query-model}
      catch e:Exception do
         || report failure
-        {w.stop}
         {self.dbx.note-progress-stop}
         {self.report-status e}
     }

@@ -15,7 +15,7 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 1.1 for Curl API Version 7.0 Beta 3. 
+CDK Preview Release 1.1 for Curl API Version 7.0 Beta 4. 
 ====================
 
 This directory contains the 1.1 preview of the Curl Data Kit (CDK)
@@ -85,7 +85,7 @@ This change eliminates the need for privilege to use SQLite, which had
 been necessary in earlier releases, when the SQLite library was
 included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
-- Uses SQLite Engine version 3.6.2.
+- Uses SQLite Engine version 3.6.10.
 
 - Includes support for encrypted databases. (This feature can only be
   used by an applet that has a Curl Pro server license.)
@@ -94,7 +94,7 @@ included in the CDK using CURL.LANGUAGE.DLL-INTERFACE.
 
 NOTE: This library is not compatible with early Curl Version 7.0 beta
 releases.  The API provided by CURL.IO.SQLITE-LIBRARY changed for the
-"Beta 3" release (labeled as '7.0.0 [beta] kendall-0/58').
+"Beta 4" release (labeled as '7.0.0 [beta] kendall-0/66').
 
 CDK 1.0 CHANGES
 --------------------
