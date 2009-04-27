@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-CDK Preview Release 1.1 for Curl API Version 7.0 Beta 4. 
+CDK Release 1.1 for Curl API Version 7.0
 ====================
 
-This directory contains the 1.1 preview of the Curl Data Kit (CDK)
+This directory contains the 1.1 release of the Curl Data Kit (CDK)
 
 The Curl Data Kit (CDK) library facilitates building data-centric
 applications in Curl. It provides support for local SQL databases,
@@ -99,7 +99,7 @@ releases.  The API provided by CURL.IO.SQLITE-LIBRARY changed for the
 CDK 1.0 CHANGES
 --------------------
 This is the first CDK Release.
-}
+
 This CDK Release is for use with Curl API Version 6.0.
     
 There have been a few API changes since Version 0.8
