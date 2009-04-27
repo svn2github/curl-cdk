@@ -537,9 +537,13 @@
     || NOTE: change propagation is damped by 'changed?' checks above
     {if-non-null original = self.original-data then
         || delete additions
+        || - avoid iteration over mutable subject
+        def ks = {StringArray efficient-size = self.size}
         {for key k in self.data do
             {if not {original.key-exists? k} then
-                {self.unset k}}}
+                {ks.append k}}}
+        {for k in ks do
+            {self.unset k}}
         || duplicate original
         {for x key k in original do
             set self[k] = x}
@@ -548,7 +552,7 @@
   }
   {method protected {preserve-original-data}:void
     {if self.original-data == null then
-        set self.original-data = {self.data.clone}}
+        set self.original-data = {self.data.clone} asa T}
   }
 }
 || ====================
@@ -1028,7 +1032,7 @@
 {doc-next ||=== ExtendedArray
     {purpose Represents an {docref Array} extended by named properties.}
     {details Used for "ECMA Array" data 
-        with {docref AMFDeserializer} and {docref AMFSerializer}}.
+        with {docref AMFDeserializer} and {docref AMFSerializer}.}
 }
 {define-class public ExtendedArray {inherits Array}
 
