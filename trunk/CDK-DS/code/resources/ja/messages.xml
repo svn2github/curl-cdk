@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!-- Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.-->
 <!-- -->
 <!-- An OpenCurl project. -->
@@ -37,6 +36,14 @@
 </string>
 
 <string>
+<original>Attempt to remove a subscription with subtopic: %1!s! and selector: %2!s! that this consumer does not have</original>
+</string>
+
+<string>
+<original>Attempt to remove a subtopic from MultiTopicProducer: %s which does not exist</original>
+</string>
+
+<string>
 <original>Attempted to perform operation on detached Record.</original>
 </string>
 
@@ -54,10 +61,6 @@
 
 <string>
 <original>Can not reset service.</original>
-</string>
-
-<string>
-<original>Cannot add channels when configured.</original>
 </string>
 
 <string>
@@ -81,11 +84,23 @@
 </string>
 
 <string>
+<original>Channel subclasses must override get-message-responder.</original>
+</string>
+
+<string>
 <original>Channel was authenticated with a different set of credentials than those used for this agent.</original>
 </string>
 
 <string>
 <original>ChannelSet is in the process of logging in or logging out.</original>
+</string>
+
+<string>
+<original>Channels cannot be added to a ChannelSet that targets a configured destination.</original>
+</string>
+
+<string>
+<original>Connect attempt timed out.</original>
 </string>
 
 <string>
@@ -126,10 +141,6 @@
 
 <string>
 <original>Expected IMessage but got %s</original>
-</string>
-
-<string>
-<original>Failed to subscribe</original>
 </string>
 
 <string>
@@ -177,15 +188,7 @@
 </string>
 
 <string>
-<original>No MessageResponder for message.</original>
-</string>
-
-<string>
-<original>No channel available.</original>
-</string>
-
-<string>
-<original>No channel set configured.</original>
+<original>No channels are available for use.</original>
 </string>
 
 <string>
@@ -230,6 +233,10 @@
 
 <string>
 <original>Send failed.</original>
+</string>
+
+<string>
+<original>The consumer was not able to subscribe to its target destination.</original>
 </string>
 
 <string>
