@@ -216,6 +216,10 @@
 
 
 {TestSuite "MessageAgent",
+    || NOTE: just checks url availability
+    || TODO: guard against service inactive
+    {test-host-accessible-guard {blazeds-url.stem.name.tail "http://".size}},
+    || tests
     {TestSuite "Consumer",
         {test-case "subscribe",
             {TestCondition.assert
