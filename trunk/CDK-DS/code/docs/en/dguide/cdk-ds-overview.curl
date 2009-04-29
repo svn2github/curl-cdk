@@ -159,7 +159,7 @@
 
 || ====================
 {heading level=2,
-    destination-name = "samples",
+    destination-name = "samples-project",
     CDK-DS Sample Applications
 }
 {def samples-loc = {url "samples/"}}
