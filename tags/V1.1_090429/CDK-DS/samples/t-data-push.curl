@@ -1,0 +1,119 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 applet}
+{applet manifest = "manifest.mcurl"}
+
+{import * from COM.CURL.CDK.MESSAGING}
+
+|| for configuring connection from the applet.
+{import CurlConnection from COM.CURL.CDK.CONNECTION}
+
+
+{document-style PlainDocument}
+
+{set-document-properties
+    hstretch? = true,
+    vstretch? = true,
+    background = "#e6e6e6",
+    margin = 0.5cm
+}
+{value
+    || connection parameters
+    def base = "http://localhost:8400/samples/"
+    def destination = "feed"
+    def endpoint = {url base & "messagebroker/amfpolling"}
+
+    || configure the connection
+    def channel =
+        {AMFChannel
+            id = destination,
+            uri = endpoint}
+    def channel-set = {ChannelSet channel = channel}
+    || Can't set object-encoding yet.
+||--    set channel.connection.object-encoding = CurlConnection.AMF3
+
+    || messaging
+    def consumer =
+        {Consumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set
+        }
+
+    || display    
+    def tf = {TextField width = 2cm}
+    
+    || coordination
+    {consumer.add-event-handler
+        {on e:MessageEvent do
+            {type-switch e
+             case ack:MessageAckEvent do
+                || Ignore MessageAckEvents.
+             else
+                || process content
+                def msg = {String e.message.body}
+                {dump msg}
+                set tf.value = msg
+                || let display refresh
+                {dispatch-events false}
+            }
+        }}
+
+    def unsubscribe-cb =
+        {CommandButton label = "Unsubscribe from 'feed' destination",
+            enabled? = false,
+            {on Action do
+                {consumer.unsubscribe}
+                set subscribe-cb.enabled? = true
+                set unsubscribe-cb.enabled? = false
+            }}
+    , subscribe-cb =
+        {CommandButton label = "Subscribe to 'feed' destination",
+            {on Action do
+                {consumer.subscribe}
+                set unsubscribe-cb.enabled? = true
+                set subscribe-cb.enabled? = false
+            }}
+    
+    {VBox
+        halign = "center",
+        spacing = 0.1cm,
+        {big
+            {bold BlazeDS Data Push (aka Publish/Subscribe)}
+        },
+        subscribe-cb,
+        unsubscribe-cb,
+        || these control the sample feed
+        {HBox
+            {CommandButton label = "Start Feed",
+                {on Action do
+                    {with-open-streams
+                        in = {read-open {url base & "testdrive-datapush/startfeed.jsp"}}
+                     do
+                    }
+                }},
+            {CommandButton label = "Stop Feed",
+                {on Action do
+                    {with-open-streams
+                        in = {read-open {url base & "testdrive-datapush/stopfeed.jsp"}}
+                     do
+                    }
+                }}
+        },
+        tf
+    }
+}
