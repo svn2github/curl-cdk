@@ -1282,10 +1282,10 @@
                             {break}
                         }
                     }
-                    set named-index = (named-index mod count) + 1
                     {if named-index == last-named then
                         {break}
                     }
+                    set named-index = (named-index mod count) + 1
                 }
 
                 {if found? then

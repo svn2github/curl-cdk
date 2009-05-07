@@ -682,7 +682,7 @@ CREATE TABLE test (
                     {q.reset}
                     {q.bind
                         val3 = xs[i + 2], val4 = xs[i + 3],
-                        val = xs[i], val2 = xs[i + 1]}
+                        val2 = xs[i + 1], val = xs[i]}
                     {q.step}
                 }
             }
@@ -757,6 +757,23 @@ CREATE TABLE test (
                 }
             }
         }},
+    {test-case "bind keywords",
+        def db = {SQLiteDatabase null}
+        {db.execute "
+        CREATE TABLE products (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price DOUBLE NULL);"}
+        || insert data
+        {db.execute "
+        INSERT INTO products VALUES (1,'paper',10.00);"}
+
+        {with-statement in db s =
+            "UPDATE products SET price=:price WHERE id=:id"
+        do
+            {s.bind id=1, price=0.5}
+        }
+        },
     {test-case "bind bad keywords",
         {with-database db = {SQLiteDatabase null} do
             {db.execute "
