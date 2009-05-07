@@ -32,7 +32,24 @@ CREATE TABLE CENSUS (
  SEX VARCHAR(255)
 );"}
                 {SQLiteStatement.import-csv db, "census", {url "../test-data/census5000.csv"}}
-            }},
+            }
+    },
+    {SQLiteTableRecordSetsTestSuite null,
+        init-proc =
+            {proc {db:SQLiteDatabase}:void
+                {db.execute "
+CREATE TABLE 'CENSUS''-TEST' (
+ ID INTEGER NOT NULL PRIMARY KEY,
+ AGE VARCHAR(3),
+ CLASSOFWORKER VARCHAR(255),
+ EDUCATION VARCHAR(255),
+ MARITALSTATUS VARCHAR(255),
+ RACE VARCHAR(255),
+ SEX VARCHAR(255)
+);"}
+                {SQLiteStatement.import-csv db, "census'-test", {url "../test-data/census5000.csv"}}
+            }
+    },
     {SQLiteTableRecordSetsTestSuite null,
         init-proc =
             {proc {db:SQLiteDatabase}:void

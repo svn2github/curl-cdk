@@ -119,7 +119,7 @@
         {test-case name,
             def xs =
                 {self.database.sql-rows
-                    {format "SELECT * from %s", name}}
+                    {format "SELECT * from '%s'", {name.replace-clone "'", "''"}}}
             {TestCondition.succeed message = 
                 {lmessage {value kind} '{value name}' : {value xs.size} rows}}
         }}
@@ -166,10 +166,10 @@
     def table = self.table
     def s-count =
         {SQLiteStatement db,
-            {format "SELECT count(*) FROM %s", table}}
+            {format "SELECT count(*) FROM '%s'", {table.replace-clone "'", "''"}}}
     def s-select =        
         {SQLiteStatement db,
-            {format "SELECT * FROM %s ORDER BY ROWID", table}}
+            {format "SELECT * FROM '%s' ORDER BY ROWID", {table.replace-clone "'", "''"}}}
     
     || first two rows
     {s-select.step}

@@ -1322,9 +1322,9 @@
   }
   
   {define-proc private {sql-insert-for table:String, ncol:int}:String
-    let buf:StringBuf = {StringBuf "INSERT INTO "}
-    {buf.concat table}
-    {buf.concat "\n VALUES ("}
+    let buf:StringBuf = {StringBuf "INSERT INTO '"}
+    {buf.concat {table.replace-clone "'", "''"}}
+    {buf.concat "'\n VALUES ("}
     {for i = 0 below ncol do
         {if i > 0 then {buf.concat ", "}}
         {buf.concat "?"}
@@ -1339,7 +1339,7 @@
                        }:SQLiteStatement
     let ncols:int = 
         {with-statement in database
-            stmt = {format "SELECT * from %s LIMIT 0", table-name}
+            stmt = {format "SELECT * from '%s' LIMIT 0", {table-name.replace-clone "'", "''"}}
          do
             stmt.column-count
         }

@@ -324,7 +324,7 @@
     {self.execute-sqlite
         "PRAGMA " &
         {self.combined-table-name database-name, "table_info"} & ||""
-        "(" & table-name & ")", ||""
+        "('" & {table-name.replace-clone "'", "''"} & "')", ||""
 |#
          args-callback =
             {proc {statement:SQLiteStatement}:void
@@ -355,7 +355,7 @@
     {self.execute-sqlite
         "PRAGMA " &
         {self.combined-table-name database-name, "table_info"} & ||""
-        "(" & table-name & ")", ||""
+        "('" & {table-name.replace-clone "'", "''"} & "')", ||""
 |#
          args-callback =
             {proc {statement:SQLiteStatement}:void

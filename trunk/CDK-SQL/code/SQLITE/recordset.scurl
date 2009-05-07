@@ -745,10 +745,12 @@
   }
 
   {method protected {table-name-for-sql table-name:String}:String
-    {return
+    def combined-name =
         {(self.connection asa SQLiteConnection).combined-table-name
             self.database-name, table-name
         }
+    {return
+        "'" & {combined-name.replace-clone "'", "''"} & "'"
     }
   }
 }
