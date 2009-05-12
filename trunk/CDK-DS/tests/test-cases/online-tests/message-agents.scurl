@@ -18,10 +18,13 @@
 {import * from COM.CURL.CDK.MESSAGING}
 {import * from COM.CURL.CDK.DATA-OBJECT}
 {import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
+{import Timer, TimerEvent from CURL.GUI.BASE}
 
 {def
     amfpolling = {url "http://census-test.curl.com:8080/test-blazeds/messagebroker/amfpolling"},
-    default-destination = "chat"
+    default-destination = "chat",
+    timer-repeat = 20,
+    timer-interval = 0.5s
 }
 
 {define-proc {def-consumer
@@ -129,7 +132,6 @@
     {return false}
 }
 
-
 {define-proc {confirm-messaging
                  consumer:AbstractConsumer,
                  producer:AbstractProducer = {def-producer},
@@ -137,65 +139,95 @@
                  max-attempts:int = 500,
                  selector:any = null
              }:(ok?:bool, ran-out?:bool)
-    {output "===============confirming started===============\n"}
+
     || message received by consumer
     let result:any
 
     || message throwed by producer
     def chat-message = "foo"
 
-    || if polling is disabled, use 'receive'
-    def tm = {SimpleTimingMean
-                 max-attempts = max-attempts,
-                 exe-proc = {fn => {consumer.subscribe}},
-                 exe-repeatedly-proc =
-                     {if do-receiving? then
-                         {fn=>{after 1s do {consumer.receive}}}
-                      else
-                         {fn=>}
-                     }
-             }
+    let responded?:bool = false
 
-    || add event handlers to the consumer
-    {consumer.add-event-handler
-        {on mae:MessageAckEvent do
-            {if {is-subscribe? mae} then
-                def msg = {AsyncMessage
-                              body = {DataObject
-                                         chatMessage = chat-message
-                                     }
-                          }
-                {if-non-null selector then
-                    set msg.headers["selector"] = selector
-                }
-                {dump "message has been sent!"}
-
-                {producer.send msg}
-
-                {sleep 1s}
-            }
-        }
-    }
     {consumer.add-event-handler
         {on me:MessageEvent do
-            {type-switch me.message.body
-             case obj:DataObject do
-                def (x, x?) = {obj.get-if-exists "chatMessage"}
-                {if x? then
-                    {dump "message has been received!"}
-                    set result = x
-                    {tm.end-idling}
+            {if not me isa MessageAckEvent then
+                set responded? = true
+                {type-switch me.message.body
+                 case obj:DataObject do
+                    def (x, x?) = {obj.get-if-exists "chatMessage"}
+                    {if x? then
+                        {dump "message has been received!"}
+                        set result = x
+                    }
                 }
             }
         }
     }
 
-    def ran-out? =  {tm.start-with-idling}
-    {consumer.unsubscribe}
+    let succeeded?:bool = false
+    let t1-ended?:bool = false
+    let t2-ended?:bool = true
+    
+    {consumer.subscribe}
+    
+    def t1 =
+        {Timer
+            repeat = timer-repeat,
+            interval = timer-interval,
+            {on TimerEvent do
+                {if consumer.subscribed? then
+                    def msg = {AsyncMessage
+                                  body = {DataObject
+                                             chatMessage = chat-message
+                                         }
+                              }
+                    {if-non-null selector then
+                        set msg.headers["selector"] = selector
+                    }
+                    {producer.send msg}
+
+                    set t1.repeat = 0
+                    set t2-ended? = false
+
+                    def t2 =
+                        {Timer
+                            repeat = timer-repeat,
+                            interval = timer-interval,
+                            {on TimerEvent do
+                                {if do-receiving? then
+                                    {consumer.receive}
+                                }
+                                {if responded? then
+                                    set t2.repeat = 0
+                                    set succeeded? = (result == chat-message)
+
+                                 elseif t2.repeat == 0 then
+                                    set succeeded? = false
+                                }
+                                {if t2.repeat == 0 then
+                                    set t2-ended? = true
+                                    {consumer.unsubscribe}
+                                }
+                            }
+                        }
+
+                 elseif t1.repeat == 0 then
+                    set succeeded? = false
+                }
+                {if t1.repeat == 0 then
+                    set t1-ended? = true
+                }
+            }
+        }
+    
+    {while not (t1-ended? and t2-ended?) do
+        {dispatch-events false}
+    }
 
     {dump "\n===============confirming ended===============\n"}
-    {return (result == chat-message), ran-out?}
+    {return succeeded?, false}
 }
+
 
 {define-proc {check-property?
                  e:PropertyChangeEvent,
