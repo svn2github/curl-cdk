@@ -1,0 +1,2294 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An Open Curl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+
+||--{let package enable-divide-dump?:bool = true} || *temp* RHH
+
+{let package constant u32s:Type = {Array-of uint32}}
+
+|| c = a + b
+{define-proc package {add-u32s a:u32s, b:u32s, c:u32s}:void
+    {c.clear}
+    let asize:int = a.size
+    let bsize:int = b.size
+    let opsize:int = {max asize, bsize}
+    let accum:int64 = 0
+    {for i = 0 below opsize do
+        {if i < asize then set accum = accum + a[i]}
+        {if i < bsize then set accum = accum + b[i]}
+        {c.append accum asa uint32}
+        set accum = {bit-sra accum, 32}
+    }
+    {if accum != 0 then {c.append accum asa uint32}}
+}
+
+{define-proc package {trim-u32s a:u32s}:void
+    let i:int = a.size
+    {if i <= 0 then {return}}
+    {while i > 0 do
+        set i = i - 1
+        {if a[i] != 0 then {break}}
+        {if i == 0 then
+            {a.set-size 0, 0 asa uint32}
+            {return}
+        }
+    }
+    {a.set-size i + 1, 0 asa uint32}
+}
+
+{define-proc package {negate-u32s a:u32s}:void
+    let asize:int = a.size
+    let bias:int = 0
+    {for i = 0 below asize do
+        let val:int64 = a[i]
+        {if not (val == 0 and bias == 0) then
+            set val = bias - val
+            set bias = -1
+        }
+        set a[i] = val asa uint32
+    }
+}
+
+|| c = {abs a - b}
+|| The return value has the same sign as a - b
+{define-proc package {subtract-u32s a:u32s, b:u32s, c:u32s}:int
+    {c.clear}
+    let asize:int = a.size
+    let bsize:int = b.size
+    let opsize:int = {max asize, bsize}
+    let accum:int64 = 0
+    {for i = 0 below opsize do
+        {if i < asize then set accum = accum + a[i]}
+        {if i < bsize then set accum = accum - b[i]}
+        {c.append accum asa uint32}
+        set accum = {bit-sra accum, 32}
+    }
+    let sign:int = 1
+    {if accum < 0 then
+        set sign = -1
+        {negate-u32s c}
+    }
+    {trim-u32s c}
+    {return sign}
+}
+
+|| Return sign of a - b.
+{define-proc package {compare-u32s a:u32s, b:u32s}:int
+    let asize:int = a.size
+    let bsize:int = b.size
+    let opsize:int = {max asize, bsize}
+    {for i = opsize - 1 downto 0 do
+        let aa:uint32 = {if i < asize then a[i] else 0 asa uint32}
+        let bb:uint32 = {if i < bsize then b[i] else 0 asa uint32}
+        {if aa > bb then
+            {return 1}
+         elseif bb > aa then
+            {return -1}
+        }
+    }
+    {return 0}
+}
+
+|| The return value has the same sign as val.
+{define-proc package {int64-to-u32s val:int64, c:u32s}:int
+    {c.clear}
+    {while true do
+        {c.append val asa uint32}
+        set val = {bit-sra val, 32}
+        {if val == 0 then {return 1}}
+        {if val == -1 then {break}}
+    }
+    {negate-u32s c}
+    {return -1}
+}
+
+|| Simple conversion back to int64, no overflow check.
+{define-proc package {u32s-to-int64 a:u32s}:int64
+    let result:int64 = 0
+    let i:int = a.size
+    {while i > 0 do
+        set result = {bit-sll result, 32}
+        set i = i - 1
+        set result = result + a[i]
+    }
+    {return result}
+}
+
+|| Stuff the given uint64 into c.
+{define-proc package {uint64-to-u32s val:uint64, c:u32s}:void
+    {c.clear}
+    {if val == 0 then {return}}
+    {c.append val asa uint32}
+    set val = {bit-srl val, 32}
+    {if val == 0 then {return}}
+    {c.append val asa uint32}
+}    
+
+||--|| Simple conversion back to uint64.  (Not currently used.)
+||--{define-proc package {u32s-to-uint64 a:u32s}:uint64
+||--    let i:int = a.size
+||--    {if i == 0 then {return 0}}
+||--    let result:uint64 = a[i - 1]
+||--    {if i == 1 then {return result}}
+||--    {assert i == 2}
+||--    {return {bit-sll result, 32} + a[0]}
+||--}
+
+
+|| c = c + (a * b) * (2^32)^j
+{define-proc package {multiply-add-step-u32s a:u32s, b:uint64, c:u32s, j:int}:void
+    {while c.size < j do
+        {c.append 0 asa uint32}
+    }
+    let asize:int = a.size
+    let csize:int = c.size
+    let accum:uint64 = 0
+    {for i = 0 below asize do
+        let prod:uint64 = a[i]
+        set prod = prod * b
+        {if j < csize then set accum = accum + c[j]}
+        set accum = accum + prod
+        {if j < csize then
+            set c[j] = accum asa uint32
+         else
+            {c.append accum asa uint32}
+            set csize = csize + 1
+        }
+        set accum = {bit-srl accum, 32}
+        set j = j + 1
+    }
+    {while accum != 0 do
+        {if j < csize then
+            || Coverage testing shows that this case is never reached
+            || in our test suite, but these two statements do what should
+            || be done if we did get here.
+            set accum = accum + c[j]
+            set c[j] = accum asa uint32
+         else
+            || We need to extend c.
+            {c.append accum asa uint32}
+            set csize = csize + 1
+        }        
+        set accum = {bit-srl accum, 32}
+        set j = j + 1
+    }
+}
+
+|| c = c - a * (2^32)^j
+{define-proc package {multiply-sub1-step-u32s a:u32s, c:u32s, j:int}:void
+    let asize:int = a.size
+    let csize:int = c.size
+    let accum:int64 = 0
+    {for i = 0 below asize do
+        {assert j < csize}
+        set accum = accum + c[j]
+        set accum = accum - a[i]
+        set c[j] = accum asa uint32
+        set accum = {bit-sra accum, 32}
+        set j = j + 1
+    }
+    {while accum != 0 do
+        {assert j < csize}
+        set accum = accum + c[j]
+        set c[j] = accum asa uint32
+        set accum = {bit-sra accum, 32}
+        set j = j + 1
+    }
+}
+
+|| c = a * b
+{define-proc package {multiply-u32s a:u32s, b:u32s, c:u32s}:void
+    {c.clear}
+    {for bi key i in b do
+        {multiply-add-step-u32s a, bi, c, i}
+    }
+}
+
+
+|| a = a + b * (2^32)^offset
+{define-proc package {add-offset-step-u32s a:u32s, bi:int64, offset:int}:void
+    {while a.size <= offset do
+        {a.append 0 asa uint32}
+    }
+    let accum:int64 = bi
+    {while accum != 0 do
+        {if offset < a.size then
+            set accum = accum + a[offset]
+            set a[offset] = accum asa uint32
+         else
+            || Coverage testing shows that this case is never reached
+            || in our test suite, but this statement does what should
+            || be done if we did get here.
+            {a.append accum asa uint32}
+        }
+        set offset = offset + 1
+        set accum = {bit-sra accum, 32}
+    }
+}
+
+|| The "head" return value is a double that contains the integer value of the bits
+|| in the n leading chunks of a.  The "index" return value is the number of
+|| chunks that follow this value in a.  So
+||
+||      head * (2^32)^index <= a < (head + 1) * (2^32)^index
+||
+|| If the number of chunks in a is less than n, then the returned "head"
+|| value equals the value represented by a and the returned "index" value
+|| is 0.
+{define-proc package {head-double-u32s a:u32s, n:int}:(head:double, index:int)
+    let p32:double = {bit-sll 1 asa int64, 32}
+    let i:int = a.size
+    let result:double = 0.0
+    {for count = 1 to n do
+        {if i <= 0 then {break}}
+        set result = result * p32
+        set i = i - 1
+        set result = result + a[i]
+    }
+    {return result, i}
+}
+
+||--{let package divide-retry-count:int = 0}  || *temp* RHH
+
+|| Adds another chunk to the quotient q by dividing the divisor b
+|| into the partial remainder r.
+|| The value of b*q + r will be the same after calling this procedure
+|| as it was before, but r will be smaller.
+|| The divisor b is not changed by calling this procedure.
+|| s and t are scratch arrays.
+{define-proc package {divide-step-u32s
+                         r:u32s, b:u32s,
+                         q:u32s, s:u32s, t:u32s
+                     }:void
+||--    set divide-retry-count = 0          || *temp* RHH
+    let p32:double = {bit-sll 1 asa int64, 32}
+    {trim-u32s r}
+    {assert {compare-u32s r, b} >= 0}
+    let (rhead:double, rindex:int) = {head-double-u32s r, 2}
+    || OPT: the following computation of bhead and bindex will produce
+    || the same result for every division step, so we could consider factoring
+    || it out and doing it only once for each division operation.
+    let (bhead:double, bindex:int) = {head-double-u32s b, 2}
+    let qd:double = rhead / bhead
+    {while qd >= p32 do
+        set qd = qd / p32
+        set rindex = rindex + 1
+    }
+    {while qd < 1.0 do
+        set qd = qd * p32
+        set rindex = rindex - 1
+    }
+    || Compute the integer trial quotient qi and its chunk offset qindex.
+    || The cast here is done in two steps because if I try to convert
+    || a double straight to a uint32, Curl throws an error if the
+    || double value is not representable as a valid signed int32.
+    let qi:uint32 = ({floor qd} asa int64) asa uint32
+    let qindex:int = rindex - bindex
+    || Because the above computation does not take into account all the
+    || bits of the divisor and the partial remainder, the trial quotient
+    || could be too large or too small (by a small amount).  If it is
+    || too large, the logic in the use-trial-quotient proc will reduce
+    || it step by step until it isn't.  If it is too small, we will just
+    || use it and come back here again to continue the process.  As long
+    || as the trial quotient that we use is greater than 0 (which we check
+    || here) the division will make progress and is guaranteed to
+    || terminate eventually.  In fact, the trial quotient is so close to
+    || the correct value that the division terminates rapidly.
+    {use-trial-quotient qi, qindex, r, b, q, s, t}
+}
+
+|| Try to complete the work of divide-step-u32s by adding
+|| qi * (2^32)^qindex to the quotient q and making a corresponding
+|| deduction of b * qi * (2^32)^qindex from the partial remainder r.
+|| If qi and/or qindex is too big, causing the partial remainder to
+|| go negative, then reduce qi and/or qindex until that is not the
+|| case, but never go to the point of taking no deduction from r
+|| (which would risk an infinite loop since the state of the values
+|| at the end of this divide-step would be unchanged from their state
+|| at the beginning).
+{define-proc package {use-trial-quotient
+                         qi:uint32, qindex:int,
+                         r:u32s, b:u32s, q:u32s, s:u32s, t:u32s
+                     }:void
+    {assert qi > 0}
+    {assert qindex >= 0}
+    || Add qi * (2^32)^qindex to q.
+    {add-offset-step-u32s q, qi, qindex}
+    {s.clear}
+    || Hack to transfer r to t:
+    {add-u32s r, s, t}
+    || s will hold the value b * qi * (2^32)^qindex that we hope
+    || to subtract from r.
+    {multiply-add-step-u32s b, qi, s, qindex}
+    || But first we need to check to see whether this value is bigger
+    || than r, which would mean that our trial quotient qi was too big.
+    let cmp:int = {compare-u32s r, s}
+    {while cmp < 0 do
+||--        {inc divide-retry-count}        || *temp* RHH
+||--        || It's not a fatal flaw if we retry more than once, but I want
+||--        || to see if it ever happens.  So far, it doesn't seem to.
+||--        {assert divide-retry-count < 2} || *temp* RHH
+        || We get in here if s > r, which means the trial quotient is
+        || too big.  So we'll subtract one from it.
+        set qi = qi - (1 asa uint32)
+        || We had already added qi into the quotient, so now we need
+        || to subtract the (2^32)^qindex from q to track the adjustment
+        || we're making to qi.
+        {add-offset-step-u32s q, -1, qindex}
+        || And similarly we need to subtract b * (2^32)^qindex from s.
+        {multiply-sub1-step-u32s b, s, qindex}
+        {if qi == 0 then
+            || Here our trial quotient has been reduced to zero.
+            || To ensure no loop, reduce qindex by 1 and try filling
+            || in the next quotient digit with the maximum possible value.
+            {use-trial-quotient
+                {bit-sll 1 asa int64, 32} - 1,
+                qindex - 1,
+                r, b, q, s, t
+            }
+            {return}
+        }
+        set cmp = {compare-u32s r, s}
+    }
+    || Note that t contains the value that was originally in r,
+    || and s contains the value b * qi * (2^32)^qindex that we
+    || finally decided to subtract from r.
+    let ss:int = {subtract-u32s t, s, r}
+    {assert ss >= 0}
+}
+
+|| Do a div b, quotient into q and remainder into r.
+|| As is usual for division, the results are related by a == b*q + r.
+|| Note that this allocates and discards three scratch arrays.
+{define-proc package {divide-u32s a:u32s, b:u32s, q:u32s, r:u32s}:void
+    {q.clear}
+    {r.clear}
+    || Hack to transfer a to r:
+    {add-u32s a, q, r}
+    || And transfer b to bb so we can trim it:
+    let bb:u32s = {new u32s}
+    {add-u32s b, q, bb}
+    {trim-u32s bb}
+    || Allocate scratch arrays for use by divide-step:
+    let s:u32s = {new u32s}
+    let t:u32s = {new u32s}
+    {while {compare-u32s r, b} >= 0 do
+        {divide-step-u32s r, b, q, s, t}
+    }
+}
+
+|| Index of most significant bit in a.
+|| It is guaranteed that 2^(result+1) > a >= 2^result,
+|| provided 2^32 > a > 0.
+|| Returns 0 if a == 0.
+{define-proc package {uint32-bit-length a:uint32}:int
+    {if a == 0 then {return 0}}
+    let result:int = 1
+    {if a >= 0x10000 then
+        set result = result + 16
+        set a = {bit-srl a, 16}
+    }
+    {if a >= 0x100 then
+        set result = result + 8
+        set a = {bit-srl a, 8}
+    }
+    {if a >= 0x10 then
+        set result = result + 4
+        set a = {bit-srl a, 4}
+    }
+    {if a >= 4 then
+        set result = result + 2
+        set a = {bit-srl a, 2}
+    }
+    {if a >= 2 then
+        set result = result + 1
+    }
+    {return result}
+}
+
+
+{doc-next
+    {purpose
+        Class that represents arbitrary-precision signed integers.
+    }
+    {details
+        A {docref BigInt} instance is an immutable object that represents
+        an arbitrary-position integer.
+        Implicit constructors exist so that {docref BigInt} objects
+        can easily be constructed from {docref int}, {docref int64},
+        or {docref String} objects.
+        The standard arithmetic operations such as
+        {docref-abbr BigInt.add} and {docref-abbr BigInt.multiply}
+        exist to perform arithmetic on {docref BigInt} objects,
+        allocating new {docref BigInt} objects to hold the result.
+        Finally,
+        {docref-abbr BigInt.to-int64},
+        {docref-abbr BigInt.to-int},
+        {docref-abbr BigInt.to-double}, and
+        {docref-abbr BigInt.to-String}
+        methods are provided for converting {docref BigInt} objects
+        into other Curl types for further processing or display.
+    }
+}
+{define-class public serializable sealed BigInt
+
+  {define-serialization compact? = true}
+
+  {doc-next
+    {purpose
+        Create a {docref BigInt} object from an {docref int64} value.
+    }
+    {parameter i,
+        The {docref int64} value to be converted.
+    }
+    {details
+        Creates a {docref BigInt} object whose numerical value
+        is the same as the value of {param i}.
+    }
+  }
+  || Create a BigInt whose value equals i
+  {factory public implicit {from-int64 i:int64}:BigInt
+    let a:u32s = {new u32s}
+    let sign:int = {int64-to-u32s i, a}
+    {return {BigInt.from-fields sign, a}}
+  }
+
+  {doc-next
+    {purpose
+        Create a {docref BigInt} object from an {docref int} value.
+    }
+    {parameter i,
+        The {docref int} value to be converted.
+    }
+    {details
+        Creates a {docref BigInt} object whose numerical value
+        is the same as the value of {param i}.
+    }
+  }
+  || Create a BigInt whose value equals i
+  {factory public implicit {from-int i:int}:BigInt
+    let a:u32s = {new u32s}
+    let sign:int = {int64-to-u32s i, a}
+    {return {BigInt.from-fields sign, a}}
+  }
+
+  || The NumberParser used by BigInt.from-String:
+  let constant private number-parser:NumberParser = {NumberParser}
+
+  let package constant b10:BigInt = {BigInt.from-int 10}
+  let private constant b10p18:BigInt = {BigInt.from-int64 1000000000000000000}
+
+  || Return (accum * 10^ndigits) + chunk asa BigInt.
+  || Treat null accum value as meaning 0.
+  {define-proc private {add-chunk
+                           accum:#BigInt, s:String,
+                           start:int, ndigits:int
+                       }:BigInt
+    let chunk:int64 =
+        {BigInt.number-parser.parse-int64
+            s,
+            start = start,
+            parse-limit = start + ndigits
+        }
+    {if-non-null acc = accum then
+        def pow =
+            {if ndigits == 18 then
+                BigInt.b10p18
+             else
+                {BigInt.power10 ndigits}
+            }
+        def prod = {acc.multiply pow}
+        {return {prod.add chunk}}
+     else
+        {return chunk asa BigInt}
+    }
+  }
+
+  || Parse a BigInt from the String s, starting at position start
+  || and ending at position parse-limit.  (The character at s[parse-limit]
+  || is not examined.)
+  || Returns the BigInt value (or null if no digits were seen)
+  || and the position of the first character not used in the parse.
+  || The third return value is the sign that was seen: -1 means a '-'
+  || was seen, while +1 means no sign or '+' was seen.
+  {define-proc package {parse-from-String
+                           s:String,
+                           start:int = 0,
+                           parse-limit:int = s.size,
+                           sign-ok?:bool = true
+                       }:(value:#BigInt, end:int, sign:int)
+    let seen-digits?:bool = false
+    let sign:int = 1
+    let accum:#BigInt = null
+    let accum-start:int = start
+    let last-char-index:int
+    {for i = start below parse-limit do
+        let c:char = s[i]
+        {if sign-ok? then
+            {if {CharClass.whitespace-chars.member? c} then
+                {continue}
+             elseif c == '-' then
+                set sign = -1
+                set sign-ok? = false
+                set accum-start = i + 1
+                {continue}
+             elseif c == '+' then
+                set sign-ok? = false
+                set accum-start = i + 1
+                {continue}
+            }
+        }
+        let d:int = {digit c, 10}
+        {if d >= 0 then
+            {if sign-ok? then
+                set accum-start = i
+                set sign-ok? = false
+            }
+            set seen-digits? = true
+            set last-char-index = i + 1
+            def ndigits = last-char-index - accum-start
+            {if ndigits >= 18 then
+                set accum = {BigInt.add-chunk accum, s, accum-start, ndigits}
+                set accum-start = last-char-index
+            }
+         else
+            set last-char-index = i
+            {break}
+        }
+    }
+    {if not seen-digits? then
+        {return null, last-char-index, sign}
+    }
+    {if-non-null acc = accum then
+        def ndigits = last-char-index - accum-start
+        let result:BigInt = acc
+        {if ndigits > 0 then
+            set result = {BigInt.add-chunk acc, s, accum-start, ndigits}
+        }
+        {if sign < 0 then
+            set result = {result.negate}
+        }
+        {return result, last-char-index, sign}
+     else
+        {return
+            {BigInt.number-parser.parse-int64
+                s,
+                start = start,
+                parse-limit = last-char-index,
+                error-if-none? = false
+            },
+            last-char-index,
+            sign
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Create a {docref BigInt} object from a {docref String} value.
+    }
+    {parameter s,
+        The {docref String} value to be converted.
+        This string may optionally contain
+        any number of leading whitespace characters,
+        optionally followed by a single
+        {ctext +} or {ctext -} character,
+        followed by any number of decimal digits.
+        It is not an error for the string to contain other characters,
+        but conversion stops as soon as a non-digit character is encountered.
+    }
+    {throws
+        {exception ArithmeticException,
+            if no digits were found in the string before conversion stopped.
+        }
+    }
+    {details
+        Creates a {docref BigInt} object whose numerical value
+        is described by the portion of {param s} that was converted.
+    }
+  }
+  || Create a BigInt whose print representation would be s.
+  || This implementation is optimized to take large chunks of
+  || consecutive digits and convert them to int64 using NumberParser
+  || to minimize the amount of BigInt arithmetic that will need to
+  || be done.  Also, if it turns out that the entire value fits in
+  || an int64 (which we suspect will be a common case), then
+  || the entire conversion will be done using NumberParser and
+  || the BigInt result will be generated only after that.
+  || The logic here contains the number 18 because 10^18 is the
+  || largest power of 10 that fits into an int64.
+  {factory public implicit {from-String s:String}:BigInt
+    def (result, end) = {BigInt.parse-from-String s}
+    {if-non-null result then
+        {return result}
+     else
+        {throw
+            {ArithmeticException
+                {hlmessage No digits found in conversion to BigInt.}
+            }
+        }
+    }
+  }
+
+  || sign is always 1 or -1
+  field package constant sign:int
+  field package constant array:u32s
+
+  {constructor package {from-fields sign:int, array:u32s}
+    set self.sign = sign
+    {trim-u32s array}
+    set self.array = array
+  }
+
+  {doc-next
+    {purpose
+        Create a {docref BigInt} object from its serialized representation.
+    }
+    {parameter in,
+        The stream from which the serialized representation will be read.
+    }
+    {notes
+        See {docref BigInt.object-serialize} for a description of the
+        serialized representation.
+    }
+  }
+  {constructor public {object-deserialize in:SerializeInputStream}
+    def byte-stream = in.raw-byte-stream
+    {in.verify-class-version 0}
+    set self.sign = {in.read-one-compact int8} asa int
+    def nbytes = {in.read-one-compact int} asa int
+    def nchunks = {ceiling nbytes, 4}
+    set self.array = {{Array-of uint32}.from-size nchunks, 0}
+    {for i = nchunks - 1 downto 0 do
+        set self.array[i] = {marshal-in-uint byte-stream}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Serialize a {docref BigInt} object to a stream.
+    }
+    {parameter out,
+        The stream to which the serialized representation is written.
+    }
+    {notes
+        The serialized representation that is written consists of the
+        following elements, in sequence:
+
+        {itemize
+            {item
+                The serialization version number, currently 0.
+            }
+            {item
+                The sign of this {docref BigInt}, either 1 or {en-dash}1,
+                written as a single-byte integer.
+            }
+            {item
+                The number of bytes used to represent the magnitude
+                of this {docref BigInt} value, written as a compact
+                {docref int} using
+                {docref SerializeOutputStream.write-one-compact}.
+                Currently this value is rounded up to the next
+                multiple of 4.
+            }
+            {item
+                The bytes that represent the magnitude of this
+                {docref BigInt} value, with the most significant byte first.
+            }
+        }
+    }
+  }
+  {method public open {object-serialize out:SerializeOutputStream}:void
+    def byte-stream = out.raw-byte-stream
+    {out.write-class-version 0}
+    || Write sign as a one-byte integer:
+    {out.write-one-compact self.sign asa int8, int8}
+    || Write number of bytes of integer representation:
+    {out.write-one-compact self.array.size * 4, int}
+    || Now write the integer representation bytes, MSB first:
+    {for i = self.array.size - 1 downto 0 do
+        {marshal-out-uint byte-stream, self.array[i]}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Add two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be added to {param self}.
+    }
+    {return-vals
+        A newly created {docref BigInt} object that represents the
+        sum of {param self} and {param a}.
+    }
+  }
+  || result = self + a
+  {method public {add a:BigInt}:BigInt
+    let c:u32s = {new u32s}
+    {return
+        {if self.sign == a.sign then
+            {add-u32s self.array, a.array, c}
+            {BigInt.from-fields self.sign, c}
+         else
+            let sub-sign:int = {subtract-u32s self.array, a.array, c}
+            {BigInt.from-fields self.sign * sub-sign, c}
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Compute the negative of a {docref BigInt} object.
+    }
+    {return-vals
+        A newly created {docref BigInt} object that represents the
+        negative of {param self}.
+    }
+  }
+  || result = -self
+  {method public {negate}:BigInt
+    {return {BigInt.from-fields -self.sign, self.array}}
+  }
+
+  {doc-next
+    {purpose
+        Subtract two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be subtracted from {param self}.
+    }
+    {return-vals
+        A newly created {docref BigInt} object that represents the
+        value of the expression {no-break {ctext {param self} - {param a}}}.
+    }
+  }
+  || result = self - a
+  {method public {subtract a:BigInt}:BigInt
+    {return {self.add {a.negate}}}
+  }
+
+  {doc-next
+    {purpose
+        Multiply two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be multiplied by {param self}.
+    }
+    {return-vals
+        A newly created {docref BigInt} object that represents the
+        product of {param self} and {param a}.
+    }
+  }
+  || result = self * a
+  {method public {multiply a:BigInt}:BigInt
+    let c:u32s = {new u32s}
+    {multiply-u32s self.array, a.array, c}
+    {return {BigInt.from-fields self.sign * a.sign, c}}
+  }
+
+  let private constant b0:BigInt = {BigInt.from-int 0}
+
+  {doc-next
+    {purpose
+        Divide two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be divided into {param self}.
+    }
+    {return-vals
+        Two {docref BigInt} objects are returned: a quotient and a remainder.
+        The quotient is a newly allocated {docref BigInt} object
+        that represents the quotient that results from dividing
+        {param self} by {param a}.
+        The remainder is a newly allocated {docref BigInt} object
+        that represents the remainder from that division.
+        The division is performed so that the sign of the remainder
+        is the same as the sign of {param self}
+        (the dividend).
+    }
+    {throws
+        {exception ArithmeticException,
+            if {param a} is zero.
+        }
+    }
+  }
+  || Divide self by a
+  {method public {divide a:BigInt}:(quotient:BigInt, remainder:BigInt)
+    {if a.zero? then
+        {throw
+            {ArithmeticException
+                {hlmessage A BigInt divide by zero was attempted.}
+            }
+        }
+    }
+    let q:u32s = {new u32s}
+    let r:u32s = {new u32s}
+
+    def self-array = self.array
+    def a-array = a.array
+    || If dividend is than 2^63, just use
+    || int64 arithmetic as a (major) optimization.
+    || (It would be nice to use uint64 division but Curl doesn't
+    || seem to support this currently.  --rhh 20090602)
+    {if self-array.size <= 2 then
+        def self-val = {u32s-to-int64 self-array}
+        || Check for int64 overflow in this value.
+        {if self-val >= 0 then
+            || No overflow, so proceed.
+            {if a-array.size <= 2 then
+                def a-val = {u32s-to-int64 a-array}
+                {if a-val >= 0 then
+                    || No overflow, so proceed.
+                    def (q-val, r-val) = {truncate self-val, a-val}
+                    {uint64-to-u32s q-val asa uint64, q}
+                    {uint64-to-u32s r-val asa uint64, r}
+                 else
+                    || Here, we know that the magnitude of the dividend is
+                    || less than that of the divisor, making the problem
+                    || even easier because the quotient will be 0.
+                    {return BigInt.b0, self}
+                }
+             else
+                {return BigInt.b0, self}
+            }
+         else
+            {divide-u32s self-array, a-array, q, r}
+        }
+     else
+        {divide-u32s self-array, a-array, q, r}
+    }
+    def quot = {BigInt.from-fields self.sign * a.sign, q}
+    def remdr = {BigInt.from-fields self.sign, r}
+||--    {if enable-divide-dump? then {with enable-divide-dump? = false do {output {format |"    divide_test("%s", "%s", "%s", "%s");"|, {self.to-String}, {a.to-String}, {quot.to-String}, {remdr.to-String}}}}} || *temp* RHH
+    {return quot, remdr}
+  }
+
+  {doc-next
+    {purpose
+        Test whether a {docref BigInt} object equals zero.
+    }
+    {return-vals
+        True if {param self} represents the number 0,
+        and false otherwise.
+    }
+  }
+  || Is self equal to zero?
+  {getter public {zero?}:bool
+    {if self.array.size > 0 then {assert self.array[self.array.size - 1] != 0}}
+    {return self.array.size == 0}
+  }
+
+  {doc-next
+    {purpose
+        Return the sign of a {docref BigInt} object.
+    }
+    {return-vals
+        If {param self} represents a positive number, 1 is returned.
+        If {param self} represents zero, 0 is returned.
+        If {param self} represents a negative number, {en-dash}1 is returned.
+    }
+  }
+  || Return -1, 0, or 1, depending on the sign of self.
+  {getter public {signum}:int
+    {if self.zero? then
+        {return 0}
+     else
+        {return self.sign}
+    }
+  }
+
+  {doc-next
+    {purpose
+        Test whether two {docref BigInt} objects are equal.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be compared to {param self}.
+    }
+    {return-vals
+        True if {param self} and {param a} represent the same integer,
+        false otherwise.
+    }
+  }
+  || Is self equal to a?
+  {method public {equal? a:BigInt}:bool
+    {if self.zero? then {return a.zero?}}
+    {return self.sign == a.sign and {compare-u32s self.array, a.array} == 0}
+  }
+
+  {doc-next
+    {purpose
+        Compare two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be compared to {param self}.
+    }
+    {return-vals
+        If {param self} is greater than {param a}, 1 is returned.
+        If {param self} equals {param a}, 0 is returned.
+        If {param self} is less than {param a}, {en-dash}1 is returned.
+    }
+  }
+  || Return -1, 0, or 1, depending on sign of self - a.
+  {method public {compare a:BigInt}:int
+    {if a.zero? then
+        {return self.signum}
+    }
+    {if self.zero? then
+        {return -a.signum}
+    }
+    {if self.sign != a.sign then
+        {return self.sign}
+    }
+    let cmp-sign:int = {compare-u32s self.array, a.array}
+    {return cmp-sign * self.sign}
+  }
+
+  {doc-next
+    {purpose
+        Test whether a {docref BigInt} object represents an even number.
+    }
+    {return-vals
+        True if {param self} represents a number that is divisible by 2,
+        and false otherwise.
+    }
+  }
+  || Is self an even number?
+  {getter public {even?}:bool
+    {if self.array.size == 0 then
+        {return true}
+     else
+        {return {bit-and self.array[0], 1} == 0}
+    }
+  }
+
+  let private constant b1:BigInt = {BigInt.from-int 1}
+
+  {doc-next
+    {purpose
+        Raise a {docref BigInt} object to a specified power.
+    }
+    {parameter exponent,
+        The exponent to be used.
+        This value must not be negative.
+    }
+    {return-vals
+        A newly created {docref BigInt} object that represents the
+        value of {param self} raised to the power {param exponent}.
+    }
+  }
+  || result = self ^ exponent
+  || The implementation is unrolled a bit to try to eliminate
+  || unneeded BigInt arithmetic operations.
+  {method public {power exponent:int64}:BigInt
+    {if exponent < 0 then
+        {throw
+            {ArithmeticException
+                {hlmessage
+                    Negative exponent in BigInt.power.
+                }
+            }
+        }
+    }
+    {if exponent == 0 then
+        {return BigInt.b1}
+    }
+    let base:BigInt = self
+    {while {bit-and exponent, 1} == 0 do
+        set base = {base.multiply base}
+        set exponent = {bit-sra exponent, 1}
+    }
+    let accum:BigInt = base
+    set exponent = exponent - 1
+    {while exponent > 0 do
+        {if {bit-and exponent, 1} != 0 then
+            set accum = {accum.multiply base}
+        }
+        set base = {base.multiply base}
+        set exponent = {bit-sra exponent, 1}
+    }
+    {return accum}
+  }
+
+  let private p10table:{Array-of BigInt} =
+      {new {Array-of BigInt},
+        {BigInt.from-int 1},
+        {BigInt.from-int 10},
+        {BigInt.from-int 100},
+        {BigInt.from-int 1000},
+        {BigInt.from-int 10000},
+        {BigInt.from-int 100000},
+        {BigInt.from-int 1000000},
+        {BigInt.from-int 10000000},
+        {BigInt.from-int 100000000},
+        {BigInt.from-int 1000000000},
+        {BigInt.from-int64 10000000000},
+        {BigInt.from-int64 100000000000},
+        {BigInt.from-int64 1000000000000},
+        {BigInt.from-int64 10000000000000},
+        {BigInt.from-int64 100000000000000},
+        {BigInt.from-int64 1000000000000000},
+        {BigInt.from-int64 10000000000000000},
+        {BigInt.from-int64 100000000000000000},
+        {BigInt.from-int64 1000000000000000000}
+      }
+
+  || Return 10^exponent, with optimizations for some common cases.
+  {define-proc package {power10 exponent:int}:BigInt
+    {assert exponent >= 0}
+    || Try table lookup first.
+    {if exponent < BigInt.p10table.size then
+        {return BigInt.p10table[exponent]}
+    }
+    || If exponent is big, fall back on the general case,
+    || still somewhat optimized.
+    def small = BigInt.p10table[{bit-and exponent, 0xf}]
+    def big = {BigInt.p10table[16].power {bit-srl exponent, 4}}
+    {return {big.multiply small}}
+  }
+
+  {doc-next
+    {purpose
+        Return the value of a {docref BigInt} object as an {docref int64}.
+    }
+    {return-vals
+        An {docref int64} equal to the value of the {docref BigInt} object.
+    }
+    {usage
+        Note that this method does not check for overflows.
+        If an application needs to guard against overflow,
+        it should first check for overflow using code such as the
+        following:
+
+        {curl-code
+            {define-proc {safe-convert num:BigInt}:int64
+                {if {num.compare max-int64} > 0 or
+                    {num.compare min-int64} < 0
+                 then
+                    {throw
+                        {ArithmeticException
+                            {message
+                                Overflow converting BigInt to int64.
+                            }
+                        }
+                    }
+                }
+                {return {num.to-int64}}
+            }
+        }
+    }
+  }
+  || Return an int64 that equals self.
+  || Note: no checking for overflow.
+  {method public {to-int64}:int64
+    let mag:int64 = {u32s-to-int64 self.array}
+    {return self.sign * mag}
+  }
+
+  {doc-next
+    {purpose
+        Return the value of a {docref BigInt} object as an {docref int}.
+    }
+    {return-vals
+        An {docref int} equal to the value of the {docref BigInt} object.
+    }
+    {usage
+        Note that this method does not check for overflows.
+        If an application needs to guard against overflow,
+        it should first check for overflow using code such as the
+        following:
+
+        {curl-code
+            {define-proc {safe-convert num:BigInt}:int
+                {if {num.compare max-int} > 0 or
+                    {num.compare min-int} < 0
+                 then
+                    {throw
+                        {ArithmeticException
+                            {message
+                                Overflow converting BigInt to int.
+                            }
+                        }
+                    }
+                }
+                {return {num.to-int}}
+            }
+        }
+    }
+  }
+  || Return an int that equals self.
+  || Note: no checking for overflow.
+  {method public {to-int}:int
+    {return {self.to-int64} asa int}
+  }
+
+  {doc-next
+    {purpose
+        Return the value of a {docref BigInt} object as a {docref double}.
+    }
+    {return-vals
+        A {docref double} that best approximates
+        the value of the {docref BigInt} object.
+        If this value has more than 53 significant bits, some precision
+        may be lost.
+        If the magnitude of this value is so large that the result is
+        not representable as a {docref double},
+        then a positive or negative infinity value will be returned.
+    }
+  }
+  || Return a double that is closest to self.
+  || If self is larger than 53 bits, some precision may be lost.
+  || Overflow will cause infinity or minus infinity to be returned.
+  {method public {to-double}:double
+    let (head:double, index:int) = {head-double-u32s self.array, 5}
+    {if index > 0 then
+        set head = {ldexp head, 32 * index}
+    }
+    {return {if self.sign > 0 then head else -head}}
+  }
+
+  {doc-next
+    {purpose
+        Return a {docref String} that contains the print
+        representation of this {docref BigInt} object.
+    }
+    {return-vals
+        A {docref String} that gives the print representation
+        of this {docref BigInt} object in decimal format,
+        with an optional leading minus sign.
+    }
+  }
+  || Return a String that contains the print representation of self.
+  {method public {to-String}:String
+    || Try to do this quickly if the number fits into an int64:
+    def asize = self.array.size
+    {if asize <= 2 then
+        {if asize == 0 then {return "0"}}
+        {if asize < 2 or self.array[1] <= max-int32 then
+            {return {format "%d", {self.to-int64}}}
+        }
+    }
+    || Nope, need to do it the hard way.
+    let sign:int = self.signum
+    let num:BigInt = self
+    let longs:{Array-of int64} = {new {Array-of int64}}
+    let b18:BigInt = BigInt.b10p18
+    || Peel off chunks of digits by repeatedly dividing by 10^18.
+    || This minimizes the number of BigInt arithmetic operations that
+    || need to be performed.
+    {while not num.zero? do
+        let (q:BigInt, r:BigInt) = {num.divide b18}
+        let chunk:int64 = {r.to-int64}
+        {if sign < 0 then set chunk = -chunk}
+        {longs.append chunk}
+        set num = q
+    }
+    let sb:StringBuf = {StringBuf}
+    {if sign < 0 then
+        {sb.append '-'}
+    }
+    let i:int = longs.size - 1
+    {format out = sb, "%d", longs[i]}
+    {while i > 0 do
+        set i = i - 1
+        {format out = sb, "%018d", longs[i]}
+    }
+    {return {sb.to-String}}
+  }
+
+  {doc-next
+    {purpose
+        Return the absolute value of a {docref BigInt} object.
+    }
+    {return-vals
+        The absolute value of {param self}.
+    }
+    {notes
+        If the value of {param self} is negative,
+        a newly allocated {docref BigInt} object is returned.
+    }
+  }
+  || Return the absolute value of self.
+  {method public {abs}:BigInt
+    {return
+        {if self.signum < 0 then
+            {self.negate}
+         else
+            self
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Compute the maximum of two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be compared with {param self}.
+    }
+    {return-vals
+        Either {param self} or {param a}, whichever is greater.
+    }
+  }
+  || result = max(self, a)
+  {method public {max a:BigInt}:BigInt
+    {return {if {self.compare a} >= 0 then self else a}}
+  }
+
+  {doc-next
+    {purpose
+        Compute the minimum of two {docref BigInt} objects.
+    }
+    {parameter a,
+        The {docref BigInt} object that is to be compared with {param self}.
+    }
+    {return-vals
+        Either {param self} or {param a}, whichever is less.
+    }
+  }
+  || result = min(self, a)
+  {method public {min a:BigInt}:BigInt
+    {return {if {self.compare a} >= 0 then a else self}}
+  }
+
+  {doc-next
+    {purpose
+        Compute the number of significant bits in a {docref BigInt} object.
+    }
+    {return-vals
+        The index of the most significant bit in {param self}.
+        If this returned number is {param result},
+        it is guaranteed that
+        {no-break 2{superscript {param result}+1} > \|{param self}\| >= 2{superscript {param result}}},
+        provided that {no-break {param self} != 0}.
+        If {no-break {param self} == 0}, then the returned value will be 0.
+    }
+  }
+  || Index of most significant bit in self.
+  || It is guaranteed that 2^(result+1) > self >= 2^result,
+  || provided self != 0.
+  || Returns 0 if a == 0.
+  {getter public {bit-length}:int
+    let sizem1:int = self.array.size - 1
+    {if sizem1 < 0 then
+        {return 0}
+     else
+        {return 32 * sizem1 + {uint32-bit-length self.array[sizem1]}}
+    }
+  }
+
+}
+
+
+{doc-next
+    {purpose
+        Rounding modes that can be used with the {docref BigDecimal} class.
+    }
+    {details
+        Various rounding modes can be specified for use when an
+        operation on a {docref BigDecimal} object does not produce
+        a precise result.
+
+        The following options are available:
+
+        {itemize
+
+            {item {ctext round-toward-even}:
+                Round toward the nearest neighboring value;
+                round toward the even neighbor if the two neighbors
+                are equidistant.
+            }
+
+            {item {ctext round-toward-zero}:
+                Round toward the nearest neighboring value;
+                round toward zero if the two neighbors
+                are equidistant.
+            }
+
+            {item {ctext round-away-from-zero}:
+                Round toward the nearest neighboring value;
+                round away from zero if the two neighbors
+                are equidistant.
+            }
+
+            {item {ctext floor}:
+                Always round toward negative infinity.
+            }
+
+            {item {ctext ceiling}:
+                Always round toward positive infinity.
+            }
+
+            {item {ctext truncate}:
+                Always round toward zero.
+            }
+
+            {item {ctext away-from-zero}:
+                Always round away from zero.
+            }
+
+            {item {ctext none}:
+                Do not round; throw an {docref ArithmeticException}
+                if rounding would be required.
+            }
+
+        }
+    }
+}
+|| These rounding modes are all defined in the Java BigDecimal package,
+|| but some of them (such as away-from-zero) don't seem too useful.
+{define-enum public RoundingMode
+    || Round toward nearest neighbor; round toward even neighbor if
+    ||   neighbors are equidistant.
+    round-toward-even,
+
+    || Round toward nearest neighbor; round toward zero if
+    ||   neighbors are equidistant.
+    round-toward-zero,
+
+    || Round toward nearest neighbor; round away from zero if
+    ||   neighbors are equidistant.
+    round-away-from-zero,
+
+    || Always round toward negative infinity.
+    floor,
+
+    || Always round toward positive infinity.
+    ceiling,
+
+    || Always round toward zero.
+    truncate,
+
+    || Always round away from zero.
+    away-from-zero,
+
+    || Do not round; throw ArithmeticException if rounding would be required.
+    none
+}
+
+
+{doc-next
+    {purpose
+        Class that represents arbitrary-precision signed decimal numbers.
+    }
+    {details
+        A {docref BigDecimal} instance is an immutable object that represents
+        an arbitrary-position signed decimal number.
+        Implicit factories exist so that {docref BigDecimal} objects
+        can easily be constructed from {docref int}, {docref int64},
+        {docref double}, {docref BigInt},
+        or {docref String} objects.
+        The standard arithmetic operations such as
+        {docref-abbr BigDecimal.add} and {docref-abbr BigDecimal.multiply}
+        exist to perform arithmetic on {docref BigDecimal} objects,
+        allocating new {docref BigDecimal} objects to hold the result.
+        Finally,
+        {docref-abbr BigDecimal.to-double} and
+        {docref-abbr BigDecimal.to-String}
+        methods are provided for converting {docref BigDecimal} objects
+        into other Curl types for further processing or display.
+    }
+}
+{define-class public serializable sealed BigDecimal
+
+  {define-serialization compact? = true}
+
+  || value of this object is unscaled-value * 10^(-scale)
+
+  {doc-next
+    {purpose
+        The unscaled {docref BigInt} value of this {docref BigDecimal} object.
+    }
+    {notes
+        The value represented by this {docref BigDecimal} object equals
+        {no-break {monospace {param self}.unscaled-value} * 10{superscript ({monospace {en-dash}{param self}.scale})}}.
+    }
+  }
+  field public constant unscaled-value:BigInt
+
+  {doc-next
+    {purpose
+        The scale exponent for this {docref BigDecimal} object.
+    }
+    {notes
+        The value represented by this {docref BigDecimal} object equals
+        {no-break {monospace {param self}.unscaled-value} * 10{superscript ({monospace {en-dash}{param self}.scale})}}.
+    }
+  }
+  field public constant scale:int
+
+  let package constant b2:BigInt = {BigInt.from-int 2}
+  let package constant b10:BigInt = {BigInt.from-int 10}
+  let package constant fract-mul:int64 =
+      {bit-sll (1 asa int64), 53}
+  let package constant bfract-mul:BigInt =
+      {BigInt.from-int64 BigDecimal.fract-mul}
+
+  {doc-next
+    {purpose
+        Construct a {docref BigDecimal} object from a {docref BigInt} object.
+    }
+    {parameter a,
+        The {docref BigInt} object.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default a scale value of 0 is used.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if a {param scale} value less then 0
+        is specified.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose value equals the
+        value of {param a}
+        (unless {param scale} < 0 and rounding occurs)
+        and has a {docref-abbr BigDecimal.scale} property equal to
+        {param scale}.
+    }
+  }
+  || Produces a BigDecimal whose (scaled) value is equal to a,
+  || with the scale set as specified.
+  || The rounding-mode is applied if scale < 0.
+  {factory public implicit
+        {from-BigInt
+            a:BigInt,
+            scale:int = 0,
+            rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+        }:BigDecimal
+    {if scale == 0 then
+        {return {BigDecimal.from-fields a, scale}}
+     elseif scale > 0 then
+        {return
+            {BigDecimal.from-fields
+                {a.multiply {BigInt.power10 scale}},
+                scale
+            }
+        }
+     else
+        {return
+            {{BigDecimal.from-fields a, 0}.set-scale
+                scale,
+                rounding-mode = rounding-mode
+            }
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Construct a {docref BigDecimal} object from an {docref int64} value.
+    }
+    {parameter a,
+        The {docref int64} value.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default a scale value of 0 is used.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if a {param scale} value less then 0
+        is specified.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose value equals the
+        value of {param a}
+        (unless {param scale} < 0 and rounding occurs)
+        and has a {docref-abbr BigDecimal.scale} property equal to
+        {param scale}.
+    }
+  }
+  || Produces a BigDecimal whose (scaled) value is equal to a,
+  || with the scale set as specified.
+  || The rounding-mode is applied if scale < 0.
+  {factory public implicit
+        {from-int64
+            a:int64,
+            scale:int = 0,
+            rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+        }:BigDecimal
+    {return {BigDecimal.from-BigInt a, scale = scale, rounding-mode = rounding-mode}}
+  }
+
+  {doc-next
+    {purpose
+        Construct a {docref BigDecimal} object from an {docref int} value.
+    }
+    {parameter a,
+        The {docref int} value.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default a scale value of 0 is used.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if a {param scale} value less then 0
+        is specified.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose value equals the
+        value of {param a}
+        (unless {param scale} < 0 and rounding occurs)
+        and has a {docref-abbr BigDecimal.scale} property equal to
+        {param scale}.
+    }
+  }
+  || Produces a BigDecimal whose (scaled) value is equal to a,
+  || with the scale set as specified.
+  || The rounding-mode is applied if scale < 0.
+  {factory public implicit
+        {from-int
+            a:int,
+            scale:int = 0,
+            rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+        }:BigDecimal
+    {return {BigDecimal.from-BigInt a, scale = scale, rounding-mode = rounding-mode}}
+  }
+
+  {define-proc package {divide-and-round
+                           dividend:BigInt,
+                           divisor:BigInt,
+                           rounding-mode:RoundingMode
+                       }:BigInt
+    let (quotient:BigInt, remainder:BigInt) = {dividend.divide divisor}
+    let rem-sign:int = remainder.signum
+    {if rem-sign != 0 then
+        || quot-sign will be the number to add when rounding away from zero
+        let quot-sign:int = quotient.signum
+        {if quot-sign == 0 then
+            set quot-sign = rem-sign * divisor.signum
+        }
+        {switch rounding-mode
+         case RoundingMode.round-toward-even do
+            let r2:BigInt = {{remainder.add remainder}.abs}
+            let cmp:int = {{divisor.abs}.compare r2}
+            {if cmp < 0 or (cmp == 0 and not quotient.even?) then
+                set quotient = {quotient.add quot-sign}
+            }
+
+         case RoundingMode.round-toward-zero do
+            let r2:BigInt = {{remainder.add remainder}.abs}
+            let cmp:int = {{divisor.abs}.compare r2}
+            {if cmp < 0 then
+                set quotient = {quotient.add quot-sign}
+            }
+
+         case RoundingMode.round-away-from-zero do
+            let r2:BigInt = {{remainder.add remainder}.abs}
+            let cmp:int = {{divisor.abs}.compare r2}
+            {if cmp <= 0 then
+                set quotient = {quotient.add quot-sign}
+            }
+
+         case RoundingMode.floor do
+            {if quot-sign < 0 then
+                set quotient = {quotient.add -1}
+            }
+
+         case RoundingMode.ceiling do
+            {if quot-sign > 0 then
+                set quotient = {quotient.add 1}
+            }
+
+         case RoundingMode.truncate do
+            || No operation is necessary in this case.
+
+         case RoundingMode.away-from-zero do
+            set quotient = {quotient.add quot-sign}
+
+         case RoundingMode.none do
+            {throw
+                {ArithmeticException
+                    "Unexpected precision loss when rounding a BigDecimal"
+                }
+            }
+        }
+    }
+    {return quotient}
+  }
+
+  {define-proc package {full-precision-scale a:double}:int
+    let (fraction:double, exponent:int) = {frexp a}
+    || Convert binary exponent to decimal exponent, multiplying
+    ||   by log10(2).
+    || CHECKME: This result is only approximate, so check that all
+    ||   users of this value recognize that.  -rhh 20090504
+    {return {ceiling 0.30103 * (53 - exponent)} asa int}
+  }
+
+  {doc-next
+    {purpose
+        Construct a {docref BigDecimal} object from a {docref double} value.
+    }
+    {parameter a,
+        The {docref double} value.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default a scale value is chosen that approximates the
+        number of significant decimal digits in {param a}.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if the full precision of {param a}
+        cannot be represented using the specified {param scale}.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose value approximates the
+        value of {param a}, using the specified
+        {param scale} and {param rounding-mode}.
+    }
+    {notes
+        Since most decimal fractions do not have finite, exact representations
+        as binary fractions,
+        and most binary fractions do not have compact, exact
+        representations as decimal fractions,
+        generally some rounding will be required unless the
+        original {docref double} value is an exact integer or is a special
+        number with a compact, exact decimal representation such as 1.5 or 1.25.
+        Therefore, for example,
+        {ctext {BigDecimal.from-double 0.1}} will produce a value that is
+        not equal to the value of
+        {ctext {BigDecimal.from-String "0.1"}}.
+        If each of these values is then multiplied by 10,
+        the latter value
+        (produced using {docref-abbr BigDecimal.from-String#factory})
+        is the one that will yield a result exactly equal to 1.
+        Therefore, for exact computations with decimal fractions,
+        it is generally better to construct {docref BigDecimal} values
+        using {docref-abbr BigDecimal.from-String#factory}
+        rather than {docref-abbr BigDecimal.from-double#factory}.
+    }
+  }
+  || Produces a BigDecimal whose (scaled) value is equal to a,
+  || with the scale set as specified.  The default scale value provides
+  || a number of significant digits that equals the amount of precision
+  || in a.  The rounding-mode is applied if any nonzero digits are
+  || omitted.
+  {factory public implicit
+        {from-double
+            a:double,
+            scale:int = {BigDecimal.full-precision-scale a},
+            rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+        }:BigDecimal
+    let (fraction:double, exponent:int) = {frexp a}
+    let numerator:BigInt = (fraction * BigDecimal.fract-mul) asa int64
+    let denominator:BigInt = BigDecimal.bfract-mul
+    {if exponent > 0 then
+        set numerator = {numerator.multiply {BigDecimal.b2.power exponent}}
+     elseif exponent < 0 then
+        set denominator = {denominator.multiply {BigDecimal.b2.power -exponent}}
+    }
+    {if scale > 0 then
+        set numerator = {numerator.multiply {BigInt.power10 scale}}
+     elseif scale < 0 then
+        set denominator = {denominator.multiply {BigInt.power10 -scale}}
+    }
+    let mantissa:BigInt =
+        {BigDecimal.divide-and-round numerator, denominator, rounding-mode}
+    {return {BigDecimal.from-fields mantissa, scale}}
+  }
+
+  {doc-next
+    {purpose
+        Create a {docref BigDecimal} object from a {docref String} value.
+    }
+    {parameter s,
+        The {docref String} value to be converted.
+        This string may optionally contain
+        any number of leading whitespace characters,
+        optionally followed by a single
+        {ctext +} or {ctext -} character,
+        followed by any number of decimal digits,
+        optionally followed by a decimal point
+        (a single {ctext .} character),
+        optionally followed by any number of decimal digits.
+        It is not an error for the string to contain other characters,
+        but conversion stops as soon as a character
+        that does not fit into the above pattern is encountered.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose numerical value
+        is described by the portion of {param s} that was converted.
+        The {docref-abbr BigDecimal.scale} property of the result
+        equals the number of digits that were found after the
+        decimal point, or 0 if there was no decimal point.
+    }
+  }
+  || Create a BigDecimal whose print representation would be s.
+  || scale is obtained from the location of the decimal point in the string.
+  || There is never a need for rounding.
+  {factory public implicit {from-String s:String}:BigDecimal
+    def ssize = s.size
+    let scale:int = 0
+    def (int-part, int-end, int-sign) =
+        {BigInt.parse-from-String s, parse-limit = ssize}
+    {if int-end < ssize then
+        def c = s[int-end]
+        {if c == '.' then
+            def (frac-part, frac-end) =
+                {BigInt.parse-from-String
+                    s,
+                    start = int-end + 1,
+                    parse-limit = ssize,
+                    sign-ok? = false
+                }
+            {if-non-null frac-part then
+                def scale = frac-end - (int-end + 1)
+                {assert scale > 0}
+                let fpart:BigInt = frac-part
+                {if int-sign < 0 then
+                    set fpart = {fpart.negate}
+                }
+                {if-non-null int-part then
+                    def pow = {BigInt.power10 scale}
+                    def val = {fpart.add {int-part.multiply pow}}
+                    {return {BigDecimal.from-fields val, scale}}
+                 else
+                    {return {BigDecimal.from-fields fpart, scale}}
+                }
+            }
+        }
+    }
+    {if-non-null int-part then
+        {return {BigDecimal.from-fields int-part, 0}}
+    }
+    {throw
+        {ArithmeticException
+            {hlmessage No digits found in conversion to BigDecimal.}
+        }
+    }
+  }
+
+  {constructor package {from-fields unscaled-value:BigInt, scale:int}
+    set self.unscaled-value = unscaled-value
+    set self.scale = scale
+  }
+
+  {doc-next
+    {purpose
+        Set the scale of a {docref BigDecimal} to a specified value.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if {param scale} is less than
+        {ctext {param self}.{docref-abbr BigDecimal.scale}}
+        and nonzero digits are removed from the value.
+        By default this rounding mode is
+        {ctext {docref RoundingMode}.round-away-from-zero}.
+    }
+    {details
+        Creates a {docref BigDecimal} object whose value approximates the
+        value of {param self}, using the specified
+        {param scale} and {param rounding-mode}.
+    }
+  }
+  || Returns a BigDecimal equal to self, but with the scale
+  || set as specified.  If the new scale is less than self.scale,
+  || the specified rounding-mode is applied.
+  {method public {set-scale
+                     scale:int,
+                     rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+                 }:BigDecimal
+    {if scale > self.scale then
+        {return
+            {BigDecimal.from-fields
+                {self.unscaled-value.multiply
+                    {BigInt.power10 scale - self.scale}
+                },
+                scale
+            }
+        }
+     elseif scale < self.scale then
+        let divisor:BigInt = {BigInt.power10 self.scale - scale}
+        let quotient:BigInt =
+            {BigDecimal.divide-and-round self.unscaled-value, divisor, rounding-mode}
+        {return
+            {BigDecimal.from-fields quotient, scale}
+        }
+     else
+        || scale equals self.scale, so just return self.
+        {return self}
+    }
+  }
+
+  {method private {align-operands
+                      a:BigDecimal
+                  }:(self-int:BigInt, a-int:BigInt, opscale:int)
+    let opscale:int = {max self.scale, a.scale}
+    let self-int:BigInt = self.unscaled-value
+    let a-int:BigInt = a.unscaled-value
+    {if self.scale < opscale then
+        set self-int = {self-int.multiply {BigInt.power10 opscale - self.scale}}
+    }
+    {if a.scale < opscale then
+        set a-int = {a-int.multiply {BigInt.power10 opscale - a.scale}}
+    }
+    {return self-int, a-int, opscale}
+  }
+
+  {doc-next
+    {purpose
+        Add two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be added to {param self}.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default this is the larger of the scale values of
+        {param self} and {param a}.
+        If this default is used, then the result of the computation is
+        exact and no rounding will ever be needed.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if {param scale} is less than
+        the default value mentioned above,
+        and nonzero digits are removed from the result of the computation.
+        By default this rounding mode is
+        {ctext {docref RoundingMode}.round-away-from-zero}.
+    }
+    {return-vals
+        A newly created {docref BigDecimal} object that represents the
+        sum of {param self} and {param a}.
+    }
+  }
+  || result = self + a
+  || scale specifies the scale of the result
+  || rounding-mode is applied if precision is reduced.
+  {method public {add
+                     a:BigDecimal,
+                     scale:int = {max self.scale, a.scale},
+                     rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+                 }:BigDecimal
+    let (self-int:BigInt, a-int:BigInt, opscale:int) =
+        {self.align-operands a}
+    let sum:BigDecimal = {BigDecimal.from-fields {self-int.add a-int}, opscale}
+    {return {sum.set-scale scale, rounding-mode = rounding-mode}}
+  }
+
+  {doc-next
+    {purpose
+        Compute the negative of a {docref BigDecimal} object.
+    }
+    {return-vals
+        A newly created {docref BigDecimal} object that represents the
+        negative of {param self}.
+        The result will have the same {docref-abbr BigDecimal.scale} value
+        as {param self}.
+    }
+  }
+  || result = -self
+  {method public {negate}:BigDecimal
+    {return {BigDecimal.from-fields {self.unscaled-value.negate}, self.scale}}
+  }
+
+  {doc-next
+    {purpose
+        Subtract two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be subtracted from {param self}.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default this is the larger of the scale values of
+        {param self} and {param a}.
+        If this default is used, then the result of the computation is
+        exact and no rounding will ever be needed.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if {param scale} is less than
+        the default value mentioned above,
+        and nonzero digits are removed from the result of the computation.
+        By default this rounding mode is
+        {ctext {docref RoundingMode}.round-away-from-zero}.
+    }
+    {return-vals
+        A newly created {docref BigDecimal} object that represents the
+        difference of {param self} and {param a}.
+    }
+  }
+  || result = self - a
+  || scale specifies the scale of the result
+  || rounding-mode is applied if precision is reduced.
+  {method public {subtract
+                     a:BigDecimal,
+                     scale:int = {max self.scale, a.scale},
+                     rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+                 }:BigDecimal
+    {return {self.add {a.negate}, scale = scale, rounding-mode = rounding-mode}}
+  }
+
+  {doc-next
+    {purpose
+        Multiply two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be multiplied by {param self}.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default this is the sum of the scale values of
+        {param self} and {param a}.
+        If this default is used, then the result of the computation is
+        exact and no rounding will ever be needed.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if {param scale} is less than
+        the default value mentioned above,
+        and nonzero digits are removed from the result of the computation.
+        By default this rounding mode is
+        {ctext {docref RoundingMode}.round-away-from-zero}.
+    }
+    {return-vals
+        A newly created {docref BigDecimal} object that represents the
+        sum of {param self} and {param a}.
+    }
+  }
+  || result = self * a
+  || scale specifies the scale of the result
+  || rounding-mode is applied if precision is reduced.
+  {method public {multiply
+                     a:BigDecimal,
+                     scale:int = self.scale + a.scale,
+                     rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+                 }:BigDecimal
+    let rval:BigInt = {self.unscaled-value.multiply a.unscaled-value}
+    let rbd:BigDecimal = {BigDecimal.from-fields rval, self.scale + a.scale}
+    {return {rbd.set-scale scale, rounding-mode = rounding-mode}}
+  }
+
+  {doc-next
+    {purpose
+        Divide two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be divided into {param self}.
+    }
+    {parameter scale,
+        The value that should appear as the {docref-abbr BigDecimal.scale}
+        property of the {docref BigDecimal} object that is created.
+        By default this is the same as the scale value of
+        {param self}.
+    }
+    {parameter rounding-mode,
+        The rounding mode to use if the result of the division is not exact.
+        By default this rounding mode is
+        {ctext {docref RoundingMode}.round-away-from-zero}.
+    }
+    {return-vals
+        A newly created {docref BigDecimal} object that represents the
+        sum of {param self} and {param a}.
+    }
+    {throws
+        {exception ArithmeticException,
+            if {param a} is zero.
+        }
+    }
+  }
+  || result = self / a
+  || scale specifies the scale of the result
+  || rounding-mode is applied if the result is not exact.
+  {method public {divide
+                     a:BigDecimal,
+                     scale:int = self.scale,
+                     rounding-mode:RoundingMode = RoundingMode.round-away-from-zero
+                 }:BigDecimal
+    {if a.zero? then
+        {throw
+            {ArithmeticException
+                {hlmessage A BigDecimal divide by zero was attempted.}
+            }
+        }
+    }
+    let prescale:int = (scale - self.scale) + a.scale
+    let dividend:BigInt = self.unscaled-value
+    let divisor:BigInt = a.unscaled-value
+    {if prescale > 0 then
+        || If we get here, we need to add more decimal places to the
+        || dividend so the result will have the proper number of places.
+        set dividend = {dividend.multiply {BigInt.power10 prescale}}
+     elseif prescale < 0 then
+        || If we get here, we need to add more decimal places to the
+        || divisor so the result will have the proper number of places.
+        set divisor = {divisor.multiply {BigInt.power10 -prescale}}
+    }
+    let quotient:BigInt =
+        {BigDecimal.divide-and-round dividend, divisor, rounding-mode}
+    {return {BigDecimal.from-fields quotient, scale}}
+  }
+
+  {doc-next
+    {purpose
+        Test whether a {docref BigDecimal} object equals zero.
+    }
+    {return-vals
+        True if {param self} represents the number 0,
+        and false otherwise.
+    }
+  }
+  || Is self equal to zero?
+  {getter public {zero?}:bool
+    {return self.unscaled-value.zero?}
+  }
+
+  {doc-next
+    {purpose
+        Return the sign of a {docref BigDecimal} object.
+    }
+    {return-vals
+        If {param self} represents a positive number, 1 is returned.
+        If {param self} represents zero, 0 is returned.
+        If {param self} represents a negative number, {en-dash}1 is returned.
+    }
+  }
+  || Return -1, 0, or 1, depending on the sign of self.
+  {getter public {signum}:int
+    {return self.unscaled-value.signum}
+  }
+
+  {doc-next
+    {purpose
+        Test whether two {docref BigDecimal} objects are equal.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be compared to {param self}.
+    }
+    {return-vals
+        True if {param self} and {param a} represent the same value,
+        false otherwise.
+    }
+  }
+  || Is self equal to a?
+  {method public {equal? a:BigDecimal}:bool
+    let (self-int:BigInt, a-int:BigInt, opscale:int) =
+        {self.align-operands a}
+    {return {self-int.equal? a-int}}
+  }
+
+  {doc-next
+    {purpose
+        Compare two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be compared to {param self}.
+    }
+    {return-vals
+        If {param self} is greater than {param a}, 1 is returned.
+        If {param self} equals {param a}, 0 is returned.
+        If {param self} is less than {param a}, {en-dash}1 is returned.
+    }
+  }
+  || Return -1, 0, or 1, depending on sign of self - a.
+  {method public {compare a:BigDecimal}:int
+    let (self-int:BigInt, a-int:BigInt, opscale:int) =
+        {self.align-operands a}
+    {return {self-int.compare a-int}}
+  }
+
+  {doc-next
+    {purpose
+        Return the absolute value of a {docref BigDecimal} object.
+    }
+    {return-vals
+        The absolute value of {param self}.
+    }
+    {notes
+        If the value of {param self} is negative,
+        a newly allocated {docref BigInt} object is returned.
+    }
+  }
+  || Return the absolute value of self.
+  {method public {abs}:BigDecimal
+    {return
+        {if self.signum < 0 then
+            {self.negate}
+         else
+            self
+        }
+    }
+  }
+
+  {doc-next
+    {purpose
+        Compute the maximum of two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be compared with {param self}.
+    }
+    {return-vals
+        Either {param self} or {param a}, whichever is greater.
+        If the values are equal, {param self} is returned.
+    }
+  }
+  || result = max(self, a)
+  {method public {max a:BigDecimal}:BigDecimal
+    {return {if {self.compare a} >= 0 then self else a}}
+  }
+
+  {doc-next
+    {purpose
+        Compute the minimum of two {docref BigDecimal} objects.
+    }
+    {parameter a,
+        The {docref BigDecimal} object that is to be compared with {param self}.
+    }
+    {return-vals
+        Either {param self} or {param a}, whichever is less.
+        If the values are equal, {param self} is returned.
+    }
+  }
+  || result = min(self, a)
+  {method public {min a:BigDecimal}:BigDecimal
+    {return {if {self.compare a} > 0 then a else self}}
+  }
+
+
+  {doc-next
+    {purpose
+        Return a {docref String} that contains the print
+        representation of this {docref BigDecimal} object.
+    }
+    {return-vals
+        A {docref String} that gives the print representation
+        of this {docref BigDecimal} object in decimal format,
+        with an optional leading minus sign.
+        If {ctext {param self}.{docref-abbr BigDecimal.scale}} is
+        positive, then the result will include a decimal point
+        followed by exactly {docref-abbr BigDecimal.scale} digits.
+    }
+  }
+  || Return a String that contains the print representation of self.
+  || The String includes a decimal point if self.scale > 0.
+  || OPT: This method first creates a String for the unscaled value,
+  || then copies it over into a StringBuf with the possible insertion
+  || of a decimal point, and finally converts the resulting StringBuf
+  || to a String.  There's an extra level of copying here that could
+  || be avoided at some price in code complexity.  -rhh 20090511
+  {method public {to-String}:String
+    let sign:int = self.signum
+    let scale:int = self.scale
+    let unscaled-string:String = {{self.unscaled-value.abs}.to-String}
+    let sb:StringBuf = {StringBuf unscaled-string}
+    {if scale > 0 then
+        {if sb.size <= scale then
+            let zeros:String = {String.repeat-char '0', scale - sb.size + 1}
+            {sb.splice zeros, 0}
+        }
+        {sb.insert '.', sb.size - scale}
+     elseif scale < 0 and sign != 0 then
+        {for i = 1 to -scale do
+            {sb.append '0'}
+        }
+    }
+    {if sign < 0 then
+        {sb.insert '-', 0}
+    }
+    {return {sb.to-String}}
+  }
+
+  {doc-next
+    {purpose
+        Return the value of a {docref BigDecimal} object as a {docref double}.
+    }
+    {return-vals
+        A {docref double} that best approximates
+        the value of the {docref BigDecimal} object.
+        If this value has more than 53 significant bits, some precision
+        may be lost.
+        If the magnitude of this value is so large that the result is
+        not representable as a {docref double},
+        then a positive or negative infinity value will be returned.
+    }
+  }
+  || Return a double that is closest to self.
+  || If self has more than 53 bits of precision, some precision may be lost.
+  || Overflow will cause infinity or minus infinity to be returned.
+  || OPT: This code creates a BigInt object equal to 10^scale or
+  || 10^(-scale), then converts it to a double and uses it to scale the
+  || result.  This could entail a significant amount of heap allocation
+  || that could be avoided with a more sophisticated approach.  -rhh 20090511
+  {method public {to-double}:double
+    let mantissa:double = {self.unscaled-value.to-double}
+    let scale:int = self.scale
+    {if scale > 0 then
+        {if {infinite? mantissa} then
+            || If the mantissa and scale are both very large, we might
+            || have an infinity/infinity situation if we just divide them,
+            || even though this BigDecimal does represent a reasonable
+            || value.  In this case, predivide the mantissa by a chosen
+            || power of 10 to move it back into a reasonable range,
+            || and adjust the scale to compensate, before attempting
+            || the division.
+            def uval = self.unscaled-value
+            def ulength = uval.bit-length
+            || We will use 10^mscale as the value by which to predivide
+            || the mantissa.  Choose mscale so that it's not too large,
+            || so that the mantissa will retain comfortably more than
+            || the 53 bits of precision that are representable in a double.
+            || Here we try to retain at least 60 bits of precision.
+            || We also don't make mscale > scale because we don't want
+            || to flip the sign of scale when we subtract mscale from it.
+            def mscale = {min scale, {floor (ulength - 60) * 0.30103} asa int}
+            def mdivisor = {BigInt.power10 mscale}
+            || Now predivide the mantissa by 10^mscale and convert the
+            || result to a double.  If this double is actually an
+            || infinity, then our overall result needs to be infinite,
+            || so that's OK.
+            set mantissa = {{uval.divide mdivisor}.to-double}
+            set scale = scale - mscale
+        }
+        || It's possible that the scale is still really big,
+        || which will happen if the value of this BigDecimal is
+        || really small.  In this case, pick a divisor value
+        || close to max-double and repeatedly divide the mantissa
+        || by it until the scale value becomes tractable.
+        {while scale > 300 and mantissa != 0.0 do
+            set mantissa = mantissa / 1e300
+            set scale = scale - 300
+        }
+        {if scale == 0 or mantissa == 0.0 then
+            || If we reduced the scale to 0, then no further divisiion
+            || will be needed, so we just return the mantissa.
+            || Ditto if the value to return has become just zero.
+            {return mantissa}
+        }
+        let divisor:double = {{BigInt.power10 scale}.to-double}
+        {return mantissa / divisor}
+     elseif scale < 0 then
+        || No need to treat infinities specially here because if
+        || either the mantissa or the multiplier is infinite, then
+        || the result surely should be infinite.
+        let mpyer:double = {{BigInt.power10 -scale}.to-double}
+        {return mantissa * mpyer}
+     else
+        || And here's the simple case where the scale was 0
+        || from the get-go.
+        {return mantissa}
+    }
+  }
+
+}
