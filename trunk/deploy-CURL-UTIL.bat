@@ -27,7 +27,8 @@ set WORKSPACE=CDK\trunk
 
 :: define release tag
 :: ------------------------------
-set TAG=090622
+set TAG=090701
+set WORK=__WORK_%TAG%
 
 :: define command shortcuts
 :: ------------------------------
@@ -38,13 +39,13 @@ set JUMP-IF-ERROR=IF ERRORLEVEL 1 (GOTO :ERROR)
 :: fresh copy of source tree
 :: ------------------------------
 echo == fresh copy for each version
-rd /s /q __WORK
-md __WORK
-svn export %WORKSPACE%\CURL-UTIL __WORK\CURL-UTIL
-move __WORK\CURL-UTIL __WORK\CURL-UTIL-V6
-svn export %WORKSPACE%\CURL-UTIL __WORK\CURL-UTIL
-move __WORK\CURL-UTIL __WORK\CURL-UTIL-V7
-cd __WORK
+rd /s /q %WORK%
+md %WORK%
+svn export %WORKSPACE%\CURL-UTIL %WORK%\CURL-UTIL
+move %WORK%\CURL-UTIL %WORK%\CURL-UTIL-V6
+svn export %WORKSPACE%\CURL-UTIL %WORK%\CURL-UTIL
+move %WORK%\CURL-UTIL %WORK%\CURL-UTIL-V7
+cd %WORK%
 %JUMP-IF-ERROR% ELSE echo == done.
 
 :: batch deploy CURL-UTIL-V7
@@ -67,6 +68,7 @@ move CURL-UTIL-V7\build\DEPLOYED CURL-UTIL-V7_%TAG%
 
 :: done
 :: ------------------------------
+cd ..
 echo deployed.
 pause
 goto :EOF

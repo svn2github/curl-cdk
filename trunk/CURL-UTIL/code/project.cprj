@@ -15,7 +15,7 @@
         target-url-name = "c:\\curl\\UTIL",
         {resource-transform "resources\u0000directory\u0000resources", copy? = true},
         {package-transform "COM.CURL.UTIL.BIGNUM\u0000package\u0000bignum/load.scurl", pcurl? = true},
-        {resource-transform "docs\u0000directory\u0000docs", copy? = true}
+        {resource-transform "docs\u0000directory\u0000docs"}
     },
     {target
         name = "deploy-docs",
