@@ -1,0 +1,391 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0 package}
+
+{package COM.CURL.CDK.SQLITE-TEST-SUPPORT,
+    version = "1.1",
+    {compiler-directives
+        careful? = true
+    }
+}
+{import * from COM.CURL.CDU.CURL-UNIT}
+{import * from COM.CURL.CDK.SQLITE}
+{import * from CURL.ENGINE.BROWSER}
+{import * from CURL.IO.JSON}
+
+|| ====================
+{define-proc public {any-equal? x:any, y:any}:bool
+    def array-equal? =
+        {proc {xs:any, ys:any}:bool
+            {with-compiler-directives allow-any-calls? = true do
+                {if xs.size != ys.size then
+                    {return false}
+                }
+                {for xv key i in xs do
+                    {if not {any-equal? xv, ys[i]} then
+                        {return false}
+                    }
+                }}
+            {return true}
+        }
+    {if x == y then
+        {return true}
+    }
+    {type-switch x
+     case xs:ByteArray do
+        {type-switch y
+         case ys:ByteArray do
+            {if {xs.equal? ys} then
+                {return true}
+            }
+        }
+     case xs:Array do
+        {type-switch y
+         case ys:Array do
+            {return {array-equal? xs, ys}}
+        }
+     case xs:{Array-of Array} do
+        {type-switch y
+         case ys:{Array-of Array} do
+            {return {array-equal? xs, ys}}
+        }
+    }
+    {return false}
+}
+{define-proc public {get-temp-database-file}:Url
+    {return
+        {get-temp-filename extension = ".db"}}
+}
+{define-proc public {import-csv-files db:SQLiteDatabase, locs:UrlArray}:void
+    {for loc in locs do
+        {SQLiteStatement.import-csv db, loc.basename, loc}
+    }
+}
+|| ====================
+{define-class public SQLiteDatabaseTestSuite {inherits TestSuite}
+  field public-get constant location:#Url
+  field public-get constant database:SQLiteDatabase
+  {constructor public {default 
+                          location:#Url,
+                          error-if-missing?:bool = false,
+                          read-only?:bool = false,
+                          init-proc:#{proc-type {SQLiteDatabase}:void} = null
+                      }
+    set self.location = location
+    {construct-super
+        {if-non-null location 
+         then location.filename 
+         else ":memory:"}}
+    set self.database =
+        {SQLiteDatabase
+            self.location,
+            error-if-missing? = error-if-missing?,
+            read-only? = read-only?
+        }
+    {if-non-null init-proc then
+        {init-proc self.database}}
+    {self.generate-tests}
+  }
+  {method {generate-tests}:void
+    def tables = 
+        {self.database.sql-column
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"}
+    {for table in tables do
+        {self.add
+            {self.generate-test table asa String, "table"}}}
+    def views = 
+        {self.database.sql-column
+            "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"}
+    {for view in views do
+        {self.add
+            {self.generate-test view asa String, "view"}}}
+  }
+  {method {generate-test name:String, kind:String}:Test
+    {return
+        {test-case name,
+            def xs =
+                {self.database.sql-rows
+                    {format "SELECT * from '%s'", {name.replace-clone "'", "''"}}}
+            {TestCondition.succeed message = 
+                {lmessage {value kind} '{value name}' : {value xs.size} rows}}
+        }}
+  }
+}
+{define-class public SQLiteTableRecordSetsTestSuite {inherits TestSuite}
+  field public-get constant location:#Url
+  field public-get constant connection:SQLiteConnection
+  {constructor public {default 
+                          location:#Url,
+                          init-proc:#{proc-type {SQLiteDatabase}:void} = null
+                      }
+    set self.location = location
+    {construct-super
+        {if-non-null location 
+         then location.filename 
+         else ":memory:"}}
+    def database = {SQLiteDatabase self.location}
+    {if-non-null init-proc then
+        {init-proc database}}
+    set self.connection = {SQLiteConnection database}
+    {self.generate-tests}
+  }
+  {method {generate-tests}:void
+    def database = self.connection.database
+    def tables = 
+        {database.sql-column
+            "SELECT name FROM sqlite_master WHERE NOT name LIKE 'sqlite_%' AND type='table' ORDER BY name"}
+    {for table in tables do
+        {self.add
+            {SQLiteTableRecordSetTestCase self.connection, table asa String}}}
+  }
+}
+{define-class public SQLiteTableRecordSetTestCase {inherits TestCase}
+  field public-get constant connection:SQLiteConnection
+  field public-get constant table:String
+  {constructor public {default connection:SQLiteConnection, table:String}
+    set self.connection = connection
+    set self.table = table
+    {construct-super table}
+  }
+  {method public {run}:void
+    def db = self.connection.database
+    def table = self.table
+    def s-count =
+        {SQLiteStatement db,
+            {format "SELECT count(*) FROM '%s'", {table.replace-clone "'", "''"}}}
+    def s-select =        
+        {SQLiteStatement db,
+            {format "SELECT * FROM '%s' ORDER BY ROWID", {table.replace-clone "'", "''"}}}
+    
+    || first two rows
+    {s-select.step}
+    def row1 = s-select.current-row
+    {s-select.step}
+    def row2 = s-select.current-row
+    {s-select.reset}
+    
+    || working recordset
+    def rs =
+        {self.connection.create-sql-record-set 
+            "main", s-select.sql, 
+            table-name = table,
+            query-is-full-row? = true,
+            request-modifiable? = true}
+    
+    || column names
+    def ks = {StringArray}
+    {for f in rs.fields do
+        {ks.append f.name}}
+    
+    || delete first two records
+    || --------------------
+    def iter = {rs.to-Iterator}
+    def r1 = {iter.read-one}
+    def r2 = {iter.read-one}
+    {iter.reset}
+    {r1.delete}
+    {r2.delete}
+    {rs.commit}
+    || counts should match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after delete}}
+    
+    || reinsert first record
+    || --------------------
+    def rr1 = {rs.new-record}
+    {for k key i in ks do
+        set rr1[k] = row1[i]}
+    {rs.append rr1}
+    {rs.commit}
+    || counts should still match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after insert}}
+    
+    || modify first with values from second
+    || --------------------
+    {for k key i in ks do
+        set rr1[k] = row2[i]}
+    || reinsert first record
+    def rr2 = {rs.new-record}
+    {for k key i in ks do
+        set rr2[k] = row1[i]}
+    {rs.append rr2}
+    {rs.commit}
+    || counts should still match
+    {TestCondition.assert {s-count.data-value} == rs.size,
+        message = {lmessage counts after update}}
+    
+    || values should match
+    || --------------------
+    let match?:bool = true
+    {for k key i in ks do
+        {if rr1[k] != row2[i] then
+            set match? = false
+            {break}}
+        {if rr2[k] != row1[i] then
+            set match? = false
+            {break}}
+    }
+    {TestCondition.assert match?,
+        message = {lmessage row data consistency}}
+  }
+}
+{define-class public AppletLifeCycleTestCase {inherits TestCase}
+  field public-get constant applet-url:Url
+  field applet-data:#AppletData
+  field public timeout:Time= 30s
+  field public-get timed-out?:bool = false
+  {constructor public {default 
+                          location:Url,
+                          name:String = location.filename,
+                          timeout:Time= 30s}
+    || ensure the applet url is resolvable
+    {location.resolve} 
+    set self.applet-url = location
+    set self.timeout = timeout
+    {construct-super name}
+  }
+  {method public {run}:void
+    {self.exercise}
+  }
+  {method public {exercise
+                     display:#AppletGraphic = null
+                 }:void
+    || timer mechanism for causing a timeout
+    set self.timed-out? = false
+    {after self.timeout do
+        set self.timed-out? = true
+    }
+    {try
+        || load the applet
+        def subject = {AppletData display, self.applet-url}
+        set self.applet-data = subject
+        
+        || prepare for callbacks
+        set subject.applet-invoke-ready-callback =
+            {proc {}:void
+                {self.log "ready"}}
+        set subject.parent-invoke-handler =
+            {proc {name:String, ...:any}:any
+                def args = {Array {splice ...}}
+                {switch name
+                 case "log" do
+                    def msg =
+                        {if args.empty? then ""
+                         else {String args[0]}}
+                    {self.log ">> " & msg}
+                 else
+                    {self.log {message >> CALLBACK {value name}}}}
+                {return true}}
+        
+        || await load completion (synchronous)
+        {self.await "loaded",
+            {proc {}:bool
+                {return not subject.loading?}}}
+        || check status
+        {if subject.what == "finished" then
+            || successful load of the applet
+            {self.log {message -- loaded {value self.applet-url.filename}}}
+         else
+            || some other failed status
+            {self.log {lmessage --unexpected {value subject.info}}}
+        }
+
+        def action =
+            {proc {what:String}:void
+                let done?:bool = false
+                {subject.applet-invoke-async what,
+                    finish-proc =
+                        {proc {e:#Exception, v:JsonValue}:void
+                            set done? = true
+                            {if-non-null e then
+                                {self.log {message {value what} EXCEPTION: {value e}}}
+                             else 
+                                {self.log {message {value what} RESULT: {value v}}}}}
+                }
+                || await task completion
+                {self.await what,
+                    {proc {}:bool
+                        {return done?}}}
+            }
+        
+        || lifecyle
+        {self.log {message -- demand}}
+        {action "demand"}
+
+        || TODO: test faults
+||--        {self.log {message -- bogus}}
+||--        {action "bogus"}
+        
+        {self.log {message -- suspend}}
+        {subject.suspend}
+        
+        {self.log {message -- resume}}
+        {subject.resume}
+
+        {self.await "ready",
+            {proc {}:bool
+                {return subject.applet-invoke-ready?}}}
+        
+        {self.log {message -- demand}}
+        {action "demand"}
+        
+        {self.log {message -- suspend}}
+        {subject.suspend}
+        || TODO: await state change
+        
+        {self.log {message -- destroy}}
+        {subject.destroy}
+        || TODO: await state change
+        
+        {self.log {message -- done}}
+        set self.applet-data = null
+
+     finally
+        || flush applet, so its resources can be reclaimed
+        {if-non-null subject = self.applet-data then
+            {self.log {message -- finally suspend}}
+            {subject.suspend}
+            {self.log {message -- finally destroy}}
+            {subject.destroy}
+        }
+    }
+  }
+  {method {await
+              what:String,
+              ready?:{proc-type {}:bool}
+          }:void
+    || throttle logging
+    let started:DateTimeData = {DateTimeData}
+    || await readiness
+    {while not {ready?} and not self.timed-out? do
+        {if {started.elapsed} > .5s then
+            {self.log {message awaiting {value what}}}
+            set started = {DateTimeData}}
+        {dispatch-events true}
+    }
+    || check status
+    {if not {ready?} then
+        || failed to finish
+        {self.log {lmessage Timeout}}
+        {error "Timeout"}
+    }
+  }
+  {method {log msg:String}:void
+    {output msg}
+  }
+}

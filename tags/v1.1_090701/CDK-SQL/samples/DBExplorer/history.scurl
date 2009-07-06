@@ -1,0 +1,213 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{define-class public HistoryManager
+  def private manager:HistoryManager = {HistoryManager.create}
+  
+  field private _database:#SQLiteDatabase
+  field private all-db-name-statement:#SQLiteStatement
+  field private db-id-from-name-statement:#SQLiteStatement
+  field private queries-for-db-id-statement:#SQLiteStatement
+  field private all-queries-statement:#SQLiteStatement
+  
+  {constructor private {default}}
+  {constructor private {create}
+    || Force the database to be created and initialized.
+    self.database
+  }
+
+  
+  {factory public {default}:HistoryManager
+    {return HistoryManager.manager}
+    || Make sure that the database is ready.
+  }
+
+  {getter private {database-url}:#Url
+    def loc = {url "history.db"}
+    {return
+       {if-non-null root = {process-get-effective-root} then
+           def path = {loc.name-relative-to-url {get-working-directory-url}}
+           {request-local-data-permission}
+           def db-local = {url "curl://local-data/" & path}
+           db-local
+        else
+           loc
+       }
+    }
+  }
+  
+  {getter private {database}:#SQLiteDatabase
+    {if self._database != null then
+        {return self._database}
+    }
+
+    let db:#SQLiteDatabase
+    {try
+        set db = {SQLiteDatabase self.database-url}
+        {if db == null then {return db}}
+        {db.execute
+            "CREATE TABLE IF NOT EXISTS database (
+             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+             name TEXT NOT NULL);"
+        }
+       {db.execute
+           "CREATE TABLE IF NOT EXISTS statement (
+            sno INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id INTEGER NOT NULL,
+            name TEXT NOT NULL);"
+       }
+        set self.all-db-name-statement =
+            {db.create-statement "Select name from database"}
+        {self.all-db-name-statement.prepare}
+        set self.db-id-from-name-statement =
+            {db.create-statement
+                "SELECT id FROM database where name = (?)"
+            }
+        {self.db-id-from-name-statement.prepare}
+        set self.queries-for-db-id-statement =
+            {db.create-statement
+                "SELECT name FROM statement where id = (?)"
+            }
+        {self.queries-for-db-id-statement.prepare}
+        set self.all-queries-statement =
+            {db.create-statement "Select name from statement Order By sno"}
+        {self.all-queries-statement.prepare}
+        
+        
+        set self._database = db
+     catch e:Exception do
+        {if-non-null db then
+            {db.close}
+        }
+    }
+
+    {return self._database}
+  }
+
+  {method public {add-query model:QueryModel}:bool
+    {if-non-null db = self.database then
+        {try
+            def sql-db = model.database
+            def sql = model.sql
+            def sql-db-name =
+                {if-non-null url = sql-db.url then
+                    url.full-filename
+                 else
+                    "MemoryDB"
+                }
+            || See if there is an entry for the query's database.
+            || If not add one.
+            let index:int = {self.get-index-for sql-db-name} 
+
+            {if index == -1 then
+                || Insert in the database table.
+                {db.execute
+                    "INSERT INTO database (name) VALUES ('" & sql-db-name & "');"
+                }
+                set index = {self.get-index-for sql-db-name}
+            }
+            {if index != -1 then
+                || Insert in the statement table.
+                {db.execute
+                    "INSERT INTO statement (id, name) VALUES ('" & index & "', '" & sql & "');"
+                }
+                {return true}
+            }
+            
+         catch e:Exception do
+            || Do nothing.
+        }
+    }
+
+    {return false}
+  }
+
+  {method public {get-index-for db-name:String}:int
+    let index:int = -1
+    {if-non-null stmt = self.db-id-from-name-statement then
+        {stmt.reset}
+        {stmt.bind-text 1, db-name}
+        {stmt.step}
+        let ids:Array = {stmt.data-column}
+        {if ids.size != 0 then
+            set index = ids[0] asa int
+        }
+    }
+    
+    {return index}
+  }
+
+  {method public {get-databases}:#StringArray
+    let array:#StringArray
+    {if-non-null stmt = self.all-db-name-statement then
+        {stmt.reset}
+        {stmt.step}
+        let names:Array = {stmt.data-column}
+        {if names.size != 0 then
+            set array = {StringArray}
+            {for name in names do
+                {array.append name asa String}
+            }
+        }
+    }
+    {return array}
+  }
+
+  {method public {get-all-queries}:#StringArray
+    let array:#StringArray
+    {if-non-null stmt = self.all-queries-statement then
+        {stmt.reset}
+        {stmt.step}
+        let names:Array = {stmt.data-column}
+        {if names.size != 0 then
+            set array = {StringArray}
+            {for name in names do
+                {array.append name asa String}
+            }
+        }
+    }
+    {return array}
+  }
+
+  {method public {get-queries-for db-name:String}:#StringArray
+    let array:#StringArray
+    def id = {self.get-index-for db-name}
+    {if id != -1 then
+        {if-non-null stmt = self.queries-for-db-id-statement then
+            {stmt.reset}
+            {stmt.bind-int 1, id}
+            {stmt.step}
+            let names:Array = {stmt.data-column}
+            {if names.size != 0 then
+                set array = {StringArray}
+                {for name in names do
+                    {array.append name asa String}
+                }
+            }
+        }
+    }
+    {return array}
+  }
+
+  {method public {delete-all}:void
+    {if-non-null db = self.database then
+        {try
+            {db.execute "DELETE FROM statement;"}
+            {db.execute "DELETE FROM database;"}
+        }
+    }
+  }
+}
