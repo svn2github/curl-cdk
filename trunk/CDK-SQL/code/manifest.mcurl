@@ -14,9 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0 manifest}
+{curl 7.0, 8.0 manifest}
 {manifest COM.CURL.CDK,
-    version = "1.1"}
+    version = "1.2"}
 
 || core modules
 || --------------------
@@ -54,6 +54,10 @@
     platform = "win32",
     location = "SQLITE/sqlite_3-6-10.dll"
 }
+||--{component file libsqlite,
+||--    platform = "win32",
+||--    location = "SQLITE/sqlite3.dll"
+||--}
 
 {component file libsqlite,
     platform = "linux",
@@ -82,10 +86,10 @@
     location = "resources"
 }
 
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
 {component file project.cprj,
     location = "project.cprj"
 }
-
-
-
-

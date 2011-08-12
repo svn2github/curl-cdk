@@ -16,8 +16,8 @@
 
 {value
     def name = "COM.CURL.UTIL"
-    def version = "1.0"
-    def dirname = name & "." & version
+    def version = "1.1"
+    def dirname = name & "-V" & version
     
     {DeploySpecs
         caption = {lmessage deploy UTIL},
@@ -46,7 +46,7 @@
             {proc {self:DeployAction,
                    source-root:Url,
                    target-root:Url}:void
-                def target = {target-root.concat "src/build"}
+                def target = {target-root.concat "src/tools"}
                 {create-Directory target,
                     error-if-exists? = false}
                 def files =
@@ -58,7 +58,7 @@
                         "become-v6.xcurl"}
                 {for file in files do
                     {copy 
-                        {source-root.concat "build/" & file},
+                        {source-root.concat "tools/" & file},
                         {target.concat file},
                         error-if-exists? = false}}}
         },
@@ -130,5 +130,35 @@
                     {target-root.concat "README.txt"},
                     error-if-exists? = false} 
             }}
+        ,
+        {DeployAction
+            caption = {lmessage copy BOILERPLATE (for distribution)},
+            {proc {self:DeployAction, source-root:Url, target-root:Url}:void
+                def files =
+                    {StringArray
+                        "LICENSE",
+                        "NOTICE",
+                        "README.txt"
+                    }
+                {for file in files do
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "deploy/" & dirname & "/" & file},
+                        error-if-exists? = false
+                    }
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "docs-install/" & dirname & "/" & file},
+                        error-if-exists? = false
+                    }
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "src/" & file},
+                        error-if-exists? = false
+                    }
+                }
+            }
+        }
+        
     }
 }

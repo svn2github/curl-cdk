@@ -14,9 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0, 6.0 manifest}
+{curl 6.0, 7.0, 8.0 manifest}
 {manifest COM.CURL.UTIL,
-    version = "1.0"}
+    version = "1.1"}
 
 {component package COM.CURL.UTIL.BIGNUM,
     location = "bignum/load.scurl"
@@ -28,4 +28,12 @@
 
 {component directory resources,
     location = "resources"
+}
+
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
+{component file project.cprj,
+    location = "project.cprj"
 }

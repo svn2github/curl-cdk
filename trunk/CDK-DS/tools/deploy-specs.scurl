@@ -16,45 +16,44 @@
 
 {value
     def name = "COM.CURL.CDK.DATA-SERVICES"
-    def version = "1.1"
-    def dirname = name & "." & version
+    def version = "1.2"
+    def dirname = name & "-V" & version
     
     {DeploySpecs
         caption = {lmessage deploy CDK-DS},
 
+        || --------------------
         || SOURCE distribution
-        || ====================
+        || --------------------
 
-        || duplicate source tree  
-        || --------------------                      
-        || -- code (copy)
+        || code (copy)
         {DeploySpec
             "code/project.cprj",
             "deploy-source",
             "src/code"
         },
-        || -- support (copy)
+        || tests (copy)
         {DeploySpec
             "tests/project.cprj",
             "deploy",
             "src/tests"
         },
-        || incorporate test framework 
-        || --------------------
+        
+        || Test framework
         {DeploySpec
             "lib/CDU/project.cprj",
             "deploy",
             "src/lib/CDU"
         },
+
         || -- build scripts (copy)
         {DeployAction
             caption = {lmessage copy 'build' scripts},
             {proc {self:DeployAction,
                    source-root:Url,
                    target-root:Url}:void
-                def target = {target-root.concat "src/build"}
-                {create-Directory target,
-                    error-if-exists? = false}
+                def target = {target-root.concat "src/tools"}
+                {create-Directory target, error-if-exists? = false}
                 def files =
                     {StringArray
                         "deploy.curl",
@@ -63,25 +62,28 @@
                     }
                 {for file in files do
                     {copy 
-                        {source-root.concat "build/" & file},
+                        {source-root.concat "tools/" & file},
                         {target.concat file},
-                        error-if-exists? = false}}}
+                        error-if-exists? = false
+                    }
+                }
+            }
         },
 
+        || ---------------------
         || LIBRARY distribution
-        || ====================
+        || ---------------------
         
         || build library (pcurl)
-        || -------------------- 
         {DeploySpec
             "code/project.cprj",
             "deploy",
             "deploy/" & dirname
         },
 
+        || ------------------
         || DOCS distribution
-        || ====================
-        
+        || ------------------
         || documentation (copy + docs)
         || --------------------
         {DeploySpec
@@ -102,7 +104,18 @@
                         & "/docs/en/dguide/_contents.scurl"}
                 {generate-dguide-index contents-loc.parent}
             }},
-
+||--    {DeployAction
+||--        caption = {lmessage Generate DGuide Index - ja},
+||--        {proc {self:DeployAction,
+||--               source-root:Url,
+||--               target-root:Url}:void
+||--            def contents-loc =
+||--                {target-root.concat
+||--                    "docs-install/" & dirname 
+||--                    & "/docs/ja/dguide/_contents.scurl"}
+||--            {generate-dguide-index contents-loc.parent}
+||--        }},
+            
         || SAMPLES distribution
         || ====================
         || project itself
@@ -182,5 +195,35 @@
                     {target-root.concat "README.txt"},
                     error-if-exists? = false} 
             }}
+        ,
+        {DeployAction
+            caption = {lmessage copy BOILERPLATE (for distribution)},
+            {proc {self:DeployAction, source-root:Url, target-root:Url}:void
+                def files =
+                    {StringArray
+                        "LICENSE",
+                        "NOTICE",
+                        "README.txt"
+                    }
+                {for file in files do
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "deploy/" & dirname & "/" & file},
+                        error-if-exists? = false
+                    }
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "docs-install/" & dirname & "/" & file},
+                        error-if-exists? = false
+                    }
+                    {copy 
+                        {source-root.concat file},
+                        {target-root.concat "src/" & file},
+                        error-if-exists? = false
+                    }
+                }
+            }
+        }
+
     }
 }

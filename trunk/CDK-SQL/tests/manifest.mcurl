@@ -14,9 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0 manifest}
+{curl 7.0, 8.0 manifest}
 {manifest COM.CURL.CDK.SUPPORT,
-    version = "1.1"}
+    version = "1.2"}
 
 || libraries
 || --------------------
@@ -54,9 +54,10 @@
     location = "test-applets"
 }
 
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
 {component file project.cprj,
     location = "project.cprj"
 }
-
-
-

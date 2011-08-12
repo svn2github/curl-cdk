@@ -14,6 +14,6 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0 manifest}
+{curl 8.0 manifest}
 {delegate-to COM.CURL.CDK.DATA-SERVICES,
     location = "../../../manifest.mcurl"}

@@ -14,9 +14,9 @@
 ||| See the License for the specific language governing permissions and
 ||| limitations under the License.
 
-{curl 7.0, 6.0 manifest}
+{curl 6.0, 7.0, 8.0 manifest}
 {manifest COM.CURL.UTIL.SUPPORT,
-    version = "1.0"}
+    version = "1.1"}
 
 || libraries
 || --------------------
@@ -29,3 +29,16 @@
     || use with svn:externals
     location = "../lib/CDU/manifest.mcurl"
 }
+
+{component file deploy.curl,
+    location = "deploy.curl"
+}
+
+{component file deploy-batch.curl,
+    location = "deploy-batch.curl"
+}
+
+{component file deploy-specs.scurl,
+    location = "deploy-specs.scurl"
+}
+
