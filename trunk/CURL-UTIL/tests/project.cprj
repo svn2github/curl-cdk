@@ -21,6 +21,8 @@
         {resource-transform "format-tests.curl\u0000file\u0000format-tests.curl", copy? = true},
         {resource-transform "random-tests.curl\u0000file\u0000random-tests.curl", copy? = true},
         {resource-transform "start-tests.curl\u0000file\u0000start-tests.curl", copy? = true},
+        {resource-transform "classic-project.cprj\u0000file\u0000classic-project.cprj", copy? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {package-transform "COM.CURL.UTIL.BIGNUM-TEST-SUPPORT\u0000package\u0000test-support/load.scurl", copy? = true}
     },
     {file-setting "start-tests.curl", start-file? = true}

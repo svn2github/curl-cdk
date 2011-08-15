@@ -3,8 +3,6 @@
 	<name>COM.CURL.CDK.DATA-SERVICES.TOOLS</name>
 	<comment>A Curl Project</comment>
 	<projects>
-		<project>COM.CURL.CDK.DATA-SERVICES</project>
-		<project>ide</project>
 	</projects>
 	<buildSpec>
 	</buildSpec>

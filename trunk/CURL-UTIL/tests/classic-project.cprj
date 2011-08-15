@@ -5,11 +5,12 @@
 {project
     version = 2,
     manifest-location = "manifest.mcurl",
-    api-version = "7.0",
+    api-version = "8.0",
     compiler-directives = "careful? = true",
-    use-style-sheets? = false,
-    style-package-name = "COM.CURL.GUI.STYLED",
-    style-sheet-name = "DEFAULT-STYLE-SHEET",
+    use-style-sheets? = true,
+    project-look-and-feel = "default-style-sheet",
+    style-package-name = "",
+    style-sheet-name = "",
     {target
         name = "deploy",
         target-url-name = "c:\\curl\\UTIL-tests",
@@ -17,6 +18,8 @@
         {resource-transform "format-tests.curl\u0000file\u0000format-tests.curl", copy? = true},
         {resource-transform "random-tests.curl\u0000file\u0000random-tests.curl", copy? = true},
         {resource-transform "start-tests.curl\u0000file\u0000start-tests.curl", copy? = true},
+        {resource-transform "classic-project.cprj\u0000file\u0000classic-project.cprj", copy? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
         {package-transform "COM.CURL.UTIL.BIGNUM-TEST-SUPPORT\u0000package\u0000test-support/load.scurl", copy? = true}
     },
     {file-setting "start-tests.curl", start-file? = true}

@@ -37,6 +37,13 @@
     location = "format-tests.curl"
 }
 
+{component file classic-project.cprj,
+    location = "classic-project.cprj"
+}
+
+{component file project.cprj,
+    location = "project.cprj"
+}
 
 
 
