@@ -15,10 +15,10 @@
 ||| limitations under the License.
 
 ====================
-Curl Utilities 1.0 for Curl API Version 7.0 and 6.0. 
+Curl Utilities 1.1 for Curl API Version 8.0, 7.0 and 6.0. 
 ====================
 
-This directory contains the 1.0 release of the Curl Utilities Library
+This directory contains the 1.1 release of the Curl Utilities Library
 
 The Curl Utilities Library contains useful common functionality.
 Arbitrary precision arithmetic, using BigDecimal and BigInt classes,
@@ -71,6 +71,11 @@ includes test suites, and build applets.
  
 CHANGES
 ====================
+
+CURL-UTIL 1.1 CHANGES
+--------------------
+The only change in this release was to add 8.0 as a supported
+version of the Curl RTE.
 
 CURL-UTIL 1.0 CHANGES
 --------------------
