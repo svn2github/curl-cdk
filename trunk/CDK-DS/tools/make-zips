@@ -39,7 +39,7 @@ rsync "$FLAGS" "$SRCROOT/docs-install/$DDIR/" "$DISTDOC/"
 
 cp "$SRCROOT/$DSAMPLE" "$DISTDIR/"
 
-HOST_LOCALE=ja
+#HOST_LOCALE=ja
 SOURCE_LOCALE=en
 DEST_LOCALE=ja
 
