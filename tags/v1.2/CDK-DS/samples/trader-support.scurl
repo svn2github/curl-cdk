@@ -1,0 +1,79 @@
+
+{define-proc {from-timestamp ms:double}:DateTime
+    def (seconds, partial-seconds) = {floor ms, 1000.0}
+    {return
+        {DateTime
+            {DateTimeData
+                DateTimeData.epoch-simple.epoch-second + (seconds asa int64),
+                partial-second =
+                    (partial-seconds / 1000.0 * {ldexp 1.0, 63}) asa int64
+            },
+            zone = DateTimeZone.utc}}
+}
+|| ==================== \\
+|| === cell appearance 
+{define-class public {ColorStringCell P:String, M:String}
+  {inherits StandardStringCell}
+  field public constant plus-color:FillPattern
+  field public constant minus-color:FillPattern
+  {constructor public {default}
+    set self.plus-color = P asa FillPattern
+    set self.minus-color = M asa FillPattern
+  }
+  {method public {refresh-data}:void 
+    {super.refresh-data}
+    def minus? =
+        {type-switch {self.get-data}
+         case x:double do x < 0
+         case x:int do x < 0
+         else false}
+    set self.color =
+        {if minus?
+         then self.minus-color
+         else self.plus-color}
+  }
+}
+|| NOTE: global indicating current symbol
+{let active-symbol:String = ""}
+{define-class public {BackgroundStringCell
+                       Kn:String, Kv:String, P:String, M:String}
+  {inherits StandardStringCell}
+  field public constant name-field:String
+  field public constant value-field:String
+  field public constant plus-color:FillPattern
+  field public constant minus-color:FillPattern
+  {constructor public {default}
+    set self.name-field = Kn
+    set self.value-field = Kv
+    set self.plus-color = P asa FillPattern
+    set self.minus-color = M asa FillPattern
+  }
+  {method public {refresh-data}:void 
+    {super.refresh-data}
+    def (symbol, change) =
+        {if-non-null r = self.record
+         then (r[self.name-field] asa String,
+               {type-switch r[self.value-field]
+                case x:double do x
+                case x:int do x asa double
+                else 0.0})
+         else ("", 0.0)}
+    || NOTE: global indicating current symbol
+    def active-symbol? = active-symbol == symbol
+    def minus? = change < 0.0
+    set self.background =
+        {if active-symbol? then
+||--            {if-debuggable
+||--                def now = {DateTime zone = DateTimeZone.utc}
+||--                def last = {if-non-null r = self.record then r["last"] else "_"}
+||--                {output
+||--                    {message DISPLAY {value symbol} : {value last}
+||--                        at {now.info.iso-full.substr 11, 12}}}
+||--            }
+            {if minus?
+             then self.minus-color
+             else self.plus-color}
+         else FillPattern.transparent}
+  }
+}
+|| ==================== //

@@ -1,0 +1,76 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0, 8.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+{import * from CURL.GUI.CHARTS}
+
+{value
+    def db = {SQLiteDatabase null}
+    def con = {SQLiteConnection db}
+    {db.execute "
+CREATE TABLE temp (
+ year INT NOT NULL,
+ month INT NOT NULL,
+ day DOUBLE NOT NULL,
+ max DOUBLE NOT NULL,
+ mean DOUBLE NOT NULL,
+ min DOUBLE NOT NULL,
+ PRIMARY KEY (year, month, day)
+);
+CREATE VIEW by_month AS
+SELECT
+ month,
+ min(min) as min,
+ round(avg(mean)) as mean,
+ max(max) as max 
+FROM temp 
+GROUP BY month
+;"}
+    {SQLiteStatement.import-csv db, "temp",
+        {url "boston-temp.csv"}}
+    def rs =
+        {con.create-sql-record-set "main", "SELECT * FROM by_month",
+            strict-types? = true}
+    {RecordGrid record-source = rs,        
+        width = 8in,
+        {on CurrentRecordChanged at rg:RecordGrid do
+            {if-non-null r = rg.current-record then
+                def month = r["month"]
+                def rs =
+                    {SQLiteRecordSet.create con, "main", 
+                        "SELECT day,min,mean,max FROM temp WHERE month = ?",    
+                        query-parameters = {Arguments month},
+                        strict-types? = true}
+
+                {popup-message title = {message Month {value month}}, 
+                    {VBox
+                        width = 6in,
+                        hstretch? = true,
+                        {LayeredChart height = 3in,
+                            plot-area = {LayeredPlotArea plot-background = "beige"},
+                            {LineLayer
+                                x-axis-data = {ChartDataSeries rs, "day"},
+                                {ChartDataSeries rs, "max"},
+                                {ChartDataSeries rs, "mean"},
+                                {ChartDataSeries rs, "min"}}},
+                        {RecordGrid height = 4in,
+                            record-source = rs}}
+                }}
+        }}
+}

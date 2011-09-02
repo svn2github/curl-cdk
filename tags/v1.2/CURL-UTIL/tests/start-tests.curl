@@ -1,0 +1,952 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An Open Curl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0, 7.0, 8.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+
+{import * from CURL.IO.SERIALIZE}
+
+{import * from COM.CURL.UTIL.BIGNUM}
+{import * from COM.CURL.UTIL.BIGNUM-TEST-SUPPORT}
+
+
+|| Helper functions:
+
+|| Clone object using serialization.
+{define-proc {serialize-clone obj:Object}:Object
+    let bytes:ByteArray = {ByteArray}
+    let out:SerializeOutputStream =
+        {SerializeOutputStream {ByteArrayOutputStream bytes}}
+    {out.write-one obj}
+    let in:SerializeInputStream =
+        {SerializeInputStream {ByteArrayInputStream bytes}}
+    {return {in.next-one} asa Object}
+}
+
+|| Check various identities that should hold for any number a.
+{define-proc {assert-num-ok a:BigInt}:void
+    def sa = {a.to-String}
+    {assert {a.equal? sa}}
+    def ca = {serialize-clone a} asa BigInt
+    {assert {a.equal? ca}}
+    {assert a.zero? == (sa == "0")}
+    {assert a.zero? == {a.equal? 0}}
+}
+
+|| Check various identities that should hold if divisor is an
+|| exact divisor of dividend.
+{define-proc {assert-divides dividend:BigInt, divisor:BigInt}:void
+    {assert-num-ok dividend}
+    {assert-num-ok divisor}
+    {if divisor.zero? and dividend.zero? then {return}}
+    def (q, r) = {dividend.divide divisor}
+    {assert-num-ok q}
+    {assert-num-ok r}
+    {assert r.zero?}
+    {if not q.zero? then
+        def (q1, r1) = {dividend.divide q}
+        {assert r1.zero?}
+        {assert {q1.equal? divisor}}
+        {assert {divisor.equal? q1}}
+    }
+    {assert {dividend.equal? {divisor.multiply q}}}
+    {assert {dividend.equal? {q.multiply divisor}}}
+
+    def dm1 = {dividend.subtract 1}
+    {assert-num-ok dm1}
+    def (q1, r1) = {dm1.divide divisor}
+    {assert-num-ok q1}
+    {assert-num-ok r1}
+    {assert {dm1.equal? {r1.add {q1.multiply divisor}}}}
+    {if {{divisor.abs}.compare 1} > 0 then
+        {assert dm1.signum == r1.signum}
+        {if dm1.signum > 0 then
+            {assert {{r1.abs}.equal? {{divisor.abs}.subtract 1}}}
+         else
+            {assert {{r1.abs}.equal? 1}}
+        }
+    }
+
+    def dp1 = {dividend.add 1}
+    {assert-num-ok dp1}
+    def (q2, r2) = {dp1.divide divisor}
+    {assert-num-ok q2}
+    {assert-num-ok r2}
+    {assert {dp1.equal? {r2.add {q2.multiply divisor}}}}
+    {if {{divisor.abs}.compare 1} > 0 then
+        {assert dp1.signum == r2.signum}
+        {if dp1.signum > 0 then
+            {assert {{r2.abs}.equal? 1}}
+         else
+            {assert {{r2.abs}.equal? {{divisor.abs}.subtract 1}}}
+        }
+    }
+}
+
+|| Implicitily casts non-BigInt values for base to BigInt, for
+|| notational convenience in writing tests, and run related tests.
+{define-proc {bpow base:BigInt, exponent:int}:BigInt
+    def result = {base.power exponent}
+    {for i = 0 to exponent div 2 do
+        def p1 = {base.power i}
+        def p2 = {base.power exponent - i}
+        {assert {result.equal? {p1.multiply p2}}}
+        {assert-divides result, p1}
+        {assert-divides result, p2}
+        {assert-divides p2, p1}
+        def (q, r) = {p1.divide p2}
+        {if {p2.compare p1} != 0 then
+            {assert not {p2.equal? p1}}
+            {assert not {p2.subtract p1}.zero?}
+            {assert q.zero?}
+            {assert {r.equal? p1}}
+         else
+            {assert {p2.equal? p1}}
+            {assert {p2.subtract p1}.zero?}
+            {assert r.zero?}
+            {assert {q.equal? 1}}
+        }
+    }
+    {return result}
+}
+
+|| Return the square of a, doing some obvious checks first.
+{define-proc {bsquare a:BigInt}:BigInt
+    def a2 = {a.power 2}
+
+    {assert {a2.equal? {a.multiply a}}}
+    {if a.zero? then {return a2}}
+    {assert-divides a2, a}
+    def (q, r) = {a2.divide a}
+    {assert {q.equal? a}}
+
+    def a2pa = {a2.add a}
+    {assert-divides a2pa, a}
+    {assert-divides a2pa, {a.add 1}}
+    {assert {a2pa.equal? {a.multiply {a.add 1}}}}
+    {assert {a2pa.equal? {a.multiply {a.subtract -1}}}}
+
+    def a2ma = {a2.subtract a}
+    {assert-divides a2ma, a}
+    {assert-divides a2ma, {a.subtract 1}}
+    {assert {a2ma.equal? {a.multiply {a.subtract 1}}}}
+    {assert {a2ma.equal? {a.multiply {a.add -1}}}}
+
+    {return a2}
+}
+
+|| Test a^2 - b^2 == (a + b) * (a - b) and related identities
+{define-proc {square-test a:BigInt, b:BigInt}:void
+    def a2 = {bsquare a}
+    def b2 = {bsquare b}
+    def diff = {a2.subtract b2}
+    def apb = {a.add b}
+    def amb = {a.subtract b}
+    {assert {diff.equal? {apb.multiply amb}}}
+    {assert-divides diff, apb}
+    {assert-divides diff, amb}
+
+    def abx2 = {a.multiply {b.multiply 2}}
+
+    {if not b.zero? then
+        {assert-divides abx2, b}
+        def (q1, r1) = {abx2.divide b}
+        {assert r1.zero?}
+
+        {if not a.zero? then
+            {assert-divides abx2, a}
+            def (q2, r2) = {q1.divide a}
+            {assert r2.zero?}
+            {assert {q2.equal? 2}}
+        }
+    }
+
+    def apb2 = {bsquare apb}
+    {assert {apb2.equal? {a2.add {abx2.add b2}}}}
+    {assert {b2.equal? {apb2.subtract {a2.add abx2}}}}
+
+    def amb2 = {bsquare amb}
+    {assert {amb2.equal? {a2.add {{abx2.negate}.add b2}}}}
+    {assert {amb2.equal? {a2.add {b2.subtract abx2}}}}
+    {assert {b2.equal? {amb2.subtract {a2.subtract abx2}}}}
+}
+
+
+|| The actual tests:
+
+{define-proc {int-test}:String
+    let a:BigInt = 10
+    {assert a.signum == 1}
+    {assert {a.equal? 10}}
+    {assert not {a.equal? -10}}
+    {assert not {a.equal? 9}}
+    {assert not {a.equal? 0}}
+    {assert {a.compare 9} > 0}
+    {assert {a.compare 11} < 0}
+    {assert {a.compare 0} > 0}
+    {assert {{a.negate}.compare 0} < 0}
+    {assert {a.compare -10} > 0}
+    {assert {{a.max 100}.equal? 100}}
+    {assert {{a.max 5}.equal? a}}
+    {assert {{a.min 100}.equal? a}}
+    {assert {{a.min 5}.equal? 5}}
+    {assert {{a.min -5}.equal? "-5"}}
+    {assert {{a.min -57}.equal? "-57"}}
+    {assert {{a.max a}.equal? 10}}
+    {assert {{a.min a}.equal? 10}}
+
+    {assert {{a.abs}.to-String} == "10"}
+    {assert {{{a.negate}.abs}.to-String} == "10"}
+    {assert {{a.negate}.to-String} == "-10"}
+    {assert {a.equal? {a.abs}}}
+    {assert {a.equal? {{a.negate}.abs}}}
+    {assert not a.zero?}
+    {assert a.even?}
+    {assert {a.to-double} == 10.0}
+    {assert {a.to-String} == "10"}
+    {assert {a.to-int} == 10}
+    {assert {a.to-int64} == 10}
+    {assert {{a.power 6}.to-String} == "1000000"}
+    {assert {{a.power 60}.to-String} ==
+        "1000000000000000000000000000000000000000000000000000000000000"
+    }
+    {assert {{{a.negate}.power 59}.to-String} ==
+        "-100000000000000000000000000000000000000000000000000000000000"
+    }
+    {assert {a.negate}.signum == -1}
+    {assert {{a.add a}.equal? 20}}
+    {assert {a.subtract a}.zero?}
+    {expect-exception ArithmeticException, {a.power -1}}
+
+    {assert {a.equal? "   10"}}
+    {assert {a.equal? "   10 444"}}
+    {assert {a.equal? "   +10"}}
+    {assert {{a.negate}.equal? "   -10"}}
+    {assert {a.equal? "   +10+3"}}
+    {assert {a.equal? "   +10-3"}}
+    {assert {a.equal? "   +10z3"}}
+    {assert {a.equal? "10+3"}}
+    {assert {a.equal? "10-3"}}
+    {assert {a.equal? "10z3"}}
+    {expect-exception ArithmeticException, ("   --10" asa BigInt)}
+    {expect-exception ArithmeticException, ("   -+10" asa BigInt)}
+    {expect-exception ArithmeticException, ("   ++10" asa BigInt)}
+    {expect-exception ArithmeticException, ("" asa BigInt)}
+    {expect-exception ArithmeticException, ("." asa BigInt)}
+    {expect-exception ArithmeticException, ("  +" asa BigInt)}
+    {expect-exception ArithmeticException, ("  -" asa BigInt)}
+
+    {expect-exception ArithmeticException, {a.divide 0}}
+
+    {assert not (3 asa BigInt).even?}
+
+    let b:BigInt = 2
+    {for i = 0 to 150 do
+        def p = {b.power i}
+        {assert p.bit-length == i + 1}
+        {assert {p.subtract 1}.bit-length == i}
+    }
+
+    set b = {b.power 20}
+    let bd:double = {b.to-double}
+    {assert {b.to-String} == {format "%.0f", bd}}
+
+    let c:BigInt = {b.power 10}
+    {assert {c.to-double} == bd * bd * bd * bd * bd * bd * bd * bd * bd * bd}    
+
+    let z:BigInt = 0
+    {assert z.zero?}
+    {assert {z.negate}.zero?}
+    {assert z.signum == 0}
+    {assert {z.negate}.signum == 0}
+    {assert {z.compare 0} == 0}
+    {assert {z.compare a} == -1}
+    {assert {z.compare -10} == 1}
+    {assert z.even?}
+    {assert z.bit-length == 0}
+    {assert {{z.abs}.to-String} == "0"}
+    {assert {z.equal? {z.abs}}}
+    {assert {z.equal? {{z.negate}.abs}}}
+
+    {assert {(98765432101 asa BigInt).equal? "98765432101"}}
+    {assert not {(99765432101 asa BigInt).equal? "98765432101"}}
+
+    {for i = 0 to 30 do
+        {assert-num-ok {bpow 10, i}}
+    }
+
+    let e308:BigInt = {bpow 10, 308}
+    {assert not {infinite? {e308.to-double}}}
+    let e309:BigInt = {bpow 10, 309}
+    {assert {infinite? {e309.to-double}}}
+
+    {square-test 2, 1}
+    {square-test 7777, 1}
+    {square-test {bpow 7777, 27}, {bpow 5555, 23}}
+    {square-test {bpow 7677, 29}, {bpow -5655, 11}}
+    {square-test {bpow -7577, 15}, {bpow 5755, 15}}
+    {square-test {bpow -7477, 13}, {bpow -5855, 27}}
+    {for i = 96 to 128 do
+        {square-test {bpow 2, i}, 1}
+    }
+    {square-test {bpow 2, 128}, -1}
+
+    {assert {{bpow -2, 64}.equal? {bpow 2, 64}}}
+
+    {return "BigInt OK"}
+}
+
+
+{define-proc {assert-dec-ok a:BigDecimal}:void
+    def sa = {a.to-String}
+    {assert {a.equal? sa}}
+    def ca = {serialize-clone a} asa BigDecimal
+    {assert {a.equal? ca}}
+    {assert {a.unscaled-value.equal? ca.unscaled-value}}
+    {assert a.scale == ca.scale}
+    {assert a.zero? == a.unscaled-value.zero?}
+    {assert a.zero? == {a.equal? 0}}
+}
+
+{define-proc {decimal-test}:String
+    let d17p00:BigDecimal = {BigDecimal.from-BigInt 17, scale = 2}
+    {assert {d17p00.unscaled-value.equal? 1700}}
+    {assert d17p00.scale == 2}
+    {assert {d17p00.equal? 17}}
+    {assert {d17p00.to-String} == "17.00"}
+    {assert-dec-ok d17p00}
+
+    let d1200:BigDecimal = {BigDecimal.from-BigInt 1234, scale = -2}
+    {assert {d1200.equal? 1200}}
+    {assert {{BigDecimal.from-BigInt -1234, scale = -2}.equal? -1200}}
+    {assert-dec-ok d1200}
+
+    let bd:BigDecimal = 0
+
+    set bd = 10
+    {assert-dec-ok bd}
+    {assert {bd.equal? "   10"}}
+    {assert {bd.equal? "   10 444"}}
+    {assert {bd.equal? "   +10"}}
+    {assert {{bd.negate}.equal? "   -10"}}
+    {assert {bd.equal? "   +10+3"}}
+    {assert {bd.equal? "   +10-3"}}
+    {assert {bd.equal? "   +10z3"}}
+    {assert {bd.equal? "10+3"}}
+    {assert {bd.equal? "10-3"}}
+    {assert {bd.equal? "10z3"}}
+    {assert {bd.equal? "10e3"}}
+    {expect-exception ArithmeticException, ("   --10" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("   -+10" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("   ++10" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("." asa BigDecimal)}
+    {expect-exception ArithmeticException, (".-3" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("w" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("  e" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("  +" asa BigDecimal)}
+    {expect-exception ArithmeticException, ("  -" asa BigDecimal)}
+
+    || Test which value is returned by min and max when both
+    || operands are numerically equal (but may have different scales).
+    {assert {bd.max "10.00"} == bd}
+    {assert {bd.min "10.00"} == bd}
+
+    || Test the logic in BigDecimal.to-double that avoids
+    || dividing infinity/infinity.
+    set bd = {BigDecimal.from-int 1, scale = 298}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {BigDecimal.from-int 1, scale = 299}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {BigDecimal.from-int 1, scale = 300}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {BigDecimal.from-int 1, scale = 301}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {BigDecimal.from-int 1, scale = 308}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {BigDecimal.from-double 1.75, scale = 308}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.75}
+    set bd = {BigDecimal.from-int 1, scale = 309}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+    set bd = {bd.set-scale 731}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1.0}
+
+    || Run our tests on a BigDecimal that represents 1e-302
+    let be:BigDecimal = {bd.divide {bpow 10, 302}}
+    {assert-dec-ok be}
+    let bf:double = {be.to-double}
+    {assert {abs bf - 1e-302} < 1e-307}
+    {assert bf != 0}
+
+    || Now test 1e-350, which underflows to 0.0 when converted to double.
+    set be = {bd.divide {bpow 10, 350}}
+    {assert-dec-ok be}
+    set bf = {be.to-double}
+    {assert not be.zero?}
+    {assert bf == 0.0}
+
+    || Test 1e300, which is very big but still representable as a double.
+    set be = {bd.multiply {bpow 10, 300}}
+    {assert-dec-ok be}
+    set bf = {be.to-double}
+    {assert bf == 1e300}
+
+    || Test 1e309, which as a double will overflow to +infinity.
+    set be = {bd.multiply {bpow 10, 309}}
+    {assert-dec-ok be}
+    set bf = {be.to-double}
+    {assert {infinite? bf}}
+
+    set bd = "0.07"
+    {assert-dec-ok bd}
+    {assert {bd.equal? "0.07"}}
+    {assert {bd.equal? "0.070000"}}
+    {assert {bd.equal? "   .07"}}
+    {assert {{bd.negate}.equal? "-.07xxx17"}}
+    {assert {bd.equal? "  +.07"}}
+    {assert {bd.equal? "   +0.07"}}
+
+    set bd = "12.03125"
+    {assert-dec-ok bd}
+    {assert {bd.equal? 12.03125}}
+    {assert {bd.to-String} == "12.03125"}
+
+    set bd = {BigDecimal.from-int64 1234, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    {assert {bd.to-String} == "1200"}
+    set bd = {BigDecimal.from-int64 -1234, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? -1200}}
+    {assert {bd.to-String} == "-1200"}
+    set bd = {BigDecimal.from-int 1234, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-int -1234, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-double 1234.0, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-double -1234.0, scale = -2}
+    {assert-dec-ok bd}
+    {assert {bd.equal? -1200}}
+
+    set bd = {BigDecimal.from-double 12.03125, scale = 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "12.0313"}}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "-12.0313"}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "12.031"}}
+    set bd = {BigDecimal.from-double -12.03125, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "-12.031"}}
+    set bd = {BigDecimal.from-double 0.03125, scale = 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "0.0313"}}
+    set bd = {BigDecimal.from-double -0.03125, scale = 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "-0.0313"}}
+    set bd = {BigDecimal.from-double 0.03125, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "0.031"}}
+    set bd = {BigDecimal.from-double -0.03125, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "-0.031"}}
+    set bd = {BigDecimal.from-double 0.00001, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.to-String} == "0.000"}
+    set bd = {BigDecimal.from-double -0.00001, scale = 3}
+    {assert-dec-ok bd}
+    {assert {bd.to-String} == "0.000"}
+
+    set bd = "12.03125"
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 12.03125}
+    set bd = {bd.set-scale 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "12.0313"}}
+    set bd = {bd.set-scale 5}
+    {assert-dec-ok bd}
+    {assert {bd.to-String} == "12.03130"}
+    set bd = "-12.03125"
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == -12.03125}
+    set bd = {bd.set-scale 4}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "-12.0313"}}
+    set bd = {bd.set-scale 5}
+    {assert-dec-ok bd}
+    {assert {bd.to-String} == "-12.03130"}
+    set bd = "0.03125"
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 0.03125}
+    set bd = {bd.set-scale 1}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 0.0}
+    {assert {bd.to-String} == "0.0"}
+    set bd = "-0.03125"
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == -0.03125}
+    set bd = {bd.set-scale 1}
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 0.0}
+    {assert {bd.to-String} == "0.0"}
+
+    let rm:RoundingMode = "floor"
+
+    set rm = "floor"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-BigInt 1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-int64 1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-int64 -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-int 1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-int -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.0"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.1"}
+
+    set rm = "ceiling"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.1"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.0"}
+
+    set rm = "truncate"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.0"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.0"}
+
+    set rm = "away-from-zero"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-BigInt 1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1200, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.1"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.1"}
+
+    set rm = "round-toward-zero"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.0"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0312"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.0"}
+
+    set rm = "round-away-from-zero"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-BigInt 1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "12.0"}
+    set bd = {BigDecimal.from-double -12.03125, scale = 4, rounding-mode = rm}
+    {assert {bd.equal? "-12.0313"}}
+    set bd = {bd.set-scale 1, rounding-mode = rm}
+    {assert {bd.to-String} == "-12.0"}
+
+    set rm = "round-toward-even"
+    set bd = {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1234, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1200}}
+    set bd = {BigDecimal.from-BigInt -1250, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1200}}
+    set bd = {BigDecimal.from-BigInt 1350, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1400}}
+    set bd = {BigDecimal.from-BigInt -1350, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1400}}
+    set bd = {BigDecimal.from-BigInt 1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? 1300}}
+    set bd = {BigDecimal.from-BigInt -1251, scale = -2, rounding-mode = rm}
+    {assert {bd.equal? -1300}}
+
+    set rm = "none"
+    {expect-exception
+        ArithmeticException,
+        {BigDecimal.from-BigInt 1234, scale = -2, rounding-mode = rm}
+    }
+    set bd = {BigDecimal.from-double 12.03125, scale = 5, rounding-mode = rm}
+    {assert-dec-ok bd}
+    {assert {bd.equal? "12.03125"}}
+    {assert {bd.equal? 12.03125}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 7, rounding-mode = rm}
+    {assert {bd.equal? "12.03125"}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 50, rounding-mode = rm}
+    {assert {bd.equal? "12.03125"}}
+    set bd = {BigDecimal.from-double 12.03125, scale = 500, rounding-mode = rm}
+    {assert {bd.equal? "12.03125"}}
+
+    let a:BigDecimal = "1.50"
+    {assert-dec-ok a}
+    {assert {a.unscaled-value.equal? 150}}
+    {assert a.scale == 2}
+    {assert a.signum == 1}
+    {assert not a.zero?}
+    {assert {a.to-String} == "1.50"}
+    {assert {{a.negate}.to-String} == "-1.50"}
+    {assert {{a.negate}.equal? "-1.5"}}
+    {assert {{a.abs}.equal? a}}
+    {assert {{{a.negate}.abs}.equal? a}}
+    {assert {{{a.negate}.abs}.to-String} == "1.50"}
+    {assert {{{a.negate}.negate}.equal? a}}
+    {assert {{{a.negate}.negate}.to-String} == "1.50"}
+    {assert {a.to-double} == 1.5}
+    {expect-exception ArithmeticException, {a.divide 0}}
+    {expect-exception ArithmeticException, {a.divide "0.000"}}
+
+    {assert {{a.max 2.5}.equal? "2.5"}}
+    {assert {{a.max 0.5}.equal? a}}
+    {assert {{a.max -0.5}.equal? a}}
+    {assert {{a.max a}.equal? a}}
+    {assert {{a.min 2.5}.equal? a}}
+    {assert {{a.min 0.5}.equal? "0.5"}}
+    {assert {{a.min -0.5}.equal? "-0.5"}}
+    {assert {{a.min a}.equal? a}}
+
+    set bd = 1234
+    {assert-dec-ok bd}
+    {assert {bd.to-double} == 1234.0}
+
+    set bd = "0.000"
+    {assert-dec-ok bd}
+    {assert {bd.to-String} == "0.000"}
+    {assert bd.scale == 3}
+    {assert bd.zero?}
+    {assert bd.unscaled-value.zero?}
+    {assert {bd.equal? "0.0"}}
+    {assert {bd.equal? 0}}
+    {assert {{a.add bd}.equal? a}}
+    {assert {{a.add bd}.to-String} == "1.500"}
+    {assert {{a.subtract bd}.to-String} == "1.500"}
+    {assert {{a.multiply bd}.to-String} == "0.00000"}
+    {assert {{bd.divide a, rounding-mode = "none"}.to-String} == "0.000"}
+
+    let b:BigDecimal = {a.multiply 10}
+    {assert-dec-ok b}
+    {assert {b.unscaled-value.equal? 1500}}
+    {assert b.scale == 2}
+    {assert {b.equal? 15}}
+    {assert {b.compare 16} == -1}
+    {assert {b.compare 15} == 0}
+    {assert {b.compare 14} == 1}
+    {assert b.signum == 1}
+    {assert not b.zero?}
+    {assert {b.to-double} == 15.0}
+    {assert {{a.add b}.equal? 16.5}}
+    {assert {{a.add b}.to-String} == "16.50"}
+    {assert {{a.subtract b}.to-String} == "-13.50"}
+
+    let c:BigDecimal = {a.divide "0.150"}
+    {assert-dec-ok c}
+    {assert {c.unscaled-value.equal? 1000}}
+    {assert c.scale == 2}
+    {assert {c.equal? 10}}
+    {assert {c.to-double} == 10.0}
+
+    set c = {a.divide "0.150", scale = 1}
+    {assert-dec-ok c}
+    {assert {c.equal? 10}}
+    {assert {c.to-double} == 10.0}
+
+    set c = {a.divide "0.150", scale = 50}
+    {assert-dec-ok c}
+    {assert {c.equal? 10}}
+    {assert {c.to-double} == 10.0}
+
+    set c = {a.divide "0.150", scale = -1}
+    {assert-dec-ok c}
+    {assert {c.unscaled-value.equal? 1}}
+    {assert c.scale == -1}
+    {assert {c.equal? 10}}
+    {assert {c.to-double} == 10.0}
+
+    set c = {a.divide "0.15", scale = -1}
+    {assert-dec-ok c}
+    {assert {c.unscaled-value.equal? 1}}
+    {assert c.scale == -1}
+    {assert {c.equal? 10}}
+    {assert {c.to-double} == 10.0}
+
+    let d:BigDecimal = {a.add b}
+    {assert-dec-ok d}
+    {assert {d.unscaled-value.equal? 1650}}
+    {assert d.scale == 2}
+    {assert {d.equal? "+16.5"}}
+    {assert {{d.negate}.equal? "-16.5"}}
+    {assert {d.to-double} == 16.5}
+
+    let e:BigDecimal = "1234.5"
+    {assert {e.equal? "1234.500000000000000000000000000000000000000000000000000000000"}}
+    {assert not {e.equal? "1234.500000000000000000000000000000000000000000000000000001"}}
+    {assert {e.to-double} == 1234.5}
+    let f:BigDecimal = {e.divide 10}
+    {assert {f.equal? "123.5"}}
+    {assert {f.to-double} == 123.5}
+    {assert-dec-ok e}
+    {assert-dec-ok f}
+
+    set e = "1234.4"
+    set f = {e.divide 10}
+    {assert {f.equal? "123.4"}}
+    {assert-dec-ok e}
+    {assert-dec-ok f}
+
+    set e = "1234.49999999"
+    set f = {e.divide 10, scale = 1}
+    {assert {f.equal? "123.4"}}
+    {assert-dec-ok e}
+    {assert-dec-ok f}
+
+    set e = "-1234.49999999"
+    set f = {e.divide 10, scale = 1}
+    {assert {f.equal? "-123.4"}}
+    {assert-dec-ok e}
+    {assert-dec-ok f}
+
+    set e = "-1234.5"
+    {assert {e.to-double} == -1234.5}
+    set f = {e.divide 10}
+    {assert {f.equal? "-123.5"}}
+    {assert-dec-ok e}
+    {assert-dec-ok f}
+
+    set e = "-.00045"
+    {assert e.signum == -1}
+    {assert e.scale == 5}
+    {assert {e.unscaled-value.equal? -45}}
+    {assert {e.to-String} == "-0.00045"}
+    {assert-dec-ok e}
+
+    let g:BigDecimal = 4503599627370497.0
+    {assert g.scale == 0}
+    {assert {g.to-String} == "4503599627370497"}
+    {assert-dec-ok g}
+
+    let h:BigDecimal = "98.7"
+    let i:BigDecimal = "2.0000"
+    let j:BigDecimal = {h.divide i}
+    {assert {j.to-String} == "49.4"}
+    {assert-dec-ok h}
+    {assert-dec-ok i}
+    {assert-dec-ok j}
+
+    set rm = "floor"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "49.3"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "49.3"}
+
+    set rm = "ceiling"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "49.4"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert-dec-ok j}
+    {assert {j.to-String} == "49.4"}
+
+    set rm = "truncate"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "49.3"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "49.3"}
+    {assert-dec-ok j}
+
+    set rm = "away-from-zero"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+    {assert-dec-ok j}
+
+    set rm = "round-toward-zero"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "49.3"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "-49.3"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "49.3"}
+
+    set rm = "round-away-from-zero"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+
+    set rm = "round-toward-even"
+    set j = {h.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+    set j = {h.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide i, rounding-mode = rm}
+    {assert {j.to-String} == "-49.4"}
+    set j = {{h.negate}.divide {i.negate}, rounding-mode = rm}
+    {assert {j.to-String} == "49.4"}
+
+    set h = "98.1"
+    set j = {h.divide 10, rounding-mode = "floor"}
+    {assert {j.to-String} == "9.8"}
+    set j = {h.divide 10, rounding-mode = "ceiling"}
+    {assert {j.to-String} == "9.9"}
+    set j = {h.divide 10, rounding-mode = "round-away-from-zero"}
+    {assert {j.to-String} == "9.8"}
+
+    set j = {h.divide -10, rounding-mode = "floor"}
+    {assert {j.to-String} == "-9.9"}
+    set j = {h.divide -10, rounding-mode = "ceiling"}
+    {assert {j.to-String} == "-9.8"}
+    set j = {h.divide -10, rounding-mode = "round-away-from-zero"}
+    {assert {j.to-String} == "-9.8"}
+    {assert-dec-ok j}
+
+    {return "BigDecimal OK"}
+}
+
+
+{CommandButton
+    label = "Run Tests",
+    {on Action do
+        {with-busy-cursor
+            {int-test}
+            {decimal-test}
+            {popup-message "Tests completed successfully!"}
+        }
+    }
+}

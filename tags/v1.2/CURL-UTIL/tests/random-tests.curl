@@ -1,0 +1,228 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An Open Curl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 6.0, 7.0, 8.0 applet}
+{applet manifest = "manifest.mcurl",
+    {compiler-directives careful? = true}
+}
+
+
+{import * from COM.CURL.UTIL.BIGNUM}
+
+
+|| Helper functions:
+
+|| Check various identities that should hold for any number a.
+{define-proc {assert-num-ok a:BigInt}:void
+    def sa = {a.to-String}
+    {assert {a.equal? sa}}
+    {assert a.zero? == (sa == "0")}
+    {assert a.zero? == {a.equal? 0}}
+}
+
+|| Check various identities that should hold if divisor is an
+|| exact divisor of dividend.
+{define-proc {assert-divides dividend:BigInt, divisor:BigInt}:void
+    {assert-num-ok dividend}
+    {assert-num-ok divisor}
+    {if divisor.zero? and dividend.zero? then {return}}
+    def (q, r) = {dividend.divide divisor}
+    {assert-num-ok q}
+    {assert-num-ok r}
+    {assert r.zero?}
+    {if not q.zero? then
+        def (q1, r1) = {dividend.divide q}
+        {assert r1.zero?}
+        {assert {q1.equal? divisor}}
+        {assert {divisor.equal? q1}}
+    }
+    {assert {dividend.equal? {divisor.multiply q}}}
+    {assert {dividend.equal? {q.multiply divisor}}}
+
+    def dm1 = {dividend.subtract 1}
+    {assert-num-ok dm1}
+    def (q1, r1) = {dm1.divide divisor}
+    {assert-num-ok q1}
+    {assert-num-ok r1}
+    {assert {dm1.equal? {r1.add {q1.multiply divisor}}}}
+    {if {{divisor.abs}.compare 1} > 0 then
+        {assert dm1.signum == r1.signum}
+        {if dm1.signum > 0 then
+            {assert {{r1.abs}.equal? {{divisor.abs}.subtract 1}}}
+         else
+            {assert {{r1.abs}.equal? 1}}
+        }
+    }
+
+    def dp1 = {dividend.add 1}
+    {assert-num-ok dp1}
+    def (q2, r2) = {dp1.divide divisor}
+    {assert-num-ok q2}
+    {assert-num-ok r2}
+    {assert {dp1.equal? {r2.add {q2.multiply divisor}}}}
+    {if {{divisor.abs}.compare 1} > 0 then
+        {assert dp1.signum == r2.signum}
+        {if dp1.signum > 0 then
+            {assert {{r2.abs}.equal? 1}}
+         else
+            {assert {{r2.abs}.equal? {{divisor.abs}.subtract 1}}}
+        }
+    }
+}
+
+|| Implicitily casts non-BigInt values for base to BigInt, for
+|| notational convenience in writing tests, and run related tests.
+{define-proc {bpow base:BigInt, exponent:int}:BigInt
+    def result = {base.power exponent}
+    {for i = 0 to exponent div 2 do
+        def p1 = {base.power i}
+        def p2 = {base.power exponent - i}
+        {assert {result.equal? {p1.multiply p2}}}
+        {assert-divides result, p1}
+        {assert-divides result, p2}
+        {assert-divides p2, p1}
+        def (q, r) = {p1.divide p2}
+        {if {p2.compare p1} != 0 then
+            {assert not {p2.equal? p1}}
+            {assert not {p2.subtract p1}.zero?}
+            {assert q.zero?}
+            {assert {r.equal? p1}}
+         else
+            {assert {p2.equal? p1}}
+            {assert {p2.subtract p1}.zero?}
+            {assert r.zero?}
+            {assert {q.equal? 1}}
+        }
+    }
+    {return result}
+}
+
+|| Return the square of a, doing some obvious checks first.
+{define-proc {bsquare a:BigInt}:BigInt
+    def a2 = {a.power 2}
+
+    {assert {a2.equal? {a.multiply a}}}
+    {if a.zero? then {return a2}}
+    {assert-divides a2, a}
+    def (q, r) = {a2.divide a}
+    {assert {q.equal? a}}
+
+    def a2pa = {a2.add a}
+    {assert-divides a2pa, a}
+    {assert-divides a2pa, {a.add 1}}
+    {assert {a2pa.equal? {a.multiply {a.add 1}}}}
+    {assert {a2pa.equal? {a.multiply {a.subtract -1}}}}
+
+    def a2ma = {a2.subtract a}
+    {assert-divides a2ma, a}
+    {assert-divides a2ma, {a.subtract 1}}
+    {assert {a2ma.equal? {a.multiply {a.subtract 1}}}}
+    {assert {a2ma.equal? {a.multiply {a.add -1}}}}
+
+    {return a2}
+}
+
+|| Test a^2 - b^2 == (a + b) * (a - b) and related identities
+{define-proc {square-test a:BigInt, b:BigInt}:void
+    def a2 = {bsquare a}
+    def b2 = {bsquare b}
+    def diff = {a2.subtract b2}
+    def apb = {a.add b}
+    def amb = {a.subtract b}
+    {assert {diff.equal? {apb.multiply amb}}}
+    {assert-divides diff, apb}
+    {assert-divides diff, amb}
+
+    def abx2 = {a.multiply {b.multiply 2}}
+
+    {if not b.zero? then
+        {assert-divides abx2, b}
+        def (q1, r1) = {abx2.divide b}
+        {assert r1.zero?}
+
+        {if not a.zero? then
+            {assert-divides abx2, a}
+            def (q2, r2) = {q1.divide a}
+            {assert r2.zero?}
+            {assert {q2.equal? 2}}
+        }
+    }
+
+    def apb2 = {bsquare apb}
+    {assert {apb2.equal? {a2.add {abx2.add b2}}}}
+    {assert {b2.equal? {apb2.subtract {a2.add abx2}}}}
+
+    def amb2 = {bsquare amb}
+    {assert {amb2.equal? {a2.add {{abx2.negate}.add b2}}}}
+    {assert {amb2.equal? {a2.add {b2.subtract abx2}}}}
+    {assert {b2.equal? {amb2.subtract {a2.subtract abx2}}}}
+}
+
+
+|| Generate a random BigInt of the given length:
+
+{let package rand:Random = {LinearRandom seed = 12345}}
+
+{define-proc {big-rand nchunks:int}:BigInt
+    let result:BigInt = 0
+    def big-p16:BigInt = {bit-sll 1, 16}
+    {for i = 0 below nchunks do
+        def chunk = {rand.next-int32} mod {bit-sll 1, 16}
+        set result = {result.multiply big-p16}
+        set result = {result.add chunk}
+    }
+    {if {rand.next-int16} < 0 then
+        set result = {result.negate}
+    }
+    {return result}
+}
+
+
+{define-proc {do-divide-test dividend:BigInt, divisor:BigInt}:void
+    {if divisor.zero? then
+        set divisor = 77 asa BigInt
+    }
+    def (q, r) = {dividend.divide divisor}
+    {assert r.zero? or r.signum == dividend.signum}
+    {assert {dividend.equal? {{divisor.multiply q}.add r}}}
+    {square-test dividend, divisor}
+}
+
+
+|| Do a random test.  chunk-scale gives the size of the divisor.
+
+{define-proc {do-random-test chunk-scale:int}:void
+    def c1 = {rand.next-in-range 1, chunk-scale}
+    def c2 = c1 + {rand.next-in-range -1, chunk-scale}
+    def dividend = {big-rand c2}
+    def divisor = {big-rand c1}
+    {output {format "%s / %s", {dividend.to-String}, {divisor.to-String}}}
+    {do-divide-test dividend, divisor}
+    {do-divide-test {dividend.multiply 7777}, {divisor.multiply 5555}}
+}
+
+
+Starting tests!
+
+{value
+    set rand = {LinearRandom seed = 12349}
+    def number-of-tests = 200
+||--    def number-of-tests = 200000
+    {for i = 1 to number-of-tests do
+        {do-random-test 16}
+    }
+    "Tests succeeded!"
+}

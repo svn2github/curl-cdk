@@ -1,0 +1,1077 @@
+||| Copyright (C) 1998-2008, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from COM.CURL.CDK.MESSAGES}
+{import * from COM.CURL.CDK.MESSAGING}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from COM.CURL.CDK.ONLINE-TEST-SUPPORT}
+{import Timer, TimerEvent from CURL.GUI.BASE}
+
+{def
+    amfpolling = {url "http://census-test.curl.com:8080/test-blazeds/messagebroker/amfpolling"},
+    default-destination = "chat",
+    timer-repeat = 20,
+    timer-interval = 0.5s
+}
+
+{define-proc {def-consumer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 selector:String = "",
+                 subtopic:String = "",
+                 ...:EventHandler
+             }:Consumer
+    {return
+        {Consumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            selector = selector,
+            subtopic = subtopic,
+            ...
+        }
+    }
+}
+{define-proc {def-multi-consumer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}
+                     },
+                 subscriptions:SubscriptionInfos =
+                     {SubscriptionInfos {SubscriptionInfo}},
+                 ...:EventHandler
+             }:MultiTopicConsumer
+    {return
+        {MultiTopicConsumer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            subscriptions = subscriptions,
+            ...
+        }
+    }
+}
+
+{define-proc {def-producer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 subtopic:String = "",
+                 ...:EventHandler
+             }:Producer
+    {return
+        {Producer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            subtopic = subtopic,
+            ...
+        }
+    }
+}
+
+{define-proc {def-multi-producer
+                 endpoint:Url = amfpolling,
+                 destination:String = default-destination,
+                 channel-set:#ChannelSet =
+                     {ChannelSet
+                         channel =
+                             {AMFChannel id = destination, uri = endpoint}},
+                 subtopics:Array = {Array},
+                 ...:EventHandler
+             }:MultiTopicProducer
+    {return
+        {MultiTopicProducer
+            endpoint = endpoint,
+            destination = destination,
+            channel-set = channel-set,
+            subtopics = subtopics,
+            ...
+        }
+    }
+}
+
+{define-proc {is-subscribe? mae:MessageAckEvent}:bool
+    {type-switch mae.correlation
+     case cmd:CommandMessage do
+        {switch cmd.operation
+         case CommandMessage.SUBSCRIBE_OPERATION do
+            {return true}
+         case CommandMessage.MULTI_SUBSCRIBE_OPERATION do
+            def (val, f?) = {cmd.headers.get-if-exists "DSlastUnsub"}
+            {if f? then
+                {return not (val asa bool)}
+             else
+                {return true}
+            }
+        }
+    }
+    {return false}
+}
+
+{define-proc {confirm-messaging
+                 consumer:AbstractConsumer,
+                 producer:AbstractProducer = {def-producer},
+                 do-receiving?:bool = false,
+                 max-attempts:int = 500,
+                 selector:any = null
+             }:(ok?:bool, ran-out?:bool)
+
+    || message received by consumer
+    let result:any
+
+    || message throwed by producer
+    def chat-message = "foo"
+
+    let responded?:bool = false
+
+    {consumer.add-event-handler
+        {on me:MessageEvent do
+            {if not me isa MessageAckEvent then
+                set responded? = true
+                {type-switch me.message.body
+                 case obj:DataObject do
+                    def (x, x?) = {obj.get-if-exists "chatMessage"}
+                    {if x? then
+                        {dump "message has been received!"}
+                        set result = x
+                    }
+                }
+            }
+        }
+    }
+
+    let succeeded?:bool = false
+    let t1-ended?:bool = false
+    let t2-ended?:bool = true
+    
+    {consumer.subscribe}
+    
+    def t1 =
+        {Timer
+            repeat = timer-repeat,
+            interval = timer-interval,
+            {on TimerEvent do
+                {if consumer.subscribed? then
+                    def msg = {AsyncMessage
+                                  body = {DataObject
+                                             chatMessage = chat-message
+                                         }
+                              }
+                    {if-non-null selector then
+                        set msg.headers["selector"] = selector
+                    }
+                    {producer.send msg}
+
+                    set t1.repeat = 0
+                    set t2-ended? = false
+
+                    def t2 =
+                        {Timer
+                            repeat = timer-repeat,
+                            interval = timer-interval,
+                            {on TimerEvent do
+                                {if do-receiving? then
+                                    {consumer.receive}
+                                }
+                                {if responded? then
+                                    set t2.repeat = 0
+                                    set succeeded? = (result == chat-message)
+
+                                 elseif t2.repeat == 0 then
+                                    set succeeded? = false
+                                }
+                                {if t2.repeat == 0 then
+                                    set t2-ended? = true
+                                    {consumer.unsubscribe}
+                                }
+                            }
+                        }
+
+                 elseif t1.repeat == 0 then
+                    set succeeded? = false
+                }
+                {if t1.repeat == 0 then
+                    set t1-ended? = true
+                }
+            }
+        }
+    
+    {while not (t1-ended? and t2-ended?) do
+        {dispatch-events false}
+    }
+
+    {dump "\n===============confirming ended===============\n"}
+    {return succeeded?, false}
+}
+
+
+{define-proc {check-property?
+                 e:PropertyChangeEvent,
+                 name:String,
+                 old-val:any,
+                 new-val:any,
+                 source:any
+             }:bool
+    {return
+        e.kind == PropertyChangeEventKind.update and
+        e.property == name and
+        e.old-value == old-val and
+        e.new-value == new-val and
+        e.source == source
+    }
+}
+
+
+
+{TestSuite "MessageAgent",
+    || NOTE: just checks url availability
+    || TODO: guard against service inactive
+    {test-host-accessible-guard {amfpolling.stem.name.tail "http://".size}},
+    || tests
+    {TestSuite "Consumer",
+        {test-case "subscribe",
+            {TestCondition.assert
+                {confirm-messaging {def-consumer}},
+                message = ""
+            }
+        },
+        {test-case "subscribe(without use of SmallMessage)",
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            set channel.enable-small-messages? = false
+
+            {TestCondition.assert
+                {confirm-messaging
+                    {def-consumer
+                        channel-set = {ChannelSet channel = channel}
+                    }
+                }
+            }
+        },
+        {test-case "use of subtopic",
+            || Configure message-config.xml to run this test correctly.
+            def subtopic = "subtopic"
+            def ok? = {confirm-messaging
+                          {def-consumer subtopic = subtopic},
+                          producer = {def-producer subtopic = subtopic}
+                      }
+            def ng? = {confirm-messaging
+                          {def-consumer},
+                          producer = {def-producer subtopic = subtopic},
+                          max-attempts = 50
+                      }
+            {TestCondition.assert
+                ok? and (not ng?),
+                message = {value ok?} & " and " & {value ng?}
+            }
+        },
+        {test-case "use of selector",
+            def ok? = {confirm-messaging
+                          {def-consumer selector = "selector = 'selector'"},
+                          selector = "selector"
+                      }
+            def ng? = {confirm-messaging
+                          {def-consumer selector = "selector = ''"},
+                          selector = "selector",
+                          max-attempts = 50
+                      }
+            {TestCondition.assert
+                ok? and (not ng?),
+                message = {value ok?} & " and " & {value ng?}
+            }
+        },
+        {test-case "resubscribe",
+            def channels = {{Array-of Channel}
+                               || should be failed.
+                               {AMFChannel
+                                   id = "hoge",
+                                   uri = {url "http://localhost/"}
+                               },
+                               {AMFChannel
+                                   id = default-destination,
+                                   uri = amfpolling
+                               }
+                           }
+            {TestCondition.assert
+                {confirm-messaging
+                    {def-consumer
+                        channel-set = {ChannelSet channels = channels}
+                    }
+                }
+            }
+        },
+        {test-case "resubscribe(error)",
+            let cf-cnt:int = 0
+            let mf-cnt:int = 0
+            def tm = {SimpleTimingMean}
+            def channels = {{Array-of Channel}
+                               || Both channels should be faild.
+                               {AMFChannel id = "ch1", uri = {url "http://ch1"}},
+                               {AMFChannel id = "ch2", uri = {url "http://ch2"}}
+                           }
+            def consumer =
+                {def-consumer
+                    channel-set = {ChannelSet channels = channels},
+                    {on e:MessageFaultEvent do
+                        {if e.fault-code == "Client.Error.MessageSend" then
+                            {inc mf-cnt}
+                        }
+                    },
+                    {on e:ChannelFaultEvent do
+                        {if e.fault-code == "Channel.Ping.Failed" then
+                            {inc cf-cnt}
+                            {if cf-cnt > 1 then
+                                {tm.end-idling}
+                            }
+                        }
+                    }
+                }
+            {consumer.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert cf-cnt == 2 and mf-cnt == 1}
+        },
+        {test-case "receive",
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            || turn off polling
+            set channel.polling-enabled? = false
+
+            {TestCondition.assert
+                {confirm-messaging
+                    {def-consumer
+                        channel-set = {ChannelSet channel = channel}
+                    },
+                    do-receiving? = true
+                }
+            }
+        },
+        {test-case "access id",
+            def c = {def-consumer}
+            
+            let ok?:bool = false
+            def old-id = c.id
+            def new-id = "new"
+
+            {c.add-event-handler
+                {on e:PropertyChangeEvent do
+                    set ok? = {check-property? e, "id", old-id, new-id, c}
+                }
+            }
+        
+            set c.id = new-id
+            {dispatch-events true}
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "access destination",
+            def d-dest = "feed"
+            def tm = {SimpleTimingMean}
+            
+            let handled?:bool = false
+            let destination-ok?:bool = false
+            let subscribed-ok?:bool = false
+
+            def c =
+                {def-consumer
+                    destination = d-dest,
+                    {on ma:MessageAckEvent do
+                        {if {is-subscribe? ma} then
+                            {if handled? then
+                                {tm.end-idling}
+                             else
+                                set handled? = true
+                                set c.destination = default-destination
+                            }
+                        }
+                    },
+                    {on pc:PropertyChangeEvent do
+                        {switch pc.property
+                         case "subscribed?" do
+                            set subscribed-ok? =
+                                {check-property?
+                                    pc, "subscribed?", false, true, c
+                                }
+                            
+                         case "destination" do
+                            set destination-ok? =
+                                {check-property?
+                                    pc,
+                                    "destination",
+                                    d-dest,
+                                    default-destination,
+                                    c
+                                }
+                        }
+                    }
+                }
+            {c.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert
+                (c.subscribed? and subscribed-ok? and destination-ok?),
+                message = {lmessage {value subscribed-ok?} and {value destination-ok?}}
+            }
+        },
+        {test-case "access resubscribe-interval",
+            def c = {def-consumer}
+
+            let ri?:bool = false
+            let error?:bool = false
+            def old-val = c.resubscribe-interval
+            def new-val = 100s
+
+            {c.add-event-handler
+                {on e:PropertyChangeEvent do
+                    set ri? = {check-property?
+                                  e,
+                                  "resubscribe-interval",
+                                  old-val,
+                                  new-val,
+                                  c
+                              }
+                }
+            }
+
+            || set normal value
+            set c.resubscribe-interval = new-val
+            {dispatch-events true}
+
+            || set abnormal value (expect an error)
+            {try
+                set c.resubscribe-interval = -1s
+             catch e:Exception do
+                set error? = true
+            }
+
+            || set 0s to stop resubscribing
+            let handled?:bool = false
+            def tm = {SimpleTimingMean max-attempts = 25}
+            def c2 = {def-consumer
+                         {on mae:MessageAckEvent do
+                             {if {is-subscribe? mae} then
+                                 {if handled? then
+                                     {tm.end-idling}
+                                  else
+                                     set handled? = true
+                                     {c2.channel-set.disconnect c2}
+                                 }
+                             }
+                         }
+                     }
+            set c2.resubscribe-interval = 0s
+            {c2.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert
+                ri? and error? and handled? and (not c2.subscribed?)}
+        },
+        {test-case "disconnect(Consumer)",
+            let c?:bool = false
+            def tm = {SimpleTimingMean}
+            def con = {def-consumer
+                          {on ma:MessageAckEvent do
+                              {if {is-subscribe? ma} then
+                                  {con.disconnect}
+                              }
+                          },
+                          {on cd:ChannelDisconnectEvent do
+                              {tm.end-idling}
+                          },
+                          {on pc:PropertyChangeEvent do
+                              {if pc.property == "connected?" then
+                                  set c? = (pc.new-value == false)
+                              }
+                          }
+                      }
+            {con.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert (not con.subscribed?) and c?}
+        },
+        {test-case "disconnect(ChannelSet)",
+            let handled?:bool = false
+            let mc?:bool = false
+            let cc?:bool = false
+            def tm = {SimpleTimingMean}
+
+            def con = {def-consumer
+                          {on ma:MessageAckEvent do
+                              {if {is-subscribe? ma} then
+                                  {if handled? then
+                                      {tm.end-idling}
+                                   else
+                                      set handled? = true
+                                      {con.channel-set.disconnect con}
+                                  }
+                              }
+                          },
+                          {on pc:PropertyChangeEvent do
+                              {if pc.property == "connected?" then
+                                  set mc? = pc.new-value
+                              }
+                          }
+                      }
+            {con.channel-set.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set cc? = pc.new-value
+                }
+            }
+            {con.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert
+                con.subscribed? and handled? and mc? and cc?
+            }
+        }
+    },
+    {TestSuite "Producer",
+        {test-case "connect",
+            let ok?:bool = false
+            def tm = {SimpleTimingMean}
+            def pro = {def-producer
+                          {on e:ChannelConnectEvent do
+                              set ok? = true
+                              {tm.end-idling}
+                          }
+                      }
+            {pro.connect}
+            {tm.start-with-idling}
+            {TestCondition.assert ok?}
+        },
+        {test-case "connect(timeout)",
+            def tm = {SimpleTimingMean}
+            let handled?:bool = false
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            set channel.connect-timeout = {pow .1, 10} * 1s
+            def pr = {def-producer
+                         channel-set = {ChannelSet channel = channel},
+                         {on e:ChannelFaultEvent do
+                             {if e.fault-code == "Channel.Connect.Failed" then
+                                 set handled? = true
+                                 {tm.end-idling}
+                             }
+                         }
+                     }
+            {pr.send {AsyncMessage}}
+            {tm.start-with-idling}
+            {TestCondition.assert handled?}
+        },
+        {test-case "disconnect",
+            let cc?:bool = false
+            let handled?:bool = false
+            def tm = {SimpleTimingMean}
+            def pr = {def-producer
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on cc:ChannelConnectEvent do
+                             {if not handled? then
+                                 set handled? = true
+                                 {pr.disconnect}
+                             }
+                         },
+                         {on cd:ChannelDisconnectEvent do
+                             {tm.end-idling}
+                         }
+                     }
+            {pr.send {AsyncMessage body = {DataObject chatMessage = "cm"}}}
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled? and (not cc?)}
+        },
+        {test-case "reconnect",
+            let handled?:bool = false
+            let cc?:bool = false
+            def tm = {SimpleTimingMean}
+            def pr = {def-producer
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on cc:ChannelConnectEvent do
+                             {if not handled? then
+                                 set handled? = true
+                                 {pr.channel-set.disconnect pr}
+                              else
+                                 {tm.end-idling}
+                             }
+                         }
+                     }
+            set pr.reconnect-attempts = 1
+            set pr.reconnect-interval = 1s
+            {pr.send {AsyncMessage}}
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled? and cc?}
+        },
+        {test-case "reconnect(error)",
+            let handled?:bool = false
+            let cnt:int = 0
+            let cc?:bool = false
+            def tm = {SimpleTimingMean max-attempts = 50}
+            def pr = {def-producer
+                         channel-set =
+                             {ChannelSet
+                                 channel = {AMFChannel
+                                               id = "ch",
+                                               uri = {url "http://localhost/"}
+                                           }
+                             },
+                         {on pc:PropertyChangeEvent do
+                             {if pc.property == "connected?" then
+                                 set cc? = pc.new-value
+                             }
+                         },
+                         {on mfe:MessageFaultEvent do
+                             {if handled? then
+                                 {tm.end-idling}
+                              else
+                                 set handled? = true
+                             }
+                         }
+                     }
+            set pr.reconnect-attempts = 1
+            set pr.reconnect-interval = 1s
+            {pr.send {AsyncMessage}}
+            {tm.start-with-idling}
+            {TestCondition.assert handled? and not cc?}
+        },
+        {test-case "send (timeout)",
+            def tm = {SimpleTimingMean}
+            let handled?:bool = false
+            def channel = {AMFChannel
+                              id = default-destination,
+                              uri = amfpolling
+                          }
+            def pr = {def-producer
+                         channel-set = {ChannelSet channel = channel},
+                         {on e:MessageFaultEvent do
+                             {if e.fault-code == "Client.Error.RequestTimeout" then
+                                 set handled? = true
+                                 {tm.end-idling}
+                             }
+                         }
+                     }
+            {pr.send
+                {AsyncMessage
+                    headers = {DataObject
+                                  DSRequestTimeout = {pow .1, 10}
+                              }
+                }
+            }
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled?}
+        },
+        {test-case "subtopic",
+            let ok? = false
+            def old-val = "old"
+            def new-val = "new"
+            def pr = {def-producer
+                         subtopic = old-val,
+                         {on e:PropertyChangeEvent do
+                             set ok? = 
+                                 {check-property?
+                                     e, "subtopic", old-val, new-val, pr
+                                 }
+                         }
+                     }
+            set pr.subtopic = new-val
+            {dispatch-events true}
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "auto-connect?",
+            def tm = {SimpleTimingMean}
+            let handled?:bool = false
+            def pr = {def-producer
+                         {on mfe:MessageFaultEvent do
+                             {if mfe.fault-code == "Client.Error.MessageSend" then
+                                 set handled? = true
+                                 {tm.end-idling}
+                             }
+                         }
+                     }
+            set pr.auto-connect? = false
+            {pr.send {AsyncMessage}}
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled?}
+        },
+        {test-case "access deafault-headers",
+            def pr = {def-producer}
+            def old-value = pr.default-headers
+            def new-value = {DataObject test = "test"}
+
+            let ok?:bool = false
+            {pr.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set ok? = (pc.kind == PropertyChangeEventKind.update and
+                               pc.property == "default-headers" and
+                               pc.old-value == old-value and
+                               pc.new-value == new-value and
+                               pc.source == pr)
+                }
+            }
+                         
+            set pr.default-headers = new-value
+            {dispatch-events true}
+            {TestCondition.assert ok?}
+        },
+        {test-case "access reconnect-interval",
+            def pr = {def-producer}
+            let ok-normal?:bool = false
+            def old-value = pr.reconnect-interval
+            def new-value = 100s
+            {pr.add-event-handler
+                {on pc:PropertyChangeEvent do
+                    set ok-normal? =
+                        (pc.kind == PropertyChangeEventKind.update and
+                         pc.property == "reconnect-interval" and
+                         pc.old-value == old-value and
+                         pc.new-value == new-value)
+                }
+            }
+
+            || set normal value
+            set pr.reconnect-interval = new-value
+            {dispatch-events true}
+            
+            || set abnormal value (expect an error)
+            let ok-abnormal?:bool = false
+            {try
+                set pr.reconnect-interval = -1s
+             catch e:Exception do
+                set ok-abnormal? = true
+            }
+
+            || set 0s to stop resubscribing
+            let handled?:bool = false
+            let ok-set0?:bool = false
+            def tm = {SimpleTimingMean max-attempts = 100}
+            def msg = {AsyncMessage body = {DataObject test = "test"}}
+            def pr2 =
+                {def-producer
+                    {on mae:MessageAckEvent do
+                        {if not handled? then
+                            set handled? = true
+                            {pr2.channel-set.disconnect pr2}
+                         else
+                            {type-switch mae.correlation
+                             case cm:CommandMessage do
+                                {if cm.operation ==
+                                    CommandMessage.TRIGGER_CONNECT_OPERATION
+                                 then
+                                    {tm.end-idling}
+                                }
+                            }
+                        }
+                    },
+                    {on pr:PropertyChangeEvent do
+                        {if pr.property == "connected?" then
+                            set ok-set0? = not pr.new-value
+                        }
+                    }
+                }
+            set pr2.reconnect-interval = 0s
+            set pr2.reconnect-attempts = 1
+            {pr2.send msg}
+            {tm.start-with-idling}
+
+            {TestCondition.assert
+                ok-normal? and ok-abnormal? and ok-set0?
+            }
+        }
+    },
+    {TestSuite "MultiTopicConsumer",
+        {test-case "subscribe",
+            def ok? = {confirm-messaging
+                          {def-multi-consumer}
+                      }
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "subscribe (with subtopic)",
+            def subtopic1 = "subtopic1"
+            def subtopic2 = "subtopic2"
+            def subtopic3 = "subtopic3"
+            
+            || subscriptions that accept two of three subtopics
+            def subscriptions = {SubscriptionInfos
+                                    {SubscriptionInfo
+                                        subtopic = subtopic1},
+                                    {SubscriptionInfo
+                                        subtopic = subtopic2}
+                                }
+
+            def s1-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic1}
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic2}
+                         }
+            || this should be failed.
+            def s3-ng? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions},
+                             producer = {def-producer
+                                            subtopic = subtopic3},
+                             max-attempts = 50
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok? and (not s3-ng?)
+            }
+        },
+        {test-case "subscribe (with selector)",
+            def selector1 = "selector"
+            def selector2 = 2
+            def selector3 = "foo"
+
+            def subscriptions =
+                {SubscriptionInfos
+                    {SubscriptionInfo
+                        selector = "selector = 'selector'"
+                    },
+                    {SubscriptionInfo
+                        selector = "selector = 2"
+                    }
+                }
+            
+            def s1-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector1
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector2
+                         }
+            || this should be failed.
+            def s3-ng? = {confirm-messaging
+                             {def-multi-consumer
+                                 subscriptions = subscriptions
+                             },
+                             selector = selector3,
+                             max-attempts = 50
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok? and (not s3-ng?)
+            }
+        },
+        {test-case "set subscriptions",
+            def tm = {SimpleTimingMean max-attempts = 50}
+            let handled?:bool = false
+            def mc = {def-multi-consumer
+                         {on e:MessageAckEvent do
+                             {if {is-subscribe? e} then
+                                 {if handled? then
+                                     {tm.end-idling}
+                                  else
+                                     || need at least one element
+                                     set mc.subscriptions =
+                                         {SubscriptionInfos {SubscriptionInfo}}
+                                     set handled? = true
+                                 }
+                             }
+                         }
+                     }
+
+            {mc.subscribe}
+            {tm.start-with-idling}
+
+            {TestCondition.assert handled? and mc.subscribed?}
+        },
+        {test-case "add subscription",
+            def tm = {SimpleTimingMean}
+            def subtopic = "subtopic"
+
+
+            def mc = {def-multi-consumer}
+
+            let handled?:bool = false
+            def eh = {on e:MessageAckEvent do
+                         {if {is-subscribe? e} then
+                             {if handled? then
+                                 {tm.end-idling}
+                              else
+                                 {mc.add-subscription
+                                     subtopic = subtopic}
+                                 set handled? = true
+                             }
+
+                         }
+                     }
+
+            {mc.add-event-handler eh}
+            {mc.subscribe}
+            {tm.start-with-idling}
+            {mc.remove-event-handler eh}
+
+            def com-ok? = {confirm-messaging
+                                  mc,
+                                  producer = {def-producer
+                                                 subtopic = subtopic}
+                              }
+
+            {TestCondition.assert
+                com-ok? and handled?
+            }
+        },
+        {test-case "remove subscription",
+            def tm = {SimpleTimingMean}
+            def subtopic = "subtopic"
+            def mc = {def-multi-consumer
+                         subscriptions =
+                             {SubscriptionInfos
+                                 {SubscriptionInfo},
+                                 {SubscriptionInfo
+                                     subtopic = subtopic}
+                             }
+                     }
+
+            let handled?:bool = false
+            def eh = {on e:MessageAckEvent do
+                         {if {is-subscribe? e} then
+                             {if handled? then
+                                 {tm.end-idling}
+                              else
+                                 {mc.remove-subscription
+                                     subtopic = subtopic
+                                 }
+                                 set handled? = true
+                             }
+                         }
+                     }
+
+            {mc.add-event-handler eh}
+            {mc.subscribe}
+            {tm.start-with-idling}
+            {mc.remove-event-handler eh}
+
+            def com-ok? = {confirm-messaging
+                              mc,
+                              producer = {def-producer
+                                             subtopic = subtopic},
+                              max-attempts = 50
+                          }
+
+            {TestCondition.assert
+                (not com-ok?) and handled?
+            }
+        }
+    },
+    {TestSuite "MultiTopicProducer",
+        {test-case "connect (with subtopic)",
+            def subtopic1 = "subtopic1"
+            def subtopic2 = "subtopic2"
+            
+            def mp = {def-multi-producer
+                         subtopics = {Array subtopic1, subtopic2}
+                     }
+
+            def s1-ok? = {confirm-messaging
+                             {def-consumer subtopic = subtopic1},
+                             producer = mp
+                         }
+            def s2-ok? = {confirm-messaging
+                             {def-consumer subtopic = subtopic2},
+                             producer = mp
+                         }
+
+            {TestCondition.assert
+                s1-ok? and s2-ok?
+            }
+        },
+        {test-case "access selectors",
+            let ok?:bool = false
+            def old-val = {Array}
+            def new-val = {Array "subtopic"}
+            def mp = {def-multi-producer
+                         subtopics = old-val,
+                         {on e:PropertyChangeEvent do
+                             set ok? = {check-property?
+                                           e, "subtopics",
+                                           old-val, new-val, mp
+                                       }
+                         }
+                     }
+            set mp.subtopics = new-val
+            {dispatch-events true}
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "add subtopic",
+            def subtopic = "subtopic"
+            def mp = {def-multi-producer}
+            {mp.add-subtopic subtopic}
+
+            def ok? = {confirm-messaging
+                          {def-consumer subtopic = subtopic},
+                          producer = mp
+                      }
+
+            {TestCondition.assert ok?}
+        },
+        {test-case "remove subtopic",
+            def subtopic = "subtopic"
+            def mp = {def-multi-producer
+                         subtopics = {Array subtopic}}
+            {mp.remove-subtopic subtopic}
+
+            def ok? = {confirm-messaging
+                          {def-consumer subtopic = subtopic},
+                          producer = mp,
+                          max-attempts = 50
+                      }
+
+            {TestCondition.assert (not ok?)}
+        }
+    }
+}
+

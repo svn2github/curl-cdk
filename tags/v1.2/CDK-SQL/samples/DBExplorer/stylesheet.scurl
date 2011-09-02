@@ -1,0 +1,132 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{import * from CURL.GUI.STANDARD}
+
+{value
+    || colors
+    def BAR-COLOR = "#DEE5ED"
+    def MENU-COLOR = "#F4EEF4" || ### UNUSED
+    def ROW-COLOR = "#E6F3FA"
+
+    || default styling
+    def style-manager = {BasicStyleManager {get-default-style-sheet}}
+    def trial-text-area = {TextArea}
+    {style-manager.apply-style trial-text-area}
+    def text-area-skin = trial-text-area.skin asa ShadedSkinSpec
+
+    {StyleSheet
+        || panels
+        || ----------
+        {StyleRule "Frame.title-bar",
+            background = BAR-COLOR
+        },
+        {StyleRule "Frame.status-bar",
+            height = 14pt,
+            background = BAR-COLOR
+        },
+||--        {StyleRule "SkinnableFrame.title-bar",
+||--            font-size = 14pt,
+||--            height = 20pt,
+||--            skin =
+||--                {ShadedSkinSpec
+||--                    margin-spec = {OffsetSpec 0pt},
+||--                    "#91BFF2",
+||--                    "#BBE9F0",
+||--                    border-color = "#6C9AF0",
+||--                    corner-radius = 6px,
+||--                    upper-left-rounded? = true,
+||--                    upper-right-rounded? = true,
+||--                    lower-right-rounded? = false,
+||--                    lower-left-rounded? = false
+||--                }
+||--        },
+||--        {StyleRule "SkinnableFrame.status-bar",
+||--            height = 14pt,
+||--            skin =
+||--                {ShadedSkinSpec
+||--                    margin-spec = {OffsetSpec 0pt},
+||--                    "#BBE9F0",
+||--                    "#91BFF2",
+||--                    border-color = "#6C9AF0",
+||--                    corner-radius = 6px,
+||--                    upper-left-rounded? = false,
+||--                    upper-right-rounded? = false,
+||--                    lower-right-rounded? = true,
+||--                    lower-left-rounded? = true
+||--                }
+||--        },
+        || info
+        || ----------
+        {StyleRule "Frame.title", || ###
+            margin = 2px,
+            font-weight = "bold"
+        },
+        {StyleRule "Frame.title-file",
+            font-family = "monospace",
+            font-size = 10pt
+        },
+        {StyleRule "Frame.status",
+            margin = 3px,
+            font-size = 8pt,
+            font-style = "italic"
+        },
+        {StyleRule "Frame.sql-error",
+            color = "purple"
+        },
+        || main
+        || ----------
+        {StyleRule "RecordGrid.sql",
+            color = "black",
+            background = ROW-COLOR,
+            alternate-row-background = ROW-COLOR,
+||--            control-content-background = "#E6F3FA",
+||--            control-color = "#BBE9F0",
+||--            alternate-row-background = "#D0EEF5", || midway between above 2
+            horizontal-grid-line-width = 1px,
+            vertical-grid-line-width = 1px,
+            display-filler-column? = true
+        },
+        {StyleRule "TextArea.sql",
+            skin = {text-area-skin.modify-clone border-color = "silver"},
+            control-content-background = ROW-COLOR,
+            font-family = "monospace"
+        },
+        {StyleRule "TabContainer.sql",
+            user-data = "UNUSED"
+        },
+        {StyleRule "TabPane.sql",
+            user-data = "UNUSED"
+        },
+        {StyleRule "TreeControl.sql",
+            user-data = "UNUSED"
+        },
+        {StyleRule "ListBox.sql",
+            user-data = "UNUSED"
+        },
+        {StyleRule "DropdownList.sql",
+            user-data = "UNUSED"
+        },
+        || internal
+        || ----------
+        {StyleRule "PanedWindow",
+            sash-border-color = "white",
+            || NOTE: this avoids the black line
+            background = ROW-COLOR,
+            sash-background = "transparent"
+        }
+    }
+}

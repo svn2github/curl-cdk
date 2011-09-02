@@ -1,0 +1,79 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+|| Wait for the right time to get results of invoking methods.
+{define-class abstract public TimingMeans
+
+  field public constant max-attempts:int
+  field private pending?:bool
+
+  def DEFAULT_TIMEOUT = 500
+
+
+  {constructor public {default
+                          max-attempts:int = TimingMeans.DEFAULT_TIMEOUT
+                      }
+    set self.max-attempts = max-attempts
+    set self.pending? = false
+  }
+
+  {method public open {start-with-idling args:#Arguments=null}:bool
+    let ran-out?:bool = true
+    set self.pending? = true
+
+    {self.exe args}
+    
+    {for i:int=0 below self.max-attempts do
+        {dispatch-events true}
+        {self.exe-repeatedly args}
+        {if not self.pending? then
+            set ran-out? = (i == self.max-attempts - 1)
+            {break}
+        }
+    }
+    {return ran-out?}
+  }
+
+  {method abstract protected {exe args:#Arguments}:void}
+  {method protected {exe-repeatedly args:#Arguments}:void}
+
+  {method public open {end-idling}:void
+    set self.pending? = false
+  }
+}
+
+{define-class public SimpleTimingMean {inherits TimingMeans}
+  field public exe-proc:{proc-type {#Arguments}:void}
+  field public exe-repeatedly-proc:{proc-type {#Arguments}:void}
+  {constructor public {default
+                          max-attempts:int = TimingMeans.DEFAULT_TIMEOUT,
+                          exe-proc:{proc-type {#Arguments}:void} = {fn=>},
+                          exe-repeatedly-proc:{proc-type {#Arguments}:void} = {fn=>}
+                      }
+    {construct-super
+        max-attempts = max-attempts
+    }
+    set self.exe-proc = exe-proc
+    set self.exe-repeatedly-proc = exe-repeatedly-proc
+  }
+  {method protected final inline {exe args:#Arguments}:void
+    {self.exe-proc args}
+  }
+  {method protected final inline {exe-repeatedly args:#Arguments}:void
+    {self.exe-repeatedly-proc args}
+  }
+}
+

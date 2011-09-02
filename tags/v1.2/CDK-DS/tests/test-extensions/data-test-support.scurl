@@ -1,0 +1,165 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0, 8.0 package}
+
+{package COM.CURL.CDK.DATA-TEST-SUPPORT,
+    version = "1.1",
+    {compiler-directives
+        careful? = true
+    }
+}
+
+{import * from COM.CURL.CDK.AMF}
+{import * from COM.CURL.CDK.DATA-OBJECT}
+{import * from CURL.LANGUAGE.REFLECTION}
+
+
+{define-proc {association-type? t:Type}:bool
+    {return
+        {type-switch t
+         case t:ClassType do
+            {if-non-null g = {t.get-getter "element-type"} then
+                g.type == Type
+             else false}
+         else false}}
+}
+{define-proc public {object-as-data obj:Object}:DataObject
+    def xs = {{HashTable-of String, any}}
+    def t = {type-of obj} asa ClassType
+    {for m in {t.get-members filter = ClassMember.get-property-filter} do
+        {type-switch m
+         case p:Property do
+            def k = p.name
+            || NOTE: only compare settable properties
+            || {if-non-null {t.get-property-for-set k} then
+            {do 
+                def v = {p.get-value obj}
+                set xs[k] = v
+            }}}
+    {return xs asa DynamicDataObject}
+}
+
+{define-proc public {test-compare x:any, y:any}:bool
+    {with-compiler-directives
+        allow-any-calls? = true,
+        allow-implicit-any-casts? = true
+     do
+        def tx = {type-of x}
+        def ty = {type-of y}
+        || NOTE: messy, partial attempt at "deep equal?"
+        || TODO: better attempt
+        {return
+            {if tx.primitive? and ty.primitive? then
+                x == y
+             elseif tx == ty then
+                || identical types
+                || TODO: use type-switch
+                {if {tx.subtype-of? ExtendedArray} then
+                    {x.equal? y}
+                 elseif {association-type? tx} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        {value
+                            let eq?:bool = true
+                            {for xi key i in x do
+                                {if not {test-compare xi, y[i]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}                       
+                 elseif {tx.subtype-of? DataObject} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        || TODO: traits
+                        {value
+                            let eq?:bool = true
+                            {for xk key k in x do
+                                {if not {test-compare xk, y[k]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}
+                 elseif tx == AMFXmlDocument then
+                    x.xml == y.xml
+                 elseif tx == AMFHeader then
+                    x.name == y.name and
+                    x.must-understand? == y.must-understand? and
+                    x.value == y.value
+                 elseif tx == AMFBody then
+                    x.target-uri == y.target-uri and
+                    x.response-uri == y.response-uri and
+                    {test-compare x.data, y.data}
+                 elseif tx == AMFEnvelope then
+                    {test-compare x.headers, y.headers} and
+                    {test-compare x.bodies, y.bodies}
+                 else
+                    {type-switch tx
+                     case tx:ClassType do
+                        {with-compiler-directives allow-any-calls? = true,
+                            allow-implicit-any-casts? = true
+                         do
+                            {if-non-null {tx.get-method "equal?"} then
+                                {x.equal? y}
+                             else x == y or
+                                {value
+                                    || TODO: this is convoluted
+                                    || - better just compare public properties
+                                    def dx = {object-as-data x}
+                                    def dy = {object-as-data y}
+                                    {test-compare dx, dy}}
+                            }}
+                     else x == y
+                    }}
+             else
+                || different types
+                {if {tx.subtype-of? ExtendedArray} then
+                    {if {ty.subtype-of? ExtendedArray} then
+                        {x.equal? y}
+                     else false}
+                 elseif
+                    {association-type? tx} and {association-type? ty}
+                 then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        {value
+                            let eq?:bool = true
+                            {for xi key i in x do
+                                {if not {test-compare xi, y[i]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}                       
+                 elseif {tx.subtype-of? DataObject} and {ty.subtype-of? DataObject} then
+                    {with-compiler-directives allow-any-calls? = true do
+                        x.size == y.size and
+                        || TODO: traits
+                        {value
+                            let eq?:bool = true
+                            {for xk key k in x do
+                                {if not {test-compare xk, y[k]} then
+                                    set eq? = false
+                                    {break}}}
+                            eq?}}
+                 else
+                    x == y}}
+        }
+    }
+}
+{define-proc public {hex-encode bs:ByteArray}:String    
+    let buf:StringBuf = {StringBuf}
+    {for b in bs do
+        {format out = buf, "%02X", b}}
+    {return {buf.to-String}}
+}
+

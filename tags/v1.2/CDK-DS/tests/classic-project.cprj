@@ -1,0 +1,28 @@
+|| **********************************************************
+|| *** THIS FILE IS AUTOMATICALLY UPDATED BY THE CURL IDE ***
+|| ***              DO NOT MODIFY IT BY HAND              ***
+|| **********************************************************
+{project
+    version = 2,
+    manifest-location = "manifest.mcurl",
+    api-version = "8.0",
+    compiler-directives = "careful? = true",
+    use-style-sheets? = true,
+    project-look-and-feel = "default-style-sheet",
+    style-package-name = "",
+    style-sheet-name = "",
+    {target
+        name = "deploy",
+        target-url-name = "c:\\curl\\CDK-DS_data_support",
+        {assembly-transform "COM.CURL.CDK.DATA-SERVICES", action = "use-specified-location", relocate-path = "../code/manifest.mcurl"},
+        {resource-transform "classic-project.cprj\u0000file\u0000classic-project.cprj", copy? = true},
+        {resource-transform "project.cprj\u0000file\u0000project.cprj", copy? = true},
+        {resource-transform "test-cases\u0000directory\u0000test-cases", copy? = true},
+        {assembly-transform "COM.CURL.CDU", action = "use-specified-location", relocate-path = "../lib/CDU/manifest.mcurl"},
+        {package-transform "COM.CURL.CDK.DATA-TEST-SUPPORT\u0000package\u0000test-extensions/data-test-support.scurl", copy? = true},
+        {resource-transform "test-data\u0000directory\u0000test-data", copy? = true},
+        {resource-transform "start-tests.curl\u0000file\u0000start-tests.curl", copy? = true},
+        {package-transform "COM.CURL.CDK.ONLINE-TEST-SUPPORT\u0000package\u0000test-extensions/online-test-support/load.scurl", copy? = true}
+    },
+    {file-setting "start-tests.curl", start-file? = true}
+}

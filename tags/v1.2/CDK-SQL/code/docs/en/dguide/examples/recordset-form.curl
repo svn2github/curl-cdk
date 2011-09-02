@@ -1,0 +1,128 @@
+||| Copyright (C) 1998-2009, Sumisho Computer Systems Corp.  All Rights Reserved.
+|||
+||| An OpenCurl project.
+
+||| Licensed under the Apache License, Version 2.0 (the "License");
+||| you may not use this file except in compliance with the License.
+||| You may obtain a copy of the License at
+||| 
+|||     http://www.apache.org/licenses/LICENSE-2.0
+||| 
+||| Unless required by applicable law or agreed to in writing, software
+||| distributed under the License is distributed on an "AS IS" BASIS,
+||| WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+||| See the License for the specific language governing permissions and
+||| limitations under the License.
+
+{curl 7.0, 8.0 applet}
+{applet manifest = "../manifest.mcurl",
+    {compiler-directives careful? = true}}
+{import * from COM.CURL.CDK.SQLITE}
+
+{value
+    || database and connection
+    def db = {SQLiteDatabase null}
+    def con = {SQLiteConnection db}
+    || schema and data
+    {db.execute {read-from {url "products.sql"}}}
+    || recordset
+    def rs =
+        {SQLiteRecordSet.create-from-table-name con, "main",  
+            "products",
+            request-modifiable? = true,
+            strict-types? = true}
+    || form display
+    def update = || common change handler
+        {on ValueFinished at c:ValueControl do
+            {c.update-data-binding "value"}}
+    def rf =
+        {RecordForm record-source = rs,
+            {Table
+                {column-prototype halign = "right",
+                    {text ID},
+                    {text Name},
+                    {text Price}
+                },
+                {column-prototype halign = "left",
+                    {TextDisplay
+                        {bind value to "id"}},
+                    {TextField update,
+                        {bind value to "name"}},
+                    {SpinControl update, 
+                        domain =
+                            {StandardDoubleDomain
+                                min-allowable = 0.0},
+                        {bind value to "price"}}
+                },
+                || visual feedback of pending change
+                {bind background to "id" in rf:RecordForm,
+                    {format x:any as
+                        {switch rf.current-record.state
+                         case RecordState.original do "transparent"
+                         else "lightblue"}}}}}
+    
+    || operations
+    def autocommit =
+        {proc {}:bool
+            let ok?:bool = true
+            {if rf.current-record.pending-update? then
+                {try
+                    || attempt commit
+                    {rs.commit}
+                 catch ex:Exception do
+                    || commit failed: probably constraint violation
+                    {if {popup-question title = {lmessage Warning},
+                            {paragraph
+                                {text color = "red", {value ex}}
+                                
+                                Cancel pending update?}
+                        } == Dialog.yes
+                     then
+                        || retract pending change
+                        {rs.revert}
+                     else
+                        || veto change request, allowing correction
+                        set ok? = false
+                    }}}
+            {return ok?}}
+    def insert-record =
+        {proc {}:void
+            {autocommit}
+            || allocate record
+            def r = {rs.new-record}
+            || default values
+            set r["name"] = "(name)"
+            set r["price"] = 0.0
+            || insert
+            {rs.append r}
+            || focus on new record
+            || NOTE: identified by its lack of ID
+            set rf.current-index = 
+                {rf.records.find
+                    {RecordData id = null}}
+        }
+    || coordination
+    {rf.add-event-handler
+        {on e:CurrentRecordChangeRequest do
+            || autocommit pending update
+            {if not {autocommit} then
+                || veto change request, allowing correction
+                {e.consume}}
+        }}
+    || display
+    {VBox spacing = 3px,
+        rf,
+        {HBox margin = 3px, spacing = 6px,
+            {CommandButton label = {message Insert Record},
+                {on Action do
+                    {insert-record}}},
+            {CommandButton label = {message Delete Record},
+                {on Action do
+                    {if-non-null r = rf.current-record then
+                        {r.delete}}}},
+            {CommandButton label = {message Commit},
+                bound-command = {rf.get-command "commit"}},
+            {CommandButton label = {message Revert},
+                bound-command = {rf.get-command "revert"}},
+            {Fill}}}
+}
